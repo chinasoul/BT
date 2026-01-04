@@ -6,6 +6,19 @@
 
 ## ✨ 功能特色
 
+
+###截图展示
+<img width="189" height="139" alt="image" src="https://github.com/user-attachments/assets/52b04c2a-85b6-4e35-bc3b-10e6bd588a4e" />
+<img width="1193" height="666" alt="image" src="https://github.com/user-attachments/assets/7d779704-6709-49a3-957a-4253403bd71e" />
+<img width="1203" height="668" alt="image" src="https://github.com/user-attachments/assets/b6784e77-96c5-40da-b567-9e8c6574b704" />
+<img width="1069" height="569" alt="image" src="https://github.com/user-attachments/assets/209de939-bc94-4dc3-a8fd-1d9c57c4378d" />
+<img width="1080" height="558" alt="image" src="https://github.com/user-attachments/assets/aeb84e09-7388-4ab6-b9be-b0da0340ddde" />
+
+
+
+
+
+
 ### 🎬 视频播放
 - **多编解码器支持** - H.264 / H.265 / AV1 硬件解码，自动选择最优编码
 - **DASH 视频流** - 高质量视频 + 独立音轨播放

@@ -1,5 +1,4 @@
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+// Imports removed
 
 class MpdGenerator {
   /// 生成 DASH MPD 文件
@@ -48,13 +47,8 @@ class MpdGenerator {
     buffer.writeln('  </Period>');
     buffer.writeln('</MPD>');
 
-    // 保存到临时文件
-    final tempDir = await getTemporaryDirectory();
-    final file = File(
-      '${tempDir.path}/video_${DateTime.now().millisecondsSinceEpoch}.mpd',
-    );
-    await file.writeAsString(buffer.toString());
-    return file.path;
+    // 直接返回内容
+    return buffer.toString();
   }
 
   static void _writeRepresentation(
@@ -92,6 +86,21 @@ class MpdGenerator {
         .replaceAll("'", '&apos;');
 
     buffer.writeln('        <BaseURL>$escapedUrl</BaseURL>');
+
+    // 备用 URL (CDN 容灾)
+    if (stream['backupUrl'] != null && stream['backupUrl'] is List) {
+      for (final backup in stream['backupUrl']) {
+        if (backup != null && backup is String && backup.isNotEmpty) {
+          final escapedBackup = backup
+              .replaceAll('&', '&amp;')
+              .replaceAll('<', '&lt;')
+              .replaceAll('>', '&gt;')
+              .replaceAll('"', '&quot;')
+              .replaceAll("'", '&apos;');
+          buffer.writeln('        <BaseURL>$escapedBackup</BaseURL>');
+        }
+      }
+    }
 
     // 初始化范围 (分片 MP4 必须)
     // Bilibili 通常通过 SegmentBase 提供 Initialization 和 indexRange

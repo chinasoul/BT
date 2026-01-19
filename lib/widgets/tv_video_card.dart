@@ -5,6 +5,7 @@ import 'base_tv_card.dart';
 import 'staggered_image.dart';
 import 'conditional_marquee.dart';
 import '../services/settings_service.dart'; // 包含 BiliCacheManager
+import '../utils/image_url_utils.dart';
 
 class TvVideoCard extends StatelessWidget {
   final Video video;
@@ -195,7 +196,11 @@ class TvVideoCard extends StatelessWidget {
     // 交错加载逻辑
     if (staggerIndex != null) {
       return StaggeredImage(
-        imageUrl: video.pic,
+        imageUrl: ImageUrlUtils.getResizedUrl(
+          video.pic,
+          width: 360,
+          height: 200,
+        ),
         delayMs: staggerIndex! * 80,
         fit: BoxFit.cover,
         cacheWidth: targetWidth,
@@ -205,7 +210,7 @@ class TvVideoCard extends StatelessWidget {
 
     // 标准加载逻辑 (用于预加载过的数据或不需要交错的数据)
     return CachedNetworkImage(
-      imageUrl: video.pic,
+      imageUrl: ImageUrlUtils.getResizedUrl(video.pic, width: 360, height: 200),
       fit: BoxFit.cover,
       // 这里的尺寸必须和 SplashScreen 完全一致
       memCacheWidth: targetWidth,

@@ -19,7 +19,7 @@ class LocalServer {
   LocalServer._internal();
 
   HttpServer? _server;
-  File? _currentMpdFile;
+  String? _currentMpdContent;
   String? _localIp;
 
   static const int port = 3322;
@@ -90,18 +90,18 @@ class LocalServer {
   Future<void> stop() async {
     await _server?.close();
     _server = null;
-    _currentMpdFile = null;
+    _currentMpdContent = null;
     debugPrint('🔴 LocalServer stopped');
   }
 
-  /// 设置当前 MPD 文件 (播放器调用)
-  void setMpdFile(File file) {
-    _currentMpdFile = file;
+  /// 设置当前 MPD 内容
+  void setMpdContent(String content) {
+    _currentMpdContent = content;
   }
 
-  /// 清除 MPD 文件
-  void clearMpdFile() {
-    _currentMpdFile = null;
+  /// 清除 MPD 内容
+  void clearMpdContent() {
+    _currentMpdContent = null;
   }
 
   /// 处理 HTTP 请求
@@ -154,9 +154,9 @@ class LocalServer {
 
   /// 提供 MPD 文件
   Future<void> _serveMpd(HttpRequest request) async {
-    if (_currentMpdFile == null || !await _currentMpdFile!.exists()) {
+    if (_currentMpdContent == null) {
       request.response.statusCode = 404;
-      request.response.write('No MPD file available');
+      request.response.write('No MPD content available');
       return;
     }
 
@@ -164,7 +164,7 @@ class LocalServer {
       'application',
       'dash+xml',
     );
-    await request.response.addStream(_currentMpdFile!.openRead());
+    request.response.write(_currentMpdContent);
   }
 
   /// 处理 API 请求

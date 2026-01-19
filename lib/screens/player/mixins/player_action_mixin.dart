@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -242,11 +241,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
         // 如果有 DASH 数据，生成 MPD 并使用全局服务器
         if (playInfo['dashData'] != null) {
-          final mpdPath = await MpdGenerator.generate(playInfo['dashData']);
-          final mpdFile = File(mpdPath);
+          final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
 
-          // 使用全局 LocalServer 提供 MPD 文件
-          LocalServer.instance.setMpdFile(mpdFile);
+          // 使用全局 LocalServer 提供 MPD 内容 (纯内存)
+          LocalServer.instance.setMpdContent(mpdContent);
           playUrl = LocalServer.instance.mpdUrl;
         } else {
           // 回退到直接 URL (mp4/flv)
@@ -523,7 +521,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     await videoController?.dispose();
     videoController = null;
-    LocalServer.instance.clearMpdFile();
+    LocalServer.instance.clearMpdContent();
   }
 
   /// 获取在线观看人数
@@ -1130,7 +1128,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
     cancelPlayerListeners();
     await videoController?.dispose();
     videoController = null;
-    LocalServer.instance.clearMpdFile();
+    videoController = null;
+    LocalServer.instance.clearMpdContent();
 
     try {
       final playInfo = await BilibiliApi.getVideoPlayUrl(
@@ -1150,10 +1149,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
         String? playUrl;
 
         if (playInfo['dashData'] != null) {
-          final mpdPath = await MpdGenerator.generate(playInfo['dashData']);
-          final mpdFile = File(mpdPath);
+          final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
 
-          LocalServer.instance.setMpdFile(mpdFile);
+          LocalServer.instance.setMpdContent(mpdContent);
           playUrl = LocalServer.instance.mpdUrl;
         } else {
           playUrl = playInfo['url'];
@@ -1258,7 +1256,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 清理旧播放器
       cancelPlayerListeners();
       await videoController?.dispose();
-      LocalServer.instance.clearMpdFile();
+      LocalServer.instance.clearMpdContent();
 
       currentQuality = playInfo['currentQuality'] ?? qn;
       currentAudioUrl = playInfo['audioUrl'];
@@ -1266,10 +1264,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
       String? playUrl;
 
       if (playInfo['dashData'] != null) {
-        final mpdPath = await MpdGenerator.generate(playInfo['dashData']);
-        final mpdFile = File(mpdPath);
+        final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
 
-        LocalServer.instance.setMpdFile(mpdFile);
+        LocalServer.instance.setMpdContent(mpdContent);
         playUrl = LocalServer.instance.mpdUrl;
       } else {
         playUrl = playInfo['url'];

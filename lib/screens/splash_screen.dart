@@ -9,6 +9,7 @@ import '../services/update_service.dart';
 import '../services/bilibili_api.dart';
 import '../models/video.dart';
 import 'home_screen.dart';
+import '../utils/image_url_utils.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -117,9 +118,8 @@ class _SplashScreenState extends State<SplashScreen> {
         preloadedVideos = videos;
 
         if (mounted && preloadedVideos.isNotEmpty) {
-          final int count = preloadedVideos.length > 12
-              ? 12
-              : preloadedVideos.length;
+          // 【用户请求】取消 12 个的数量限制，全部预加载
+          final int count = preloadedVideos.length;
 
           // 【核心修复】创建预加载任务列表
           List<Future<void>> imageTasks = [];
@@ -131,8 +131,13 @@ class _SplashScreenState extends State<SplashScreen> {
               // 1. maxWidth: 360
               // 2. maxHeight: 200 (原本缺失导致缓存不匹配)
               // 3. cacheManager: BiliCacheManager.instance (原本缺失导致路径不匹配)
-              final imageProvider = CachedNetworkImageProvider(
+              final optimizedUrl = ImageUrlUtils.getResizedUrl(
                 url,
+                width: 640,
+                height: 360,
+              );
+              final imageProvider = CachedNetworkImageProvider(
+                optimizedUrl,
                 maxWidth: 360,
                 maxHeight: 200,
                 cacheManager: BiliCacheManager.instance,

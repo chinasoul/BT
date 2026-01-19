@@ -44,3 +44,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 build_apk.bat
+lib/config/env.dart

@@ -4,6 +4,7 @@ import 'package:marquee/marquee.dart';
 import '../models/video.dart';
 import '../services/settings_service.dart';
 import 'base_tv_card.dart';
+import '../utils/image_url_utils.dart';
 
 /// 历史记录专用视频卡片
 /// 特点：
@@ -263,7 +264,7 @@ class HistoryVideoCard extends StatelessWidget {
     const int targetHeight = 200;
 
     return CachedNetworkImage(
-      imageUrl: video.pic,
+      imageUrl: ImageUrlUtils.getResizedUrl(video.pic, width: 640, height: 360),
       fit: BoxFit.cover,
       memCacheWidth: targetWidth,
       memCacheHeight: targetHeight,

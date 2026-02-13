@@ -336,11 +336,11 @@ class SettingsViewState extends State<SettingsView> {
 
             const SizedBox(height: 20),
 
-            // 设置内容区域
+            // 设置内容区域 - IndexedStack 保持各 tab 状态，避免切换时重复加载
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: _buildContent(moveToCurrentTab),
+              child: IndexedStack(
+                index: _selectedCategoryIndex,
+                children: _buildAllContents(moveToCurrentTab),
               ),
             ),
           ],
@@ -352,8 +352,18 @@ class SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildContent(VoidCallback moveToCurrentTab) {
-    switch (_visibleCategories[_selectedCategoryIndex]) {
+  List<Widget> _buildAllContents(VoidCallback moveToCurrentTab) {
+    return _visibleCategories.map((category) {
+      final content = _buildContentForCategory(category, moveToCurrentTab);
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: content,
+      );
+    }).toList();
+  }
+
+  Widget _buildContentForCategory(SettingsCategory category, VoidCallback moveToCurrentTab) {
+    switch (category) {
       case SettingsCategory.playback:
         return PlaybackSettings(
           onMoveUp: moveToCurrentTab,
@@ -365,13 +375,7 @@ class SettingsViewState extends State<SettingsView> {
           sidebarFocusNode: widget.sidebarFocusNode,
         );
       case SettingsCategory.plugins:
-        if (BuildFlags.pluginsEnabled) {
-          return PluginsSettingsTab(
-            onMoveUp: moveToCurrentTab,
-            sidebarFocusNode: widget.sidebarFocusNode,
-          );
-        }
-        return StorageSettings(
+        return PluginsSettingsTab(
           onMoveUp: moveToCurrentTab,
           sidebarFocusNode: widget.sidebarFocusNode,
         );

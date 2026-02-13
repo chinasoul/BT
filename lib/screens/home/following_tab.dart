@@ -26,7 +26,19 @@ class FollowingTab extends StatefulWidget {
 }
 
 class FollowingTabState extends State<FollowingTab> {
-  final ScrollController _scrollController = ScrollController();
+  // 每个子 tab 独立的 ScrollController，切换 tab 时保持各自滚动位置
+  final ScrollController _followingScrollController = ScrollController();
+  final ScrollController _favoritesScrollController = ScrollController();
+  final ScrollController _watchLaterScrollController = ScrollController();
+
+  ScrollController get _activeScrollController {
+    switch (_selectedTabIndex) {
+      case 0: return _followingScrollController;
+      case 1: return _favoritesScrollController;
+      default: return _watchLaterScrollController;
+    }
+  }
+
   final Map<int, FocusNode> _followingFocusNodes = {};
   final Map<int, FocusNode> _favoriteVideoFocusNodes = {};
   final Map<int, FocusNode> _watchLaterFocusNodes = {};
@@ -65,7 +77,8 @@ class FollowingTabState extends State<FollowingTab> {
   void initState() {
     super.initState();
     _tabFocusNodes = List.generate(3, (_) => FocusNode());
-    _scrollController.addListener(_onScroll);
+    _followingScrollController.addListener(_onFollowingScroll);
+    _favoritesScrollController.addListener(_onFavoritesScroll);
   }
 
   @override
@@ -76,8 +89,11 @@ class FollowingTabState extends State<FollowingTab> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _followingScrollController.removeListener(_onFollowingScroll);
+    _followingScrollController.dispose();
+    _favoritesScrollController.removeListener(_onFavoritesScroll);
+    _favoritesScrollController.dispose();
+    _watchLaterScrollController.dispose();
     for (final node in _followingFocusNodes.values) {
       node.dispose();
     }
@@ -112,26 +128,20 @@ class FollowingTabState extends State<FollowingTab> {
     return _watchLaterFocusNodes.putIfAbsent(index, () => FocusNode());
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels <
-        _scrollController.position.maxScrollExtent - 200) {
-      return;
-    }
-
-    if (_selectedTabIndex == 0 &&
-        !_followingLoading &&
-        !_followingLoadingMore &&
-        _followingHasMore &&
-        _users.length < 60) {
+  void _onFollowingScroll() {
+    if (_followingScrollController.position.pixels <
+        _followingScrollController.position.maxScrollExtent - 200) return;
+    if (!_followingLoading && !_followingLoadingMore &&
+        _followingHasMore && _users.length < 60) {
       _loadFollowingUsers(reset: false);
-      return;
     }
+  }
 
-    if (_selectedTabIndex == 1 &&
-        !_favoritesLoading &&
-        !_favoritesLoadingMore &&
-        _favoritesHasMore &&
-        _favoriteVideos.length < 60) {
+  void _onFavoritesScroll() {
+    if (_favoritesScrollController.position.pixels <
+        _favoritesScrollController.position.maxScrollExtent - 200) return;
+    if (!_favoritesLoading && !_favoritesLoadingMore &&
+        _favoritesHasMore && _favoriteVideos.length < 60) {
       _loadFavoriteVideos(reset: false);
     }
   }
@@ -169,12 +179,13 @@ class FollowingTabState extends State<FollowingTab> {
   void _switchTab(int index, {bool refreshIfSame = true}) {
     if (_selectedTabIndex == index) {
       if (refreshIfSame) {
+        _scrollToTop();
         _loadCurrentTab(reset: true);
       }
       return;
     }
     setState(() => _selectedTabIndex = index);
-    _scrollToTop();
+    // 不重置滚动位置，IndexedStack 保持各 tab 的滚动状态
     _loadCurrentTab(reset: false);
   }
 
@@ -369,7 +380,9 @@ class FollowingTabState extends State<FollowingTab> {
       }
       return;
     }
-    _scrollToTop();
+    if (_favoritesScrollController.hasClients) {
+      _favoritesScrollController.jumpTo(0);
+    }
     _showFolder(index);
   }
 
@@ -410,8 +423,9 @@ class FollowingTabState extends State<FollowingTab> {
   }
 
   void _scrollToTop() {
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(0);
+    final controller = _activeScrollController;
+    if (controller.hasClients) {
+      controller.jumpTo(0);
     }
   }
 
@@ -436,18 +450,6 @@ class FollowingTabState extends State<FollowingTab> {
             UpSpaceScreen(upMid: user.mid, upName: user.uname, upFace: user.face),
       ),
     );
-  }
-
-  bool get _isCurrentLoading {
-    if (_selectedTabIndex == 0) return _followingLoading;
-    if (_selectedTabIndex == 1) return _favoritesLoading;
-    return _watchLaterLoading;
-  }
-
-  bool get _isCurrentLoadingMore {
-    if (_selectedTabIndex == 0) return _followingLoadingMore;
-    if (_selectedTabIndex == 1) return _favoritesLoadingMore;
-    return false;
   }
 
   Widget _buildTopTabs() {
@@ -506,36 +508,64 @@ class FollowingTabState extends State<FollowingTab> {
   }
 
   Widget _buildCurrentContent() {
-    if (_isCurrentLoading) {
+    // 使用 IndexedStack 保持各子 tab 的 widget 状态和滚动位置
+    return IndexedStack(
+      index: _selectedTabIndex,
+      children: [
+        _buildFollowingContent(),
+        _buildFavoritesContent(),
+        _buildWatchLaterContent(),
+      ],
+    );
+  }
+
+  Widget _buildFollowingContent() {
+    if (_followingLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    if (_selectedTabIndex == 0) {
-      if (_users.isEmpty) {
-        return _buildEmpty('暂无关注', Icons.people_outline);
-      }
-      return _buildFollowingGrid();
+    if (!_hasLoadedFollowing) {
+      return const SizedBox.shrink();
     }
-
-    if (_selectedTabIndex == 1) {
-      if (_folders.isEmpty) {
-        return _buildEmpty('暂无收藏夹', Icons.folder_open);
-      }
-      if (_favoriteVideos.isEmpty) {
-        return _buildEmpty('当前收藏夹暂无视频', Icons.video_library_outlined);
-      }
-      return _buildVideoGrid(
-        videos: _favoriteVideos,
-        focusNodeAt: _getFavoriteVideoFocusNode,
-      );
+    if (_users.isEmpty) {
+      return _buildEmpty('暂无关注', Icons.people_outline);
     }
+    return _buildFollowingGrid();
+  }
 
+  Widget _buildFavoritesContent() {
+    if (_favoritesLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!_hasLoadedFavorites) {
+      return const SizedBox.shrink();
+    }
+    if (_folders.isEmpty) {
+      return _buildEmpty('暂无收藏夹', Icons.folder_open);
+    }
+    if (_favoriteVideos.isEmpty) {
+      return _buildEmpty('当前收藏夹暂无视频', Icons.video_library_outlined);
+    }
+    return _buildVideoGrid(
+      videos: _favoriteVideos,
+      focusNodeAt: _getFavoriteVideoFocusNode,
+      scrollController: _favoritesScrollController,
+    );
+  }
+
+  Widget _buildWatchLaterContent() {
+    if (_watchLaterLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!_hasLoadedWatchLater) {
+      return const SizedBox.shrink();
+    }
     if (_watchLaterVideos.isEmpty) {
       return _buildEmpty('稍后再看为空', Icons.watch_later_outlined);
     }
     return _buildVideoGrid(
       videos: _watchLaterVideos,
       focusNodeAt: _getWatchLaterFocusNode,
+      scrollController: _watchLaterScrollController,
     );
   }
 
@@ -554,7 +584,7 @@ class FollowingTabState extends State<FollowingTab> {
 
   Widget _buildFollowingGrid() {
     return CustomScrollView(
-      controller: _scrollController,
+      controller: _followingScrollController,
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 90, 24, 80),
@@ -596,7 +626,7 @@ class FollowingTabState extends State<FollowingTab> {
             }, childCount: _users.length),
           ),
         ),
-        if (_isCurrentLoadingMore)
+        if (_followingLoadingMore)
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.all(20),
@@ -610,12 +640,13 @@ class FollowingTabState extends State<FollowingTab> {
   Widget _buildVideoGrid({
     required List<Video> videos,
     required FocusNode Function(int index) focusNodeAt,
+    required ScrollController scrollController,
   }) {
     final gridColumns = SettingsService.videoGridColumns;
     // 收藏夹存在子标签时，给列表更大顶部间距，避免覆盖第一行卡片
     final topPadding = (_selectedTabIndex == 1 && _folders.isNotEmpty) ? 120.0 : 90.0;
     return CustomScrollView(
-      controller: _scrollController,
+      controller: scrollController,
       slivers: [
         SliverPadding(
           padding: EdgeInsets.fromLTRB(24, topPadding, 24, 80),
@@ -665,7 +696,7 @@ class FollowingTabState extends State<FollowingTab> {
             }, childCount: videos.length),
           ),
         ),
-        if (_isCurrentLoadingMore)
+        if (_favoritesLoadingMore && _selectedTabIndex == 1)
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.all(20),
@@ -677,17 +708,18 @@ class FollowingTabState extends State<FollowingTab> {
   }
 
   void _scrollToCard(BuildContext cardContext) {
-    if (!_scrollController.hasClients) return;
+    final controller = _activeScrollController;
+    if (!controller.hasClients) return;
     final RenderObject? object = cardContext.findRenderObject();
     if (object != null && object is RenderBox) {
       final viewport = RenderAbstractViewport.of(object);
       final offsetToReveal = viewport.getOffsetToReveal(object, 0.0).offset;
       final targetOffset = (offsetToReveal - 120).clamp(
         0.0,
-        _scrollController.position.maxScrollExtent,
+        controller.position.maxScrollExtent,
       );
-      if ((_scrollController.offset - targetOffset).abs() > 50) {
-        _scrollController.animateTo(
+      if ((controller.offset - targetOffset).abs() > 50) {
+        controller.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeOutCubic,

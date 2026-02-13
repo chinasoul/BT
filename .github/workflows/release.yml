@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要构建的 tag 名称（如 v0.3）"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -12,9 +18,15 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
+    env:
+      # 统一 tag 名：push tag 时用 GITHUB_REF_NAME，手动触发时用 inputs.tag
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -35,10 +47,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          NOTES_FILE="release-notes/${GITHUB_REF_NAME}.md"
+          NOTES_FILE="release-notes/${RELEASE_TAG}.md"
           if [[ ! -f "$NOTES_FILE" ]]; then
             echo "Release notes file not found: $NOTES_FILE" >&2
-            echo "Please add this file before pushing tag ${GITHUB_REF_NAME}." >&2
+            echo "Please add this file before pushing tag ${RELEASE_TAG}." >&2
             exit 1
           fi
           echo "RELEASE_NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
@@ -75,15 +87,15 @@ jobs:
       - name: Upload Symbols Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: symbols-${{ github.ref_name }}
+          name: symbols-${{ env.RELEASE_TAG }}
           path: build/symbols
           if-no-files-found: error
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           body_path: ${{ env.RELEASE_NOTES_FILE }}
           files: |
             release-assets/v7a.apk

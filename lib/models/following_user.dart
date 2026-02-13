@@ -15,6 +15,30 @@ class FollowingUser {
     this.isOfficial = false,
   });
 
+  /// 序列化为 Map (用于本地缓存)
+  Map<String, dynamic> toMap() {
+    return {
+      'mid': mid,
+      'uname': uname,
+      'face': face,
+      'sign': sign,
+      'isVip': isVip,
+      'isOfficial': isOfficial,
+    };
+  }
+
+  /// 从本地缓存 Map 反序列化
+  factory FollowingUser.fromMap(Map<String, dynamic> json) {
+    return FollowingUser(
+      mid: json['mid'] ?? 0,
+      uname: json['uname'] ?? '',
+      face: json['face'] ?? '',
+      sign: json['sign'] ?? '',
+      isVip: json['isVip'] ?? false,
+      isOfficial: json['isOfficial'] ?? false,
+    );
+  }
+
   factory FollowingUser.fromJson(Map<String, dynamic> json) {
     final vipInfo = json['vip'] as Map<String, dynamic>? ?? {};
     final official = json['official_verify'] as Map<String, dynamic>? ?? {};

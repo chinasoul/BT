@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import 'package:keframe/keframe.dart';
@@ -36,9 +38,11 @@ class DynamicTabState extends State<DynamicTab> {
   @override
   void initState() {
     super.initState();
-    // 只有第一次可见时才加载
+    // 只有第一次可见时才加载（优先缓存）
     if (widget.isVisible && AuthService.isLoggedIn) {
-      _loadDynamic(refresh: true);
+      if (!_tryLoadFromCache()) {
+        _loadDynamic(refresh: true);
+      }
       _hasLoaded = true;
     }
     _scrollController.addListener(_onScroll);
@@ -47,12 +51,14 @@ class DynamicTabState extends State<DynamicTab> {
   @override
   void didUpdateWidget(DynamicTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 之前不可见，现在可见了，且没加载过 -> 加载
+    // 之前不可见，现在可见了，且没加载过 -> 优先缓存
     if (widget.isVisible &&
         !oldWidget.isVisible &&
         !_hasLoaded &&
         AuthService.isLoggedIn) {
-      _loadDynamic(refresh: true);
+      if (!_tryLoadFromCache()) {
+        _loadDynamic(refresh: true);
+      }
       _hasLoaded = true;
     }
   }
@@ -143,6 +149,74 @@ class DynamicTabState extends State<DynamicTab> {
       _isLoadingMore = false;
       _isRefreshing = false; // 刷新完成
     });
+
+    // 首次加载完成后保存缓存
+    if (refresh && _videos.isNotEmpty) {
+      _saveDynamicCache();
+    }
+  }
+
+  /// 保存动态到本地缓存（包含分页 offset）
+  void _saveDynamicCache() {
+    try {
+      final data = {
+        'videos': _videos.map((v) => v.toMap()).toList(),
+        'offset': _offset,
+      };
+      final json = jsonEncode(data);
+      SettingsService.setCachedDynamicJson(json);
+    } catch (_) {}
+  }
+
+  /// 从本地缓存加载动态，成功返回 true
+  bool _tryLoadFromCache() {
+    final jsonStr = SettingsService.cachedDynamicJson;
+    if (jsonStr == null) return false;
+    try {
+      final decoded = jsonDecode(jsonStr);
+
+      // 兼容旧格式（纯 List）和新格式（含 offset 的 Map）
+      List videoList;
+      String offset = '';
+      if (decoded is List) {
+        videoList = decoded;
+      } else if (decoded is Map) {
+        videoList = decoded['videos'] as List;
+        offset = decoded['offset'] as String? ?? '';
+      } else {
+        return false;
+      }
+
+      final videos = videoList
+          .map((item) => Video.fromMap(item as Map<String, dynamic>))
+          .toList();
+      if (videos.isEmpty) return false;
+      setState(() {
+        _videos = videos;
+        _isLoading = false;
+        _offset = offset;
+        _hasMore = offset.isNotEmpty;
+      });
+      // 显示上次更新时间
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final timeStr = SettingsService.formatTimestamp(
+          SettingsService.lastDynamicRefreshTime,
+        );
+        if (timeStr.isNotEmpty) {
+          Fluttertoast.showToast(
+            msg: timeStr,
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            backgroundColor: Colors.black.withValues(alpha: 0.7),
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+        }
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _loadMore() async {
@@ -270,12 +344,12 @@ class DynamicTabState extends State<DynamicTab> {
                                         index - gridColumns,
                                       ).requestFocus()
                                     : () {}, // 最顶行为无效输入
-                                // 严格按列向下移动
+                                // 严格按列向下移动；最后一行用空回调阻止焦点逃逸
                                 onMoveDown: (index + gridColumns < _videos.length)
                                     ? () => _getFocusNode(
                                         index + gridColumns,
                                       ).requestFocus()
-                                    : null,
+                                    : () {},
                                 onFocus: () {
                                   if (!_scrollController.hasClients) return;
 

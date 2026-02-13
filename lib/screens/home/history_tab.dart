@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/rendering.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import 'package:keframe/keframe.dart';
@@ -39,7 +41,9 @@ class HistoryTabState extends State<HistoryTab> {
     super.initState();
     _scrollController.addListener(_onScroll);
     if (widget.isVisible && AuthService.isLoggedIn) {
-      _loadHistory(reset: true);
+      if (!_tryLoadFromCache()) {
+        _loadHistory(reset: true);
+      }
       _hasLoaded = true;
     }
   }
@@ -51,7 +55,9 @@ class HistoryTabState extends State<HistoryTab> {
         !oldWidget.isVisible &&
         !_hasLoaded &&
         AuthService.isLoggedIn) {
-      _loadHistory(reset: true);
+      if (!_tryLoadFromCache()) {
+        _loadHistory(reset: true);
+      }
       _hasLoaded = true;
     }
   }
@@ -160,6 +166,56 @@ class HistoryTabState extends State<HistoryTab> {
         _hasMore = false;
       }
     });
+
+    // 首次加载完成后保存缓存
+    if (reset && _videos.isNotEmpty) {
+      _saveHistoryCache();
+    }
+  }
+
+  /// 保存历史记录到本地缓存
+  void _saveHistoryCache() {
+    try {
+      final json = jsonEncode(_videos.map((v) => v.toMap()).toList());
+      SettingsService.setCachedHistoryJson(json);
+    } catch (_) {}
+  }
+
+  /// 从本地缓存加载历史记录，成功返回 true
+  bool _tryLoadFromCache() {
+    final jsonStr = SettingsService.cachedHistoryJson;
+    if (jsonStr == null) return false;
+    try {
+      final list = jsonDecode(jsonStr) as List;
+      final videos = list
+          .map((item) => Video.fromMap(item as Map<String, dynamic>))
+          .toList();
+      if (videos.isEmpty) return false;
+      setState(() {
+        _videos = videos;
+        _isLoading = false;
+        _hasMore = false; // 缓存不支持加载更多
+      });
+      // 显示上次更新时间
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final timeStr = SettingsService.formatTimestamp(
+          SettingsService.lastHistoryRefreshTime,
+        );
+        if (timeStr.isNotEmpty) {
+          Fluttertoast.showToast(
+            msg: timeStr,
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            backgroundColor: Colors.black.withValues(alpha: 0.7),
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+        }
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _onVideoTap(Video video) {

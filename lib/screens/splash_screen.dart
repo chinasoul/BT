@@ -42,63 +42,59 @@ class _SplashScreenState extends State<SplashScreen> {
       });
     }
 
-    // 异步预加载数据
-    final preloadFuture = Future(() async {
-      try {
-        final videos = await BilibiliApi.getRecommendVideos(idx: 0);
-        preloadedVideos = videos;
+    // 根据设置决定是否预加载首页数据
+    if (SettingsService.autoRefreshOnLaunch) {
+      // 【开启自动刷新】异步预加载数据
+      final preloadFuture = Future(() async {
+        try {
+          final videos = await BilibiliApi.getRecommendVideos(idx: 0);
+          preloadedVideos = videos;
 
-        if (mounted && preloadedVideos.isNotEmpty) {
-          // 【用户请求】取消 12 个的数量限制，全部预加载
-          final int count = preloadedVideos.length;
+          if (mounted && preloadedVideos.isNotEmpty) {
+            final int count = preloadedVideos.length;
+            List<Future<void>> imageTasks = [];
 
-          // 【核心修复】创建预加载任务列表
-          List<Future<void>> imageTasks = [];
+            for (int i = 0; i < count; i++) {
+              final url = preloadedVideos[i].pic;
+              if (url.isNotEmpty) {
+                final optimizedUrl = ImageUrlUtils.getResizedUrl(
+                  url,
+                  width: 640,
+                  height: 360,
+                );
+                final imageProvider = CachedNetworkImageProvider(
+                  optimizedUrl,
+                  maxWidth: 360,
+                  maxHeight: 200,
+                  cacheManager: BiliCacheManager.instance,
+                );
 
-          for (int i = 0; i < count; i++) {
-            final url = preloadedVideos[i].pic;
-            if (url.isNotEmpty) {
-              // 【必须完全匹配 TvVideoCard 的参数】
-              // 1. maxWidth: 360
-              // 2. maxHeight: 200 (原本缺失导致缓存不匹配)
-              // 3. cacheManager: BiliCacheManager.instance (原本缺失导致路径不匹配)
-              final optimizedUrl = ImageUrlUtils.getResizedUrl(
-                url,
-                width: 640,
-                height: 360,
-              );
-              final imageProvider = CachedNetworkImageProvider(
-                optimizedUrl,
-                maxWidth: 360,
-                maxHeight: 200,
-                cacheManager: BiliCacheManager.instance,
-              );
-
-              imageTasks.add(
-                precacheImage(imageProvider, context).catchError((e) {
-                  debugPrint('Image preload failed: $url');
-                }),
-              );
+                imageTasks.add(
+                  precacheImage(imageProvider, context).catchError((e) {
+                    debugPrint('Image preload failed: $url');
+                  }),
+                );
+              }
+            }
+            if (imageTasks.isNotEmpty) {
+              await Future.wait(imageTasks);
             }
           }
-          // 并行等待所有图片下载
-          if (imageTasks.isNotEmpty) {
-            await Future.wait(imageTasks);
-          }
+        } catch (e) {
+          debugPrint('Preload videos failed: $e');
         }
+      });
+
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      try {
+        await preloadFuture.timeout(const Duration(milliseconds: 300));
       } catch (e) {
-        debugPrint('Preload videos failed: $e');
+        // 预加载未完成，忽略异常
       }
-    });
-
-    // 无启动图模式下仅保留短暂过渡，避免白屏闪烁感
-    await Future.delayed(const Duration(milliseconds: 150));
-
-    // 尝试拿到预加载结果，超时则直接进主页
-    try {
-      await preloadFuture.timeout(const Duration(milliseconds: 300));
-    } catch (e) {
-      // 预加载未完成，忽略异常，preloadedVideos 可能是空的
+    } else {
+      // 【关闭自动刷新】不预加载，仅短暂过渡
+      await Future.delayed(const Duration(milliseconds: 150));
     }
 
     if (mounted) {

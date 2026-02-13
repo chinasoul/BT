@@ -110,7 +110,7 @@ class _LiveSettingsPanelState extends State<LiveSettingsPanel> {
       top: 0,
       right: 0,
       bottom: 0,
-      width: 350,
+      width: 250,
       child: Container(
         color: const Color(0xFF1F1F1F).withValues(alpha: 0.95),
         child: Column(
@@ -202,6 +202,16 @@ class _LiveSettingsPanelState extends State<LiveSettingsPanel> {
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+          child: Text(
+            '仅对当前直播生效，全局默认值请在 设置→弹幕设置 中修改',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 12,
+            ),
+          ),
+        ),
         _buildSettingItem(
           index: 0,
           icon: widget.danmakuEnabled ? Icons.subtitles : Icons.subtitles_off,

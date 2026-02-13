@@ -107,14 +107,28 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 启动动画开关
+        // 启动时自动刷新首页
+        SettingToggleRow(
+          label: '启动时自动刷新首页',
+          subtitle: '关闭后启动时使用缓存数据，显示上次更新时间',
+          value: SettingsService.autoRefreshOnLaunch,
+          autofocus: true,
+          isFirst: true,
+          onMoveUp: widget.onMoveUp,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (value) async {
+            await SettingsService.setAutoRefreshOnLaunch(value);
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: 10),
+        // 每行视频列数
         SettingActionRow(
           label: '每行视频列数',
           value: '当前: $_videoGridColumns 列',
           buttonLabel: '切换：$_videoGridColumns',
-          autofocus: true,
-          isFirst: true,
-          onMoveUp: widget.onMoveUp,
+          autofocus: false,
+          onMoveUp: null,
           sidebarFocusNode: widget.sidebarFocusNode,
           onTap: () async {
             const options = [4, 5, 6];

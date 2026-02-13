@@ -16,6 +16,7 @@ import 'widgets/up_panel.dart';
 import 'widgets/related_panel.dart';
 import 'widgets/mini_progress_bar.dart';
 import 'widgets/seek_preview_thumbnail.dart';
+import 'widgets/next_episode_preview.dart';
 import '../../widgets/time_display.dart';
 import '../../services/codec_service.dart';
 import 'mixins/player_state_mixin.dart';
@@ -117,11 +118,13 @@ class _PlayerScreenState extends State<PlayerScreen>
                   !showControls &&
                   SettingsService.showMiniProgress)
                 MiniProgressBar(
-                  position: videoController!.value.position,
+                  // 批量快进时使用累积目标位置，否则使用实际播放位置
+                  position: pendingSeekTarget ?? videoController!.value.position,
                   duration: videoController!.value.duration,
-                  buffered: videoController!.value.buffered.isNotEmpty
-                      ? videoController!.value.buffered.last.end
-                      : Duration.zero,
+                  // 快进中或刚提交后短暂隐藏缓冲条，防止旧数据闪烁
+                  bufferedRanges: (pendingSeekTarget != null || hideBufferAfterSeek)
+                      ? const []
+                      : videoController!.value.buffered,
                 ),
 
               // 快进快退指示器 (含预览缩略图)
@@ -148,9 +151,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                               scale: 0.6,
                             ),
                           ),
-                        // 时间指示器
+                        // 时间指示器（预览模式或批量快进都使用 previewPosition）
                         Text(
-                          isSeekPreviewMode && previewPosition != null
+                          previewPosition != null
                               ? '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}'
                               : '${_formatSeekTime(videoController!.value.position)} / ${_formatSeekTime(videoController!.value.duration)}',
                           style: const TextStyle(
@@ -201,6 +204,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                       });
                     },
                     onEpisodes: () {
+                      ensureEpisodesLoaded(); // 按需加载完整集数列表
                       setState(() {
                         showEpisodePanel = true;
                         hideTimer?.cancel();
@@ -217,15 +221,40 @@ class _PlayerScreenState extends State<PlayerScreen>
                     danmakuCount: danmakuList.length,
                     showStatsForNerds: showStatsForNerds,
                     onToggleStatsForNerds: toggleStatsForNerds,
+                    // showAutoPlayHint 已移除，排查白屏问题
                   ),
                 ),
 
-              // 常驻时间显示 (当启用且不显示控制栏时，或 controlsOverlay 隐藏了其内部时间时)
-              // 注意：ControlsOverlay 在 alwaysShowPlayerTime=true 时会隐藏内部时间但保留占位
-              // 常驻时间显示 (当启用且不显示控制栏时，或 controlsOverlay 隐藏了其内部时间时)
-              // 注意：ControlsOverlay 在 alwaysShowPlayerTime=true 时会隐藏内部时间但保留占位
+              // 常驻时间显示
               if (SettingsService.alwaysShowPlayerTime)
                 const Positioned(top: 10, right: 14, child: TimeDisplay()),
+
+              // 自动连播提示 (全局开启 + 多集视频时显示)
+              if (SettingsService.autoPlay &&
+                  hasMultipleEpisodes &&
+                  !isLoading &&
+                  videoController != null)
+                Positioned(
+                  top: SettingsService.alwaysShowPlayerTime ? 40 : 14,
+                  right: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '自动连播已开启',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
 
               // 进度条拖动预览
               if (isProgressBarFocused &&
@@ -267,6 +296,19 @@ class _PlayerScreenState extends State<PlayerScreen>
                   ),
                 ),
 
+              // 下一集预览（即将播放完毕时从右下角滑入）
+              // 仅在需要时加入 widget 树，避免 AnimatedPositioned 持续占用渲染层
+              if (showNextEpisodePreview &&
+                  !isLoading &&
+                  videoController != null &&
+                  nextEpisodeInfo != null)
+                NextEpisodePreview(
+                  visible: true,
+                  title: nextEpisodeInfo?['title'] ?? '',
+                  pic: nextEpisodeInfo?['pic'],
+                  countdown: nextEpisodeCountdown,
+                ),
+
               // 选集面板
               if (showEpisodePanel)
                 EpisodePanel(
@@ -280,6 +322,11 @@ class _PlayerScreenState extends State<PlayerScreen>
                       showControls = true;
                     });
                     startHideTimer();
+                  },
+                  isUgcSeason: isUgcSeason,
+                  currentBvid: widget.video.bvid,
+                  onUgcEpisodeSelect: (bvid) {
+                    switchEpisode(0, targetBvid: bvid);
                   },
                 ),
 

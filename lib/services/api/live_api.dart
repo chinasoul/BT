@@ -27,7 +27,7 @@ class LiveApi {
     return null;
   }
 
-  /// 获取直播播放地址 (New API)
+  /// 获取直播播放地址 (v2 API - getRoomPlayInfo)
   /// [roomId] 房间号
   /// [qn] 画质 10000=原画
   static Future<Map<String, dynamic>?> getPlayUrl(
@@ -36,7 +36,9 @@ class LiveApi {
   }) async {
     try {
       final url =
-          'https://api.live.bilibili.com/xlive/web-room/v1/playUrl/playUrl?cid=$roomId&qn=$qn&platform=web&https_url_req=1&ptype=16';
+          'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo'
+          '?room_id=$roomId&protocol=0,1&format=0,1,2&codec=0'
+          '&qn=$qn&platform=web&ptype=8&dolby=5&panorama=1';
 
       final response = await http.get(
         Uri.parse(url),

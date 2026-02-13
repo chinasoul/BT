@@ -76,9 +76,21 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   DateTime? lastBackPressed;
 
   // 选集
-  List<dynamic> episodes = [];
+  List<dynamic> episodes = []; // 懒加载：初始为空或 pages，打开选集面板时才填充完整合集列表
   bool showEpisodePanel = false;
   int focusedEpisodeIndex = 0;
+  bool isUgcSeason = false; // 是否为合集（ugc_season），合集的每集有不同 bvid
+  bool episodesFullyLoaded = false; // 标记 episodes 是否已填充完整合集数据
+
+  // 自动连播用：预计算的下一集信息（不需要加载完整列表）
+  Map<String, dynamic>? precomputedNextEpisode; // {title, pic, bvid?, cid?}
+  bool hasMultipleEpisodes = false; // 是否有多集（合集或分P > 1）
+  String? currentEpisodeTitle; // 当前集标题（用于 getDisplayVideo）
+
+  // 下一集预览
+  bool showNextEpisodePreview = false;
+  int nextEpisodeCountdown = 0; // 剩余秒数
+  Map<String, dynamic>? nextEpisodeInfo; // {title, pic}
 
   // 弹幕数据
   List<dynamic> danmakuList = [];
@@ -105,6 +117,14 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   // 快进快退指示器
   bool showSeekIndicator = false;
   Timer? seekIndicatorTimer;
+
+  // 长按快进快退：暂停+加速+批量提交
+  int seekRepeatCount = 0; // 连续快进/快退次数，用于加速
+  bool wasPlayingBeforeSeek = false; // 快进前是否在播放
+  Timer? seekCommitTimer; // 松手后提交并恢复播放
+  Duration? pendingSeekTarget; // 快进累积目标位置
+  bool hideBufferAfterSeek = false; // 快进提交后短暂隐藏缓冲条，防止旧数据闪烁
+  Timer? bufferHideTimer;
 
   // 快进预览模式 (雪碧图)
   VideoshotData? videoshotData;

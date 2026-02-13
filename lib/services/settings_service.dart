@@ -339,6 +339,83 @@ class SettingsService {
     await _prefs!.setBool(_seekPreviewModeKey, value);
   }
 
+  // ==================== 弹幕全局默认设置 ====================
+  // 使用与播放器相同的 SharedPreferences key，确保共享数据
+
+  static const String _danmakuEnabledKey = 'danmaku_enabled';
+  static const String _danmakuOpacityKey = 'danmaku_opacity';
+  static const String _danmakuFontSizeKey = 'danmaku_font_size';
+  static const String _danmakuAreaKey = 'danmaku_area';
+  static const String _danmakuSpeedKey = 'danmaku_speed';
+  static const String _hideTopDanmakuKey = 'hide_top_danmaku';
+  static const String _hideBottomDanmakuKey = 'hide_bottom_danmaku';
+
+  /// 弹幕开关 (默认开)
+  static bool get danmakuEnabled => _prefs?.getBool(_danmakuEnabledKey) ?? true;
+  static Future<void> setDanmakuEnabled(bool value) async {
+    await init();
+    await _prefs!.setBool(_danmakuEnabledKey, value);
+  }
+
+  /// 弹幕透明度 (0.1 ~ 1.0, 默认 0.6)
+  static double get danmakuOpacity {
+    return (_prefs?.getDouble(_danmakuOpacityKey) ?? 0.6).clamp(0.1, 1.0);
+  }
+  static Future<void> setDanmakuOpacity(double value) async {
+    await init();
+    await _prefs!.setDouble(_danmakuOpacityKey, value.clamp(0.1, 1.0));
+  }
+
+  /// 弹幕字体大小 (10 ~ 50, 默认 17)
+  static double get danmakuFontSize {
+    return (_prefs?.getDouble(_danmakuFontSizeKey) ?? 17.0).clamp(10.0, 50.0);
+  }
+  static Future<void> setDanmakuFontSize(double value) async {
+    await init();
+    await _prefs!.setDouble(_danmakuFontSizeKey, value.clamp(10.0, 50.0));
+  }
+
+  /// 弹幕占屏比 (默认 0.25 即 1/4)
+  static const List<double> danmakuAreaOptions = [0.125, 0.25, 0.5, 0.75, 1.0];
+  static const List<String> danmakuAreaLabels = ['1/8', '1/4', '1/2', '3/4', '全屏'];
+  static double get danmakuArea {
+    final raw = _prefs?.getDouble(_danmakuAreaKey) ?? 0.25;
+    // 找到最近的有效选项
+    return danmakuAreaOptions.reduce((a, b) =>
+        (a - raw).abs() < (b - raw).abs() ? a : b);
+  }
+  static Future<void> setDanmakuArea(double value) async {
+    await init();
+    await _prefs!.setDouble(_danmakuAreaKey, value);
+  }
+  static String danmakuAreaLabel(double area) {
+    final idx = danmakuAreaOptions.indexOf(area);
+    return idx >= 0 ? danmakuAreaLabels[idx] : '${(area * 100).toInt()}%';
+  }
+
+  /// 弹幕速度 (4 ~ 20, 默认 10)
+  static double get danmakuSpeed {
+    return (_prefs?.getDouble(_danmakuSpeedKey) ?? 10.0).clamp(4.0, 20.0);
+  }
+  static Future<void> setDanmakuSpeed(double value) async {
+    await init();
+    await _prefs!.setDouble(_danmakuSpeedKey, value.clamp(4.0, 20.0));
+  }
+
+  /// 隐藏顶部悬停弹幕 (默认不隐藏)
+  static bool get hideTopDanmaku => _prefs?.getBool(_hideTopDanmakuKey) ?? false;
+  static Future<void> setHideTopDanmaku(bool value) async {
+    await init();
+    await _prefs!.setBool(_hideTopDanmakuKey, value);
+  }
+
+  /// 隐藏底部悬停弹幕 (默认不隐藏)
+  static bool get hideBottomDanmaku => _prefs?.getBool(_hideBottomDanmakuKey) ?? false;
+  static Future<void> setHideBottomDanmaku(bool value) async {
+    await init();
+    await _prefs!.setBool(_hideBottomDanmakuKey, value);
+  }
+
   // ==================== 直播分区设置 ====================
 
   static const Map<String, String> liveCategoryLabels = {
@@ -436,6 +513,160 @@ class SettingsService {
       current.remove(name);
     }
     await setEnabledLiveCategories(current);
+  }
+
+  // 启动时自动刷新首页
+  static const String _autoRefreshOnLaunchKey = 'auto_refresh_on_launch';
+
+  /// 是否启动时自动刷新首页 (默认关闭)
+  static bool get autoRefreshOnLaunch {
+    return _prefs?.getBool(_autoRefreshOnLaunchKey) ?? false;
+  }
+
+  /// 设置启动时自动刷新首页
+  static Future<void> setAutoRefreshOnLaunch(bool value) async {
+    await init();
+    await _prefs!.setBool(_autoRefreshOnLaunchKey, value);
+  }
+
+  // 首页上次刷新时间戳 (毫秒)
+  static const String _lastHomeRefreshTimeKey = 'last_home_refresh_time';
+
+  /// 获取首页上次刷新时间戳 (毫秒)
+  static int get lastHomeRefreshTime {
+    return _prefs?.getInt(_lastHomeRefreshTimeKey) ?? 0;
+  }
+
+  /// 设置首页上次刷新时间戳
+  static Future<void> setLastHomeRefreshTime(int timestamp) async {
+    await init();
+    await _prefs!.setInt(_lastHomeRefreshTimeKey, timestamp);
+  }
+
+  // 首页推荐视频缓存 (JSON)
+  static const String _cachedHomeVideosKey = 'cached_home_videos';
+
+  /// 获取缓存的首页视频 JSON
+  static String? get cachedHomeVideosJson {
+    return _prefs?.getString(_cachedHomeVideosKey);
+  }
+
+  /// 保存首页视频缓存 JSON，同时更新刷新时间戳
+  static Future<void> setCachedHomeVideosJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedHomeVideosKey, json);
+    await _prefs!.setInt(
+      _lastHomeRefreshTimeKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 格式化上次刷新时间为可读字符串（首页专用）
+  static String formatLastRefreshTime() {
+    return formatTimestamp(lastHomeRefreshTime);
+  }
+
+  /// 通用：格式化毫秒时间戳为 "更新于X前" 字符串
+  static String formatTimestamp(int timestampMs) {
+    if (timestampMs == 0) return '';
+    final diff = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(timestampMs),
+    );
+    if (diff.inDays > 0) return '更新于${diff.inDays}天前';
+    if (diff.inHours > 0) return '更新于${diff.inHours}小时前';
+    if (diff.inMinutes > 0) return '更新于${diff.inMinutes}分钟前';
+    return '更新于刚刚';
+  }
+
+  // ==================== 关注/收藏/稍后再看 缓存 ====================
+
+  static const String _cachedFollowingKey = 'cached_following_users';
+  static const String _cachedFavoriteFoldersKey = 'cached_favorite_folders';
+  static const String _cachedFavoriteVideosKey = 'cached_favorite_videos'; // 默认收藏夹视频
+  static const String _cachedWatchLaterKey = 'cached_watch_later';
+  static const String _lastFollowingRefreshTimeKey = 'last_following_refresh_time';
+
+  /// 关注列表上次刷新时间戳
+  static int get lastFollowingRefreshTime =>
+      _prefs?.getInt(_lastFollowingRefreshTimeKey) ?? 0;
+
+  /// 关注列表缓存
+  static String? get cachedFollowingJson => _prefs?.getString(_cachedFollowingKey);
+  static Future<void> setCachedFollowingJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedFollowingKey, json);
+    await _prefs!.setInt(
+      _lastFollowingRefreshTimeKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 收藏夹列表缓存
+  static String? get cachedFavoriteFoldersJson => _prefs?.getString(_cachedFavoriteFoldersKey);
+  static Future<void> setCachedFavoriteFoldersJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedFavoriteFoldersKey, json);
+  }
+
+  /// 默认收藏夹视频缓存
+  static String? get cachedFavoriteVideosJson => _prefs?.getString(_cachedFavoriteVideosKey);
+  static Future<void> setCachedFavoriteVideosJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedFavoriteVideosKey, json);
+  }
+
+  /// 稍后再看缓存
+  static String? get cachedWatchLaterJson => _prefs?.getString(_cachedWatchLaterKey);
+  static Future<void> setCachedWatchLaterJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedWatchLaterKey, json);
+  }
+
+  // 动态缓存
+  static const String _cachedDynamicKey = 'cached_dynamic_videos';
+  static const String _lastDynamicRefreshTimeKey = 'last_dynamic_refresh_time';
+
+  /// 动态页上次刷新时间戳
+  static int get lastDynamicRefreshTime =>
+      _prefs?.getInt(_lastDynamicRefreshTimeKey) ?? 0;
+
+  static String? get cachedDynamicJson => _prefs?.getString(_cachedDynamicKey);
+  static Future<void> setCachedDynamicJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedDynamicKey, json);
+    await _prefs!.setInt(
+      _lastDynamicRefreshTimeKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  // 历史记录缓存
+  static const String _cachedHistoryKey = 'cached_history_videos';
+  static const String _lastHistoryRefreshTimeKey = 'last_history_refresh_time';
+
+  /// 历史记录上次刷新时间戳
+  static int get lastHistoryRefreshTime =>
+      _prefs?.getInt(_lastHistoryRefreshTimeKey) ?? 0;
+
+  static String? get cachedHistoryJson => _prefs?.getString(_cachedHistoryKey);
+  static Future<void> setCachedHistoryJson(String json) async {
+    await init();
+    await _prefs!.setString(_cachedHistoryKey, json);
+    await _prefs!.setInt(
+      _lastHistoryRefreshTimeKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 清除所有用户内容缓存 (登出时调用)
+  static Future<void> clearUserContentCache() async {
+    await init();
+    await _prefs!.remove(_cachedFollowingKey);
+    await _prefs!.remove(_cachedFavoriteFoldersKey);
+    await _prefs!.remove(_cachedFavoriteVideosKey);
+    await _prefs!.remove(_cachedWatchLaterKey);
+    await _prefs!.remove(_cachedDynamicKey);
+    await _prefs!.remove(_cachedHistoryKey);
   }
 
   // App 全局字体大小缩放

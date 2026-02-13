@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
@@ -61,10 +62,42 @@ class HomeTabState extends State<HomeTab> {
       _usedPreloadedData = true; // 标记使用了预加载数据
       _firstLoadDone = true;
 
+      // 保存到缓存
+      _saveCacheForCategory0(widget.preloadedVideos!);
+
       // 通知父组件（用于 Sidebar 焦点处理等）
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onFirstLoadComplete?.call();
       });
+    } else if (!SettingsService.autoRefreshOnLaunch) {
+      // 【关闭自动刷新】尝试从本地缓存加载
+      final cached = _loadCachedVideos();
+      if (cached != null && cached.isNotEmpty) {
+        _categoryVideos[0] = cached;
+        _categoryRefreshIdx[0] = 1;
+        _categoryLoading[0] = false;
+        _usedPreloadedData = true;
+        _firstLoadDone = true;
+
+        // 显示上次更新时间 toast
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final timeStr = SettingsService.formatLastRefreshTime();
+          if (timeStr.isNotEmpty) {
+            Fluttertoast.showToast(
+              msg: timeStr,
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.CENTER,
+              backgroundColor: Colors.black.withValues(alpha: 0.7),
+              textColor: Colors.white,
+              fontSize: 16.0,
+            );
+          }
+          widget.onFirstLoadComplete?.call();
+        });
+      } else {
+        // 没有缓存，首次使用，正常请求
+        _loadVideosForCategory(0);
+      }
     } else {
       // 只有没数据时，才自己去请求
       _loadVideosForCategory(0);
@@ -110,6 +143,30 @@ class HomeTabState extends State<HomeTab> {
   List<Video> get _currentVideos =>
       _categoryVideos[_selectedCategoryIndex] ?? [];
   bool get _isLoading => _categoryLoading[_selectedCategoryIndex] ?? false;
+
+  /// 从本地缓存加载推荐视频
+  List<Video>? _loadCachedVideos() {
+    final jsonStr = SettingsService.cachedHomeVideosJson;
+    if (jsonStr == null) return null;
+    try {
+      final list = jsonDecode(jsonStr) as List;
+      return list
+          .map((item) => Video.fromMap(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 保存推荐视频到本地缓存 (仅分类 0 / 推荐)
+  void _saveCacheForCategory0(List<Video> videos) {
+    try {
+      final jsonStr = jsonEncode(videos.map((v) => v.toMap()).toList());
+      SettingsService.setCachedHomeVideosJson(jsonStr);
+    } catch (e) {
+      // 忽略缓存保存失败
+    }
+  }
 
   Future<void> _loadVideosForCategory(
     int categoryIndex, {
@@ -186,6 +243,11 @@ class HomeTabState extends State<HomeTab> {
       }
       _categoryLoading[categoryIndex] = false;
       _isRefreshing = false; // 刷新完成
+
+      // 保存推荐视频缓存 (仅分类 0)
+      if (categoryIndex == 0 && (refresh || page == 1)) {
+        _saveCacheForCategory0(_categoryVideos[0] ?? []);
+      }
 
       if (!_firstLoadDone) {
         _firstLoadDone = true;

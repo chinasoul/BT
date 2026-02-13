@@ -6,6 +6,9 @@ class EpisodePanel extends StatefulWidget {
   final int focusedIndex;
   final Function(int cid) onEpisodeSave;
   final VoidCallback onClose;
+  final bool isUgcSeason;
+  final String? currentBvid;
+  final Function(String bvid)? onUgcEpisodeSelect;
 
   const EpisodePanel({
     super.key,
@@ -14,6 +17,9 @@ class EpisodePanel extends StatefulWidget {
     required this.focusedIndex,
     required this.onEpisodeSave,
     required this.onClose,
+    this.isUgcSeason = false,
+    this.currentBvid,
+    this.onUgcEpisodeSelect,
   });
 
   @override
@@ -74,7 +80,7 @@ class _EpisodePanelState extends State<EpisodePanel> {
       top: 0,
       right: 0,
       bottom: 0,
-      width: 350,
+      width: 250,
       child: Container(
         color: const Color(0xFF1F1F1F).withValues(alpha: 0.95),
         child: Column(
@@ -88,11 +94,11 @@ class _EpisodePanelState extends State<EpisodePanel> {
                   ),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Text(
-                    '选集',
-                    style: TextStyle(
+                    widget.isUgcSeason ? '合集' : '分P',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -107,16 +113,33 @@ class _EpisodePanelState extends State<EpisodePanel> {
                 itemCount: widget.episodes.length,
                 itemBuilder: (context, index) {
                   final episode = widget.episodes[index];
-                  final isCurrent = episode['cid'] == widget.currentCid;
-                  final partName =
-                      episode['part'] ?? episode['page_part'] ?? '';
-                  final title = 'P${index + 1} $partName';
+
+                  final bool isCurrent;
+                  final String title;
+                  final VoidCallback onTap;
+
+                  if (widget.isUgcSeason) {
+                    // 合集：按 bvid 判断当前集，显示标题
+                    isCurrent = episode['bvid'] == widget.currentBvid;
+                    title = episode['title'] ?? '第${index + 1}集';
+                    onTap = () {
+                      if (widget.onUgcEpisodeSelect != null) {
+                        widget.onUgcEpisodeSelect!(episode['bvid']);
+                      }
+                    };
+                  } else {
+                    // 分P：按 cid 判断当前集
+                    isCurrent = episode['cid'] == widget.currentCid;
+                    final partName = episode['part'] ?? episode['page_part'] ?? '';
+                    title = 'P${index + 1} $partName';
+                    onTap = () => widget.onEpisodeSave(episode['cid']);
+                  }
 
                   return _EpisodeItem(
                     title: title,
                     isSelected: isCurrent,
                     isFocused: widget.focusedIndex == index,
-                    onTap: () => widget.onEpisodeSave(episode['cid']),
+                    onTap: onTap,
                   );
                 },
               ),

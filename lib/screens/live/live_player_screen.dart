@@ -120,14 +120,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
   }
 
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('danmaku_enabled', _danmakuEnabled);
-    await prefs.setDouble('danmaku_opacity', _danmakuOpacity);
-    await prefs.setDouble('danmaku_font_size', _danmakuFontSize);
-    await prefs.setDouble('danmaku_area', _danmakuArea);
-    await prefs.setDouble('danmaku_speed', _danmakuSpeed);
-    await prefs.setBool('hide_top_danmaku', _hideTopDanmaku);
-    await prefs.setBool('hide_bottom_danmaku', _hideBottomDanmaku);
+    // 直播内的弹幕调整仅对当前播放生效，不保存到全局设置。
+    // 全局默认值通过 设置 → 弹幕设置 页面修改。
     _updateDanmakuOption();
   }
 
@@ -279,27 +273,67 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         throw Exception('无法获取有效播放地址');
       }
 
-      // Parse Quality Options
-      if (playInfo['quality_description'] != null) {
+      // Parse Quality Options from playurl_info (v2 API: g_qn_desc + accept_qn)
+      List<int> acceptQn = [];
+      int? apiCurrentQn;
+      if (playInfo['playurl_info'] != null) {
+        final playurl = playInfo['playurl_info']['playurl'];
+        // Extract accept_qn and current_qn from first available codec
+        final qnStreams = playurl?['stream'] as List?;
+        if (qnStreams != null) {
+          for (var s in qnStreams) {
+            final fmts = s['format'] as List?;
+            if (fmts != null) {
+              for (var f in fmts) {
+                final cds = f['codec'] as List?;
+                if (cds != null && cds.isNotEmpty) {
+                  final aq = List<int>.from(cds.first['accept_qn'] ?? []);
+                  for (var q in aq) {
+                    if (!acceptQn.contains(q)) acceptQn.add(q);
+                  }
+                  apiCurrentQn ??= cds.first['current_qn'] as int?;
+                }
+              }
+            }
+          }
+        }
+        debugPrint('LivePlayer: accept_qn=$acceptQn, current_qn=$apiCurrentQn');
+
+        // Quality descriptions from g_qn_desc
+        final gQnDesc = playurl?['g_qn_desc'] as List?;
+        if (gQnDesc != null) {
+          final allQ = List<Map<String, dynamic>>.from(gQnDesc);
+          debugPrint('LivePlayer: Raw Qualities (g_qn_desc): $allQ');
+          _qualities = allQ.where((q) {
+            final desc = q['desc'] as String?;
+            if (desc == null || desc.isEmpty) return false;
+            if (acceptQn.isNotEmpty) return acceptQn.contains(q['qn']);
+            return true;
+          }).toList();
+          debugPrint('LivePlayer: Parsed Qualities: $_qualities');
+        }
+      }
+
+      // Fallback to v1 format (quality_description at top level)
+      if (_qualities.isEmpty && playInfo['quality_description'] != null) {
         final list = List<Map<String, dynamic>>.from(
           playInfo['quality_description'],
         );
-        debugPrint('LivePlayer: Raw Qualities: $list');
-        // Filter out '默认' or invalid ones
         _qualities = list.where((q) {
           final desc = q['desc'] as String?;
           return desc != null && desc != '默认' && desc.isNotEmpty;
         }).toList();
-        debugPrint('LivePlayer: Parsed Qualities: $_qualities');
       }
+
       if (qn != null) {
-        // Optimistically update quality based on request
         _currentQuality = qn;
         debugPrint('LivePlayer: Requested Quality: $qn');
+      } else if (apiCurrentQn != null) {
+        _currentQuality = apiCurrentQn;
+        debugPrint('LivePlayer: API Current Quality (v2): $_currentQuality');
       } else if (playInfo['current_quality'] != null) {
-        // Fallback to API reported quality
         _currentQuality = playInfo['current_quality'];
-        debugPrint('LivePlayer: API Reported Quality: $_currentQuality');
+        debugPrint('LivePlayer: API Reported Quality (v1): $_currentQuality');
       }
 
       final q = _qualities.firstWhere(
@@ -310,9 +344,6 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
       debugPrint(
         'LivePlayer: Matched Desc: $_currentQualityDesc (Target: $_currentQuality)',
       );
-
-      _currentQualityDesc = q['desc'] ?? '未知';
-      debugPrint('LivePlayer: Matched Desc: $_currentQualityDesc');
 
       // 3. Get Anchor Info & Relationship
       if (_anchorUid == 0 && roomInfo != null) {

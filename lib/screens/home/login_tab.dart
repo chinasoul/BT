@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../services/settings_service.dart';
 import 'login/login_view.dart';
-import 'settings/settings_view.dart';
+import 'profile_view.dart';
 
-/// 登录 Tab / 用户设置 Tab
+/// 用户 Tab - 未登录显示二维码登录，已登录显示个人资料
 class LoginTab extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
   final VoidCallback? onLoginSuccess;
@@ -15,23 +16,15 @@ class LoginTab extends StatefulWidget {
 }
 
 class LoginTabState extends State<LoginTab> {
-  final GlobalKey<SettingsViewState> _settingsKey =
-      GlobalKey<SettingsViewState>();
-
-  /// 请求第一个分类标签的焦点（用于从侧边栏导航）
-  void focusFirstCategory() {
-    if (AuthService.isLoggedIn) {
-      _settingsKey.currentState?.focusFirstCategory();
-    }
-  }
-
   void _handleLoginSuccess() {
-    setState(() {}); // Refresh to show SettingsView
+    setState(() {}); // Refresh to show ProfileView
     widget.onLoginSuccess?.call();
   }
 
   Future<void> _handleLogout() async {
     await AuthService.logout();
+    // 清除用户内容缓存
+    await SettingsService.clearUserContentCache();
     if (mounted) {
       setState(() {}); // Refresh to show LoginView
     }
@@ -40,8 +33,7 @@ class LoginTabState extends State<LoginTab> {
   @override
   Widget build(BuildContext context) {
     if (AuthService.isLoggedIn) {
-      return SettingsView(
-        key: _settingsKey,
+      return ProfileView(
         sidebarFocusNode: widget.sidebarFocusNode,
         onLogout: _handleLogout,
       );

@@ -139,6 +139,54 @@ class Video {
     );
   }
 
+  /// 序列化为 Map (用于本地缓存，包含所有字段)
+  Map<String, dynamic> toMap() {
+    return {
+      'bvid': bvid,
+      'title': title,
+      'pic': pic,
+      'ownerName': ownerName,
+      'ownerFace': ownerFace,
+      'ownerMid': ownerMid,
+      'view': view,
+      'danmaku': danmaku,
+      'duration': duration,
+      'pubdate': pubdate,
+      'progress': progress,
+      'viewAt': viewAt,
+      'cid': cid,
+      'historyPage': historyPage,
+      'historyPart': historyPart,
+      'historyVideos': historyVideos,
+      'badge': badge,
+      'isLive': isLive,
+    };
+  }
+
+  /// 从 Map 反序列化 (用于本地缓存)
+  factory Video.fromMap(Map<String, dynamic> json) {
+    return Video(
+      bvid: json['bvid'] ?? '',
+      title: json['title'] ?? '',
+      pic: json['pic'] ?? '',
+      ownerName: json['ownerName'] ?? '',
+      ownerFace: json['ownerFace'] ?? '',
+      ownerMid: json['ownerMid'] ?? 0,
+      view: json['view'] ?? 0,
+      danmaku: json['danmaku'] ?? 0,
+      duration: json['duration'] ?? 0,
+      pubdate: json['pubdate'] ?? 0,
+      progress: json['progress'] ?? -1,
+      viewAt: json['viewAt'] ?? 0,
+      cid: json['cid'] ?? 0,
+      historyPage: json['historyPage'] ?? 0,
+      historyPart: json['historyPart'] ?? '',
+      historyVideos: json['historyVideos'] ?? 0,
+      badge: json['badge'] ?? '',
+      isLive: json['isLive'] ?? false,
+    );
+  }
+
   /// 格式化播放量
   String get viewFormatted {
     if (view >= 100000000) return '${(view / 100000000).toStringAsFixed(1)}亿';

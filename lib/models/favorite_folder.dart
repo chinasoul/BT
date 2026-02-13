@@ -11,6 +11,26 @@ class FavoriteFolder {
     this.isDefault = false,
   });
 
+  /// 序列化为 Map (用于本地缓存)
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'mediaCount': mediaCount,
+      'isDefault': isDefault,
+    };
+  }
+
+  /// 从本地缓存 Map 反序列化
+  factory FavoriteFolder.fromMap(Map<String, dynamic> json) {
+    return FavoriteFolder(
+      id: json['id'] ?? 0,
+      title: json['title'] ?? '',
+      mediaCount: json['mediaCount'] ?? 0,
+      isDefault: json['isDefault'] ?? false,
+    );
+  }
+
   factory FavoriteFolder.fromJson(Map<String, dynamic> json) {
     return FavoriteFolder(
       id: _toInt(json['id']),

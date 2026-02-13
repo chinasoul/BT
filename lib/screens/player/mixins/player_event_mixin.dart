@@ -96,12 +96,18 @@ mixin PlayerEventMixin on PlayerActionMixin {
   }
 
   KeyEventResult handleGlobalKeyEvent(FocusNode node, KeyEvent event) {
-    // 处理 KeyUpEvent - 松开左右键时提交进度
+    // 处理 KeyUpEvent - 松开左右键时提交
     if (event is KeyUpEvent) {
-      if (isProgressBarFocused && previewPosition != null) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-            event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        // 进度条模式
+        if (isProgressBarFocused && previewPosition != null) {
           commitProgress();
+          return KeyEventResult.handled;
+        }
+        // 批量快进模式：松手立即提交
+        if (seekRepeatCount > 0) {
+          commitSeek();
           return KeyEventResult.handled;
         }
       }
@@ -237,6 +243,7 @@ mixin PlayerEventMixin on PlayerActionMixin {
   void _activateControlButton(int index) {
     switch (index) {
       case 0: // 选集
+        ensureEpisodesLoaded(); // 按需加载完整集数列表
         setState(() {
           showEpisodePanel = true;
           hideTimer?.cancel();
@@ -345,7 +352,14 @@ mixin PlayerEventMixin on PlayerActionMixin {
       maxIndex: episodes.length - 1,
       onSelect: () {
         if (episodes.isNotEmpty) {
-          switchEpisode(episodes[focusedEpisodeIndex]['cid']);
+          final ep = episodes[focusedEpisodeIndex];
+          if (isUgcSeason) {
+            // 合集：通过 bvid 切换（会导航到新播放器）
+            switchEpisode(0, targetBvid: ep['bvid']);
+          } else {
+            // 分P：通过 cid 切换
+            switchEpisode(ep['cid']);
+          }
         }
       },
       onClose: _closeEpisodePanel,

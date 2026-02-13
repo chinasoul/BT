@@ -40,14 +40,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   Future<void> saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('danmaku_enabled', danmakuEnabled);
-    await prefs.setDouble('danmaku_opacity', danmakuOpacity);
-    await prefs.setDouble('danmaku_font_size', danmakuFontSize);
-    await prefs.setDouble('danmaku_area', danmakuArea);
-    await prefs.setDouble('danmaku_speed', danmakuSpeed);
-    await prefs.setBool('hide_top_danmaku', hideTopDanmaku);
-    await prefs.setBool('hide_bottom_danmaku', hideBottomDanmaku);
+    // 视频内的弹幕调整仅对当前播放生效，不保存到全局设置。
+    // 全局默认值通过 设置 → 弹幕设置 页面修改。
   }
 
   Future<void> initializePlayer() async {
@@ -67,8 +61,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       if (videoInfo != null) {
         if (mounted) {
+          // 🔥 轻量初始化：只用 pages（通常1项），不解析完整合集
+          // 完整合集列表在用户打开选集面板时才按需加载
           setState(() {
-            fullVideoInfo = videoInfo; // 保存完整视频信息
+            fullVideoInfo = videoInfo;
             episodes = videoInfo['pages'] ?? [];
 
             // 优先检查历史记录中的 cid
@@ -85,11 +81,15 @@ mixin PlayerActionMixin on PlayerStateMixin {
             }
 
             cid ??= videoInfo['cid'];
-            aid = videoInfo['aid']; // 保存 aid 用于操作 API
+            aid = videoInfo['aid'];
           });
           if (cid == null && episodes.isNotEmpty) {
             cid = episodes[0]['cid'];
           }
+
+          // 🔥 轻量预计算：只提取"是否有多集"和"下一集信息"，用于自动连播
+          // 不存储完整列表，避免影响渲染
+          _precomputeNextEpisode(videoInfo);
 
           // 获取在线人数（首次获取 + 每60秒更新）
           _fetchOnlineCount();
@@ -114,11 +114,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 立即启动快照数据预加载 (并行执行)
       loadVideoshot();
 
-      // Initialize focus index based on cid
-      if (episodes.isNotEmpty) {
-        final idx = episodes.indexWhere((e) => e['cid'] == cid);
-        if (idx != -1) focusedEpisodeIndex = idx;
-      }
+      // 注意：集数焦点索引在延迟加载完整集数列表后设置（见 deferredEpisodes 逻辑）
 
       // 异步加载相关视频 (用于自动连播)
       BilibiliApi.getRelatedVideos(widget.video.bvid).then((videos) {
@@ -354,6 +350,12 @@ mixin PlayerActionMixin on PlayerStateMixin {
             isLoading = false;
           });
 
+          debugPrint('🎬 [Init] Player ready: initialized=${videoController!.value.isInitialized}, '
+              'size=${videoController!.value.size}, '
+              'duration=${videoController!.value.duration.inMilliseconds}ms, '
+              'episodes=${episodes.length}, isUgcSeason=$isUgcSeason, '
+              'bvid=${widget.video.bvid}, cid=$cid');
+
           // 自动续播:
           // 1. 如果 API 返回了历史记录，无条件使用历史记录的进度 (解决多端同步和本地列表过期问题)
           // 2. 如果没有 API 历史，才使用本地列表传进来的 progress
@@ -536,10 +538,21 @@ mixin PlayerActionMixin on PlayerStateMixin {
     videoController!.addListener(_onPlayerStateChange);
   }
 
+  int _stateChangeCount = 0; // 调试用：跟踪状态变化次数
+
   void _onPlayerStateChange() {
     if (videoController == null || !mounted) return;
 
     final value = videoController!.value;
+
+    // 前几次状态变化时记录详细日志，帮助定位白屏问题
+    _stateChangeCount++;
+    if (_stateChangeCount <= 5) {
+      debugPrint('🎬 [State#$_stateChangeCount] pos=${value.position.inMilliseconds}ms, '
+          'dur=${value.duration.inMilliseconds}ms, playing=${value.isPlaying}, '
+          'init=${value.isInitialized}, size=${value.size}, '
+          'hasError=${value.hasError}');
+    }
 
     // 同步弹幕
     if (danmakuEnabled && danmakuController != null) {
@@ -549,11 +562,19 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 检查是否需要预加载下一张雪碧图
     _checkSpritePreload(value.position);
 
-    // 检查播放完成
-    if (value.position >= value.duration &&
-        value.duration > Duration.zero &&
-        !value.isPlaying) {
-      // 通过位置判断播放结束
+    // 下一集预览倒计时（多集/合集 + 自动连播开启时）
+    _updateNextEpisodePreview(value);
+
+    // 检查播放完成：position 接近 duration 即视为播完
+    // Android TV 上 position 可能永远无法精确到达 duration，需要微小容差
+    // 200ms ≈ 5帧(24fps)，肉眼不可感知
+    // 安全阀：要求 duration >= 1s 且 position >= 1s，防止 ExoPlayer 初始化时
+    // duration 短暂报告为极小值导致误触发 onVideoComplete
+    if (value.duration.inSeconds >= 1 &&
+        value.position.inSeconds >= 1 &&
+        value.position.inMilliseconds >=
+            value.duration.inMilliseconds - 200) {
+      debugPrint('🎬 [Complete] Triggered: pos=${value.position.inMilliseconds}ms, dur=${value.duration.inMilliseconds}ms, playing=${value.isPlaying}');
       onVideoComplete();
     }
 
@@ -563,6 +584,49 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (BuildFlags.pluginsEnabled) {
       // 插件处理 (Debounce logic internal to plugin, but we update UI here)
       _handlePlugins(value.position);
+    }
+  }
+
+  /// 查找下一集信息（使用预计算数据，O(1)）
+  Map<String, dynamic>? _findNextEpisode() {
+    return precomputedNextEpisode;
+  }
+
+  /// 更新下一集预览倒计时
+  void _updateNextEpisodePreview(VideoPlayerValue value) {
+    if (!SettingsService.autoPlay || hasHandledVideoComplete || !hasMultipleEpisodes) {
+      if (showNextEpisodePreview) {
+        showNextEpisodePreview = false;
+      }
+      return;
+    }
+
+    // 需要有效的 duration 且视频已播放足够长（防止 duration 尚未稳定时误触发）
+    if (value.duration <= Duration.zero ||
+        value.duration.inSeconds < 5 ||
+        value.position.inSeconds < 3) {
+      return;
+    }
+
+    final remainingMs = value.duration.inMilliseconds - value.position.inMilliseconds;
+    final remainingSec = (remainingMs / 1000).ceil();
+
+    // 距离结束 15 秒以内时显示预览
+    if (remainingSec <= 15 && remainingSec > 0) {
+      if (!showNextEpisodePreview) {
+        final next = _findNextEpisode();
+        if (next != null) {
+          nextEpisodeInfo = next;
+          showNextEpisodePreview = true;
+        }
+      }
+      if (showNextEpisodePreview) {
+        nextEpisodeCountdown = remainingSec;
+      }
+    } else if (remainingSec > 15 && showNextEpisodePreview) {
+      // 用户拖回进度条，隐藏预览
+      showNextEpisodePreview = false;
+      nextEpisodeInfo = null;
     }
   }
 
@@ -635,6 +699,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     cancelPlayerListeners();
     seekIndicatorTimer?.cancel();
+    seekCommitTimer?.cancel();
+    bufferHideTimer?.cancel();
     onlineCountTimer?.cancel(); // 取消在线人数定时器
     statsTimer?.cancel();
     _clearSpritesFromMemory(); // 清理雪碧图内存缓存
@@ -664,6 +730,140 @@ mixin PlayerActionMixin on PlayerStateMixin {
     }
   }
 
+  /// 🔥 轻量预计算：从 API 数据中提取当前集标题、是否多集、下一集信息
+  /// 不存储完整列表，O(N) 只跑一次
+  void _precomputeNextEpisode(Map<String, dynamic> videoInfo) {
+    try {
+      final ugcSeason = videoInfo['ugc_season'];
+      if (ugcSeason != null && ugcSeason is Map) {
+        final sections = ugcSeason['sections'];
+        if (sections is List && sections.isNotEmpty) {
+          // 遍历一次，只提取当前和下一集
+          dynamic currentEpRaw;
+          Map<String, dynamic>? nextEp;
+          bool foundCurrent = false;
+          int totalCount = 0;
+
+          for (final section in sections) {
+            if (section is! Map) continue;
+            final eps = section['episodes'];
+            if (eps is! List) continue;
+            for (final ep in eps) {
+              if (ep is! Map) continue;
+              totalCount++;
+              if (foundCurrent && nextEp == null) {
+                // 上一个是当前集，这个就是下一集
+                nextEp = {
+                  'bvid': ep['bvid'] ?? '',
+                  'cid': ep['cid'] ?? 0,
+                  'aid': ep['aid'] ?? 0,
+                  'title': ep['title'] ?? (ep['arc'] is Map ? ep['arc']['title'] : null) ?? '',
+                  'pic': (ep['arc'] is Map ? ep['arc']['pic'] : null) ?? '',
+                  'duration': (ep['arc'] is Map ? ep['arc']['duration'] : null) ?? 0,
+                };
+                break; // 找到下一集即可退出
+              }
+              if (ep['bvid'] == widget.video.bvid) {
+                foundCurrent = true;
+                currentEpRaw = ep;
+              }
+            }
+            if (nextEp != null) break;
+          }
+
+          if (totalCount > 1) {
+            isUgcSeason = true;
+            hasMultipleEpisodes = true;
+            currentEpisodeTitle = currentEpRaw?['title'] ??
+                (currentEpRaw?['arc'] is Map ? currentEpRaw['arc']['title'] : null) ?? '';
+            precomputedNextEpisode = nextEp;
+            debugPrint('🎬 [Init] UGC Season: $totalCount eps, '
+                'current=$currentEpisodeTitle, hasNext=${nextEp != null}');
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('🎬 [Init] UGC precompute error: $e');
+    }
+
+    // 非合集：检查 pages 是否多P
+    final pages = videoInfo['pages'] as List?;
+    if (pages != null && pages.length > 1) {
+      hasMultipleEpisodes = true;
+      // 找当前P和下一P
+      for (int i = 0; i < pages.length; i++) {
+        if (pages[i]['cid'] == cid) {
+          currentEpisodeTitle = pages[i]['part'] ?? pages[i]['page_part'] ?? '';
+          if (i + 1 < pages.length) {
+            final nextPage = pages[i + 1];
+            final partName = nextPage['part'] ?? nextPage['page_part'] ?? '';
+            precomputedNextEpisode = {
+              'cid': nextPage['cid'],
+              'title': 'P${i + 2} $partName',
+              'pic': '',
+            };
+          }
+          break;
+        }
+      }
+      debugPrint('🎬 [Init] Multi-P: ${pages.length} pages, hasNext=${precomputedNextEpisode != null}');
+    }
+  }
+
+  /// 🔥 按需加载完整集数列表（用户打开选集面板时调用）
+  void ensureEpisodesLoaded() {
+    if (episodesFullyLoaded) return;
+    if (fullVideoInfo == null) return;
+
+    final videoInfo = fullVideoInfo!;
+    try {
+      final ugcSeason = videoInfo['ugc_season'];
+      if (ugcSeason != null && ugcSeason is Map) {
+        final sections = ugcSeason['sections'];
+        if (sections is List && sections.isNotEmpty) {
+          final ugcEpisodes = <Map<String, dynamic>>[];
+          for (final section in sections) {
+            if (section is! Map) continue;
+            final eps = section['episodes'];
+            if (eps is! List) continue;
+            for (final ep in eps) {
+              if (ep is! Map) continue;
+              ugcEpisodes.add({
+                'bvid': ep['bvid'] ?? '',
+                'cid': ep['cid'] ?? (ep['page'] is Map ? ep['page']['cid'] : null) ?? 0,
+                'aid': ep['aid'] ?? 0,
+                'title': ep['title'] ?? (ep['arc'] is Map ? ep['arc']['title'] : null) ?? '',
+                'duration': (ep['arc'] is Map ? ep['arc']['duration'] : null) ?? (ep['page'] is Map ? ep['page']['duration'] : null) ?? 0,
+                'pic': (ep['arc'] is Map ? ep['arc']['pic'] : null) ?? '',
+              });
+            }
+          }
+          if (ugcEpisodes.length > 1) {
+            setState(() {
+              episodes = ugcEpisodes;
+              isUgcSeason = true;
+            });
+            // 设置焦点索引到当前集
+            final idx = episodes.indexWhere((e) => e['bvid'] == widget.video.bvid);
+            if (idx != -1) focusedEpisodeIndex = idx;
+            debugPrint('🎬 [LazyLoad] UGC episodes loaded: ${episodes.length}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('🎬 [LazyLoad] UGC parse error: $e');
+    }
+
+    // 对于普通分P，episodes 已经是 pages，设置焦点索引即可
+    if (!isUgcSeason && episodes.length > 1) {
+      final idx = episodes.indexWhere((e) => e['cid'] == cid);
+      if (idx != -1) focusedEpisodeIndex = idx;
+    }
+
+    episodesFullyLoaded = true;
+  }
+
   /// 获取用于显示的视频信息（优先使用 API 获取的完整信息）
   models.Video getDisplayVideo() {
     if (fullVideoInfo == null) {
@@ -676,19 +876,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     var displayTitle = info['title'] ?? widget.video.title;
 
-    // 多P视频，在标题后追加分P名称
-    if (episodes.length > 1 && cid != null) {
-      final currentEp = episodes.firstWhere(
-        (e) => e['cid'] == cid,
-        orElse: () => {},
-      );
-      if (currentEp.isNotEmpty) {
-        final partName = currentEp['part'] ?? currentEp['title'] ?? '';
-        final pageIndex = currentEp['page'] ?? episodes.indexOf(currentEp) + 1;
-        if (partName.isNotEmpty) {
-          displayTitle = '$displayTitle - P$pageIndex $partName';
-        }
-      }
+    // 使用预计算的当前集标题（O(1)，不遍历列表）
+    if (hasMultipleEpisodes && currentEpisodeTitle != null && currentEpisodeTitle!.isNotEmpty) {
+      displayTitle = '$displayTitle - $currentEpisodeTitle';
     }
 
     return models.Video(
@@ -713,6 +903,16 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 防止重复触发
     if (hasHandledVideoComplete) return;
     hasHandledVideoComplete = true;
+    debugPrint('🎬 [Complete] onVideoComplete fired. episodes=${episodes.length}, isUgcSeason=$isUgcSeason, autoPlay=${SettingsService.autoPlay}');
+
+    // 隐藏下一集预览
+    showNextEpisodePreview = false;
+    nextEpisodeInfo = null;
+
+    // 无论是否自动连播，都立即暂停视频，防止末尾卡顿循环
+    if (videoController != null && videoController!.value.isPlaying) {
+      videoController!.pause();
+    }
 
     hideTimer?.cancel();
     setState(() => showControls = true);
@@ -720,27 +920,42 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 检查是否开启自动连播
     if (!SettingsService.autoPlay) return;
 
-    // 暂停当前视频
-    if (videoController != null && videoController!.value.isPlaying) {
-      videoController!.pause();
-    }
+    // 1. 检查是否有下一集（使用预计算数据，O(1)）
+    if (precomputedNextEpisode != null) {
+      final nextEp = precomputedNextEpisode!;
+      final nextTitle = nextEp['title'] ?? '下一集';
+      Fluttertoast.showToast(
+        msg: '自动播放下一集: $nextTitle',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+      );
 
-    // 1. 检查是否有下一集
-    if (episodes.length > 1 && cid != null) {
-      final currentIndex = episodes.indexWhere((ep) => ep['cid'] == cid);
-      if (currentIndex >= 0 && currentIndex < episodes.length - 1) {
-        // 有下一集，自动播放
-        final nextEp = episodes[currentIndex + 1];
-        final nextCid = nextEp['cid'] as int;
-        Fluttertoast.showToast(
-          msg:
-              '自动播放下一集: ${nextEp['title'] ?? nextEp['part'] ?? 'P${currentIndex + 2}'}',
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.TOP,
-        );
-        switchEpisode(nextCid);
-        return;
+      if (isUgcSeason) {
+        // 合集：直接导航到新播放器（不依赖 episodes 列表）
+        final bvid = nextEp['bvid'] as String? ?? '';
+        if (bvid.isNotEmpty && mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                video: models.Video(
+                  bvid: bvid,
+                  title: nextEp['title'] ?? '',
+                  pic: nextEp['pic'] ?? '',
+                  ownerName: widget.video.ownerName,
+                  ownerFace: widget.video.ownerFace,
+                  duration: nextEp['duration'] ?? 0,
+                  pubdate: widget.video.pubdate,
+                  view: 0,
+                ),
+              ),
+            ),
+          );
+        }
+      } else if (nextEp['cid'] != null) {
+        // 分P：同一视频内切换 cid
+        switchEpisode(nextEp['cid'] as int);
       }
+      return;
     }
 
     // 2. 所有集数播完，检查相关视频
@@ -905,29 +1120,34 @@ mixin PlayerActionMixin on PlayerStateMixin {
     setState(() {});
   }
 
+  /// 根据连续快进次数计算步长（渐进加速）
+  Duration _getSeekStep() {
+    if (seekRepeatCount < 6) return const Duration(seconds: 5);
+    if (seekRepeatCount < 16) return const Duration(seconds: 10);
+    if (seekRepeatCount < 30) return const Duration(seconds: 20);
+    if (seekRepeatCount < 50) return const Duration(seconds: 40);
+    return const Duration(seconds: 60);
+  }
+
   void seekForward() {
     if (videoController == null) return;
-    final current = videoController!.value.position;
     final total = videoController!.value.duration;
-    final newPos = current + const Duration(seconds: 10);
-    final target = newPos < total ? newPos : total;
 
     // 检查是否开启预览模式且有快照数据
     if (SettingsService.seekPreviewMode && videoshotData != null) {
       // 预览模式: 暂停视频，只更新预览位置
       videoController?.pause();
-
-      // 时间吸附
+      final current = previewPosition ?? videoController!.value.position;
+      final newPos = current + const Duration(seconds: 10);
+      final target = newPos < total ? newPos : total;
       final alignedTarget = videoshotData!.getClosestTimestamp(target);
-
       setState(() {
         isSeekPreviewMode = true;
         previewPosition = alignedTarget;
       });
       _showSeekIndicator();
     } else {
-      // 直接跳转模式 (默认)
-      // 如果用户开启了预览模式但雪碧图加载失败，显示提示
+      // 直接跳转模式（带暂停+加速+批量提交）
       if (SettingsService.seekPreviewMode && !hasShownVideoshotFailToast) {
         hasShownVideoshotFailToast = true;
         Fluttertoast.showToast(
@@ -935,34 +1155,28 @@ mixin PlayerActionMixin on PlayerStateMixin {
           toastLength: Toast.LENGTH_SHORT,
         );
       }
-      videoController!.seekTo(target);
-      resetDanmakuIndex(target);
-      _showSeekIndicator();
+      _batchSeek(forward: true);
     }
   }
 
   void seekBackward() {
     if (videoController == null) return;
-    final current = videoController!.value.position;
-    final newPos = current - const Duration(seconds: 10);
-    final target = newPos > Duration.zero ? newPos : Duration.zero;
 
     // 检查是否开启预览模式且有快照数据
     if (SettingsService.seekPreviewMode && videoshotData != null) {
       // 预览模式: 暂停视频，只更新预览位置
       videoController?.pause();
-
-      // 时间吸附
+      final current = previewPosition ?? videoController!.value.position;
+      final newPos = current - const Duration(seconds: 10);
+      final target = newPos > Duration.zero ? newPos : Duration.zero;
       final alignedTarget = videoshotData!.getClosestTimestamp(target);
-
       setState(() {
         isSeekPreviewMode = true;
         previewPosition = alignedTarget;
       });
       _showSeekIndicator();
     } else {
-      // 直接跳转模式 (默认)
-      // 如果用户开启了预览模式但雪碧图加载失败，显示提示
+      // 直接跳转模式（带暂停+加速+批量提交）
       if (SettingsService.seekPreviewMode && !hasShownVideoshotFailToast) {
         hasShownVideoshotFailToast = true;
         Fluttertoast.showToast(
@@ -970,10 +1184,84 @@ mixin PlayerActionMixin on PlayerStateMixin {
           toastLength: Toast.LENGTH_SHORT,
         );
       }
-      videoController!.seekTo(target);
-      resetDanmakuIndex(target);
-      _showSeekIndicator();
+      _batchSeek(forward: false);
     }
+  }
+
+  /// 批量快进/快退：暂停视频、累积目标位置、加速、松手后提交
+  void _batchSeek({required bool forward}) {
+    if (videoController == null) return;
+    final total = videoController!.value.duration;
+
+    // 首次快进：暂停视频，记录播放状态
+    if (seekRepeatCount == 0) {
+      wasPlayingBeforeSeek = videoController!.value.isPlaying;
+      if (wasPlayingBeforeSeek) {
+        videoController!.pause();
+      }
+      pendingSeekTarget = videoController!.value.position;
+    }
+
+    seekRepeatCount++;
+    final step = _getSeekStep();
+    final current = pendingSeekTarget ?? videoController!.value.position;
+
+    if (forward) {
+      final newPos = current + step;
+      pendingSeekTarget = newPos < total ? newPos : total;
+    } else {
+      final newPos = current - step;
+      pendingSeekTarget = newPos > Duration.zero ? newPos : Duration.zero;
+    }
+
+    // 更新 UI 指示器（复用 previewPosition 显示目标位置）
+    setState(() {
+      showSeekIndicator = true;
+      previewPosition = pendingSeekTarget;
+    });
+
+    // 重置提交定时器（松手后 800ms 自动提交）
+    seekCommitTimer?.cancel();
+    seekCommitTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) commitSeek();
+    });
+  }
+
+  /// 提交快进结果：seekTo + 恢复播放
+  void commitSeek() {
+    seekCommitTimer?.cancel();
+    if (videoController == null || pendingSeekTarget == null) {
+      seekRepeatCount = 0;
+      pendingSeekTarget = null;
+      return;
+    }
+
+    final target = pendingSeekTarget!;
+    videoController!.seekTo(target);
+    resetDanmakuIndex(target);
+
+    if (wasPlayingBeforeSeek) {
+      videoController!.play();
+    }
+
+    // 清除预览位置（进度条回到实际位置），但保留指示器 2 秒
+    // 短暂隐藏缓冲条，等待播放器更新到新位置的缓冲数据
+    setState(() {
+      previewPosition = null;
+      hideBufferAfterSeek = true;
+    });
+    _showSeekIndicator(); // 提交后指示器再显示 2 秒，让用户看清跳转位置
+
+    bufferHideTimer?.cancel();
+    bufferHideTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() => hideBufferAfterSeek = false);
+      }
+    });
+
+    seekRepeatCount = 0;
+    pendingSeekTarget = null;
+    wasPlayingBeforeSeek = false;
   }
 
   /// 预览模式下继续快进/快退
@@ -1306,7 +1594,35 @@ mixin PlayerActionMixin on PlayerStateMixin {
     });
   }
 
-  Future<void> switchEpisode(int newCid) async {
+  /// 切换选集。对于合集 (ugc_season)，传入目标 episode 的 Map；
+  /// 对于普通分P，传入 cid。
+  Future<void> switchEpisode(int newCid, {String? targetBvid}) async {
+    // 合集切换：目标 bvid 与当前不同，需要导航到新播放器
+    if (targetBvid != null && targetBvid != widget.video.bvid) {
+      // 找到目标 episode 的信息
+      final idx = episodes.indexWhere((e) => e['bvid'] == targetBvid);
+      if (idx >= 0 && mounted) {
+        final targetEp = episodes[idx];
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              video: models.Video(
+                bvid: targetEp['bvid'] ?? '',
+                title: targetEp['title'] ?? '',
+                pic: targetEp['pic'] ?? '',
+                ownerName: widget.video.ownerName,
+                ownerFace: widget.video.ownerFace,
+                duration: targetEp['duration'] ?? 0,
+                pubdate: widget.video.pubdate,
+                view: 0,
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     if (newCid == cid) return;
 
     setState(() {

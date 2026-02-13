@@ -175,7 +175,7 @@ class _UpPanelState extends State<UpPanel> {
       child: Align(
         alignment: Alignment.centerRight,
         child: Container(
-          width: 400,
+          width: 280,
           height: double.infinity,
           color: Colors.black.withValues(alpha: 0.9),
           child: Column(
@@ -324,7 +324,7 @@ class _UpPanelState extends State<UpPanel> {
 
   Widget _buildVideoItem(Video video, bool isFocused) {
     return Container(
-      height: 88,
+      height: 70,
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isFocused
@@ -340,12 +340,12 @@ class _UpPanelState extends State<UpPanel> {
             borderRadius: BorderRadius.circular(6),
             child: Image.network(
               video.pic,
-              width: 140,
-              height: 80,
+              width: 100,
+              height: 56,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => Container(
-                width: 140,
-                height: 80,
+                width: 100,
+                height: 56,
                 color: Colors.grey[800],
                 child: const Icon(Icons.error, color: Colors.grey),
               ),

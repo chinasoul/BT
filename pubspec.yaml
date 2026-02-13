@@ -1,7 +1,7 @@
 name: bili_tv_app
 description: "BiliTV - 哔哩哔哩电视版客户端"
 publish_to: 'none'
-version: 0.3.1+6
+version: 0.3.2+7
 
 environment:
   sdk: ^3.10.3
@@ -89,3 +89,4 @@ flutter:
     - assets/icons/coin.svg
     - assets/icons/favorite.svg
     - assets/icons/live.svg
+    - assets/icons/settings.svg

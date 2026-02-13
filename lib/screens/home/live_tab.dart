@@ -39,13 +39,28 @@ class LiveTabState extends State<LiveTab> {
   final Map<int, FocusNode> _roomFocusNodes = {};
 
   bool _isRefreshing = false;
+  bool _hasLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _initCategories();
     _categoryFocusNodes = List.generate(_categories.length, (_) => FocusNode());
-    _loadDataForCategory(0);
+    // 懒加载：仅在当前可见时才加载数据
+    if (widget.isVisible) {
+      _loadDataForCategory(0);
+      _hasLoaded = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant LiveTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 首次切换到可见时加载
+    if (widget.isVisible && !oldWidget.isVisible && !_hasLoaded) {
+      _loadDataForCategory(0);
+      _hasLoaded = true;
+    }
   }
 
   void _initCategories() {

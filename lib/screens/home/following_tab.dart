@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -84,7 +85,12 @@ class FollowingTabState extends State<FollowingTab> {
   @override
   void didUpdateWidget(covariant FollowingTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 仅通过“点击关注”触发 refresh()，焦点切换到该页不自动刷新
+    // 首次切换到可见时触发加载（优先使用缓存）
+    if (widget.isVisible && !oldWidget.isVisible && AuthService.isLoggedIn) {
+      if (!_hasLoadedFollowing && !_hasLoadedFavorites && !_hasLoadedWatchLater) {
+        _loadCurrentTab(reset: false);
+      }
+    }
   }
 
   @override
@@ -193,19 +199,41 @@ class FollowingTabState extends State<FollowingTab> {
     if (!AuthService.isLoggedIn) return;
 
     if (_selectedTabIndex == 0) {
-      if (reset || !_hasLoadedFollowing) {
+      if (reset) {
         _hasLoadedFollowing = true;
         _loadFollowingUsers(reset: true);
+      } else if (!_hasLoadedFollowing) {
+        // 首次加载：先尝试缓存
+        if (_tryLoadFollowingFromCache()) {
+          _hasLoadedFollowing = true;
+        } else {
+          _hasLoadedFollowing = true;
+          _loadFollowingUsers(reset: true);
+        }
       }
     } else if (_selectedTabIndex == 1) {
-      if (reset || !_hasLoadedFavorites) {
+      if (reset) {
         _hasLoadedFavorites = true;
         _loadFavoriteFoldersAndFirstPage(reset: true);
+      } else if (!_hasLoadedFavorites) {
+        if (_tryLoadFavoritesFromCache()) {
+          _hasLoadedFavorites = true;
+        } else {
+          _hasLoadedFavorites = true;
+          _loadFavoriteFoldersAndFirstPage(reset: true);
+        }
       }
     } else {
-      if (reset || !_hasLoadedWatchLater) {
+      if (reset) {
         _hasLoadedWatchLater = true;
         _loadWatchLaterVideos();
+      } else if (!_hasLoadedWatchLater) {
+        if (_tryLoadWatchLaterFromCache()) {
+          _hasLoadedWatchLater = true;
+        } else {
+          _hasLoadedWatchLater = true;
+          _loadWatchLaterVideos();
+        }
       }
     }
   }
@@ -254,6 +282,11 @@ class FollowingTabState extends State<FollowingTab> {
         _followingPage = 2;
       }
     });
+
+    // 首页加载完成后保存缓存
+    if (reset && _users.isNotEmpty) {
+      _saveFollowingCache();
+    }
   }
 
   Future<void> _loadFavoriteFoldersAndFirstPage({required bool reset}) async {
@@ -355,6 +388,11 @@ class FollowingTabState extends State<FollowingTab> {
       _favoriteNextPageCache[folderId] = _favoritesPage;
       _favoriteHasMoreCache[folderId] = _favoritesHasMore;
     });
+
+    // 首页加载完成后保存缓存（仅保存首次 reset 加载的默认收藏夹）
+    if (reset && _favoriteVideos.isNotEmpty && _folders.isNotEmpty) {
+      _saveFavoritesCache();
+    }
   }
 
   Future<void> _loadWatchLaterVideos() async {
@@ -370,6 +408,108 @@ class FollowingTabState extends State<FollowingTab> {
       _watchLaterVideos = list;
       _watchLaterLoading = false;
     });
+
+    // 保存缓存
+    if (_watchLaterVideos.isNotEmpty) {
+      _saveWatchLaterCache();
+    }
+  }
+
+  // ==================== 本地缓存读写 ====================
+
+  void _saveFollowingCache() {
+    try {
+      final json = jsonEncode(_users.map((u) => u.toMap()).toList());
+      SettingsService.setCachedFollowingJson(json);
+    } catch (_) {}
+  }
+
+  void _saveFavoritesCache() {
+    try {
+      final foldersJson = jsonEncode(_folders.map((f) => f.toMap()).toList());
+      SettingsService.setCachedFavoriteFoldersJson(foldersJson);
+      final videosJson = jsonEncode(_favoriteVideos.map((v) => v.toMap()).toList());
+      SettingsService.setCachedFavoriteVideosJson(videosJson);
+    } catch (_) {}
+  }
+
+  void _saveWatchLaterCache() {
+    try {
+      final json = jsonEncode(_watchLaterVideos.map((v) => v.toMap()).toList());
+      SettingsService.setCachedWatchLaterJson(json);
+    } catch (_) {}
+  }
+
+  /// 从缓存加载关注列表，成功返回 true
+  bool _tryLoadFollowingFromCache() {
+    final jsonStr = SettingsService.cachedFollowingJson;
+    if (jsonStr == null) return false;
+    try {
+      final list = jsonDecode(jsonStr) as List;
+      final users = list
+          .map((item) => FollowingUser.fromMap(item as Map<String, dynamic>))
+          .toList();
+      if (users.isEmpty) return false;
+      setState(() {
+        _users = users;
+        _followingLoading = false;
+        _followingHasMore = false; // 缓存不支持加载更多
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 从缓存加载收藏夹，成功返回 true
+  bool _tryLoadFavoritesFromCache() {
+    final foldersStr = SettingsService.cachedFavoriteFoldersJson;
+    final videosStr = SettingsService.cachedFavoriteVideosJson;
+    if (foldersStr == null || videosStr == null) return false;
+    try {
+      final folderList = jsonDecode(foldersStr) as List;
+      final folders = folderList
+          .map((item) => FavoriteFolder.fromMap(item as Map<String, dynamic>))
+          .toList();
+      final videoList = jsonDecode(videosStr) as List;
+      final videos = videoList
+          .map((item) => Video.fromMap(item as Map<String, dynamic>))
+          .toList();
+      if (folders.isEmpty) return false;
+      final defaultIndex = folders.indexWhere((f) => f.isDefault);
+      final folderIndex = defaultIndex >= 0 ? defaultIndex : 0;
+      _rebuildFolderFocusNodes(folders.length);
+      setState(() {
+        _folders = folders;
+        _selectedFolderIndex = folderIndex;
+        _favoriteVideos = videos;
+        _favoritesLoading = false;
+        _favoritesHasMore = false; // 缓存不支持加载更多
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 从缓存加载稍后再看，成功返回 true
+  bool _tryLoadWatchLaterFromCache() {
+    final jsonStr = SettingsService.cachedWatchLaterJson;
+    if (jsonStr == null) return false;
+    try {
+      final list = jsonDecode(jsonStr) as List;
+      final videos = list
+          .map((item) => Video.fromMap(item as Map<String, dynamic>))
+          .toList();
+      if (videos.isEmpty) return false;
+      setState(() {
+        _watchLaterVideos = videos;
+        _watchLaterLoading = false;
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _switchFolder(int index, {bool refreshIfSame = true}) {

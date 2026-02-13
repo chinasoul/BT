@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../config/build_flags.dart';
-import '../../../services/auth_service.dart';
 import 'tabs/playback_settings.dart';
+import 'tabs/danmaku_settings.dart';
 import 'tabs/interface_settings.dart';
 import 'tabs/plugins_settings.dart';
 import 'tabs/storage_settings.dart';
 import 'tabs/about_settings.dart';
 import 'tabs/device_info_settings.dart';
 import '../../../widgets/time_display.dart';
-import '../../../widgets/vip_avatar_badge.dart';
 
 /// 设置分类枚举
 enum SettingsCategory {
   playback('播放设置'),
+  danmaku('弹幕设置'),
   interface_('界面设置'),
   plugins('插件中心'),
   storage('其他设置'),
@@ -26,12 +26,10 @@ enum SettingsCategory {
 
 class SettingsView extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
-  final VoidCallback onLogout;
 
   const SettingsView({
     super.key,
     this.sidebarFocusNode,
-    required this.onLogout,
   });
 
   @override
@@ -41,9 +39,9 @@ class SettingsView extends StatefulWidget {
 class SettingsViewState extends State<SettingsView> {
   int _selectedCategoryIndex = 0;
   late List<FocusNode> _categoryFocusNodes;
-  late FocusNode _logoutFocusNode;
   List<SettingsCategory> get _visibleCategories => [
     SettingsCategory.playback,
+    SettingsCategory.danmaku,
     SettingsCategory.interface_,
     if (BuildFlags.pluginsEnabled) SettingsCategory.plugins,
     SettingsCategory.storage,
@@ -54,7 +52,6 @@ class SettingsViewState extends State<SettingsView> {
   @override
   void initState() {
     super.initState();
-    _logoutFocusNode = FocusNode();
     _categoryFocusNodes = List.generate(
       _visibleCategories.length,
       (_) => FocusNode(),
@@ -63,7 +60,6 @@ class SettingsViewState extends State<SettingsView> {
 
   @override
   void dispose() {
-    _logoutFocusNode.dispose();
     for (var node in _categoryFocusNodes) {
       node.dispose();
     }
@@ -73,94 +69,8 @@ class SettingsViewState extends State<SettingsView> {
   /// 请求第一个分类标签的焦点（用于从侧边栏导航）
   void focusFirstCategory() {
     if (_categoryFocusNodes.isNotEmpty) {
-      _categoryFocusNodes[0].requestFocus();
+      _categoryFocusNodes[_selectedCategoryIndex].requestFocus();
     }
-  }
-
-  Future<bool> _showConfirmDialog(String title, String message) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消', style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确认', style: TextStyle(color: Color(0xFF81C784))),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  Future<void> _handleLogout() async {
-    final confirmed = await _showConfirmDialog('确认退出', '确定要退出登录吗？');
-    if (confirmed) {
-      widget.onLogout();
-    }
-  }
-
-  Widget _buildDefaultAvatar() {
-    return Container(
-      width: 50,
-      height: 50,
-      color: Colors.grey[700],
-      child: const Icon(Icons.person, size: 30, color: Colors.white54),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-    FocusNode? focusNode,
-  }) {
-    return Focus(
-      focusNode: focusNode,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-        if (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.select) {
-          onTap();
-          return KeyEventResult.handled;
-        }
-        // 阻止向上导航超出设置页面 (如跳到搜索框)
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: Builder(
-        builder: (context) {
-          final isFocused = Focus.of(context).hasFocus;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            decoration: BoxDecoration(
-              color: isFocused ? color : color.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(6),
-              border: isFocused
-                  ? Border.all(color: Colors.white, width: 2)
-                  : null,
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isFocused ? Colors.white : color,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 
   /// 构建分类标签
@@ -184,9 +94,8 @@ class SettingsViewState extends State<SettingsView> {
             onMoveLeft();
             return KeyEventResult.handled;
           }
-          // 向上导航跳转到退出按钮
+          // 设置页顶部，阻止向上导航
           if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            _logoutFocusNode.requestFocus();
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -254,61 +163,16 @@ class SettingsViewState extends State<SettingsView> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 顶部用户信息栏
+            // 设置标题
             Container(
               padding: const EdgeInsets.fromLTRB(40, 30, 40, 20),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 头像
-                  if (AuthService.face != null && AuthService.face!.isNotEmpty)
-                    VipAvatarBadge(
-                      size: 45,
-                      child: ClipOval(
-                        child: Image.network(
-                          AuthService.face!,
-                          width: 45,
-                          height: 45,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildDefaultAvatar(),
-                        ),
-                      ),
-                    )
-                  else
-                    _buildDefaultAvatar(),
-                  const SizedBox(width: 15),
-                  // 用户名和 UID
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AuthService.uname ?? '已登录',
-                        style: TextStyle(
-                          color: AuthService.isVip
-                              ? const Color(0xFF81C784) // VIP 粉色
-                              : Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'UID: ${AuthService.mid ?? ""}',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 30),
-                  // 退出登录按钮
-                  _buildActionButton(
-                    label: '退出登录',
-                    color: Colors.red,
-                    onTap: _handleLogout,
-                    focusNode: _logoutFocusNode,
-                  ),
-                ],
+              child: const Text(
+                '设置',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -366,6 +230,11 @@ class SettingsViewState extends State<SettingsView> {
     switch (category) {
       case SettingsCategory.playback:
         return PlaybackSettings(
+          onMoveUp: moveToCurrentTab,
+          sidebarFocusNode: widget.sidebarFocusNode,
+        );
+      case SettingsCategory.danmaku:
+        return DanmakuSettings(
           onMoveUp: moveToCurrentTab,
           sidebarFocusNode: widget.sidebarFocusNode,
         );

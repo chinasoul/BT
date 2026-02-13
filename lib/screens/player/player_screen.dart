@@ -17,6 +17,7 @@ import 'widgets/related_panel.dart';
 import 'widgets/mini_progress_bar.dart';
 import 'widgets/seek_preview_thumbnail.dart';
 import '../../widgets/time_display.dart';
+import '../../services/codec_service.dart';
 import 'mixins/player_state_mixin.dart';
 import 'mixins/player_action_mixin.dart';
 import 'mixins/player_event_mixin.dart';
@@ -430,7 +431,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         : (currentCodec.startsWith('avc') ? 'H.264' : '未知');
 
     final resolutionText = '$width x $height@${fps.toStringAsFixed(3)}';
-    final dataRateText = '${videoDataRateKbps <= 0 ? 0 : videoDataRateKbps} Kbps [$codec]';
+    final dataRateText = '${videoDataRateKbps <= 0 ? 0 : videoDataRateKbps} Kbps';
     final speedText = '${videoSpeedKbps <= 0 ? '0.0' : videoSpeedKbps.toStringAsFixed(1)} Kbps';
     final networkText = '${networkActivityKb <= 0 ? '0.00' : networkActivityKb.toStringAsFixed(2)} KB';
 
@@ -480,11 +481,53 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
           const SizedBox(height: 2),
           row('分辨率', resolutionText),
+          row('流(编码)', '$codec（B站下发，本机不编码）'),
           row('视频码率', dataRateText),
+          _buildDecodeHintRow(codec, labelStyle, valueStyle),
           row('视频速度', speedText),
           row('网络活动', networkText),
         ],
       ),
+    );
+  }
+
+  Widget _buildDecodeHintRow(String codecLabel, TextStyle labelStyle, TextStyle valueStyle) {
+    final codecKey = codecLabel == 'AV1'
+        ? 'av1'
+        : codecLabel == 'H.265'
+            ? 'hevc'
+            : codecLabel == 'H.264'
+                ? 'avc'
+                : null;
+    if (codecKey == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 190, child: Text('解码', style: labelStyle)),
+            Expanded(child: Text('未知', style: valueStyle)),
+          ],
+        ),
+      );
+    }
+    return FutureBuilder<List<String>>(
+      future: CodecService.getHardwareDecoders(),
+      builder: (context, snapshot) {
+        final hw = snapshot.data ?? [];
+        final hasHw = hw.any((e) => e.toLowerCase() == codecKey);
+        final hint = hasHw ? '可能硬解' : '可能软解(易卡顿)';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 190, child: Text('解码', style: labelStyle)),
+              Expanded(child: Text('$codecLabel $hint', style: valueStyle)),
+            ],
+          ),
+        );
+      },
     );
   }
 

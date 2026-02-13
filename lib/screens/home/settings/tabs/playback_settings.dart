@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../services/settings_service.dart';
-import '../../../../services/codec_service.dart';
 import '../widgets/setting_toggle_row.dart';
 import '../widgets/setting_dropdown_row.dart';
 
@@ -19,23 +18,6 @@ class PlaybackSettings extends StatefulWidget {
 }
 
 class _PlaybackSettingsState extends State<PlaybackSettings> {
-  List<String> _hardwareDecoders = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHardwareDecoders();
-  }
-
-  void _loadHardwareDecoders() async {
-    final decoders = await CodecService.getHardwareDecoders();
-    if (mounted) {
-      setState(() {
-        _hardwareDecoders = decoders;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -90,14 +72,9 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
         const SizedBox(height: 10),
         SettingDropdownRow<VideoCodec>(
           label: '视频解码器',
-          subtitle: '自动=按硬件支持选最优，失败时降级到其他格式',
+          subtitle: 'H.264/HEVC/AV1 都可试；卡顿时换一种试试',
           value: SettingsService.preferredCodec,
-          items: VideoCodec.values.where((codec) {
-            // 自动选项始终显示
-            if (codec == VideoCodec.auto) return true;
-            // 只显示硬件支持的编码器
-            return _hardwareDecoders.contains(codec.name.toLowerCase());
-          }).toList(),
+          items: VideoCodec.values.toList(),
           itemLabel: (codec) => codec.label,
           isLast: true, // 最后一项，阻止向下导航
           sidebarFocusNode: widget.sidebarFocusNode,

@@ -806,12 +806,11 @@ packages:
     source: hosted
     version: "2.10.1"
   video_player_android:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
-      name: video_player_android
-      sha256: ee4fd520b0cafa02e4a867a0f882092e727cdaa1a2d24762171e787f8a502b0a
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/video_player_android"
+      relative: true
+    source: path
     version: "2.9.1"
   video_player_avfoundation:
     dependency: transitive

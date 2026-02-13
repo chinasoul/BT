@@ -12,9 +12,10 @@ class MpdGenerator {
     buffer.writeln(
       '     profiles="urn:mpeg:dash:profile:isoff-on-demand:2011"',
     );
-    buffer.writeln(
-      '     minBufferTime="PT${dashData['minBufferTime'] ?? 1.5}S"',
-    );
+    // 提高最小缓冲时间，减少卡顿/掉帧（ExoPlayer 会据此缓冲更多数据）
+    final minBufferSec = (double.tryParse(dashData['minBufferTime']?.toString() ?? '1.5') ?? 1.5);
+    final minBufferTimeSec = minBufferSec < 4.0 ? 4.0 : minBufferSec;
+    buffer.writeln('     minBufferTime="PT${minBufferTimeSec}S"');
     buffer.writeln('     type="static"');
     buffer.writeln(
       '     mediaPresentationDuration="PT${dashData['duration']}S">',

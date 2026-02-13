@@ -18,6 +18,10 @@
 -dontwarn android.**
 -dontwarn androidx.**
 
+# Media3 ExoPlayer (video_player_android 本地 fork)
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
 # 保持 native 方法
 -keepclasseswithmembernames class * {
     native <methods>;

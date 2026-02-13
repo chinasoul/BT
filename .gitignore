@@ -45,3 +45,10 @@ app.*.map.json
 /android/app/release
 build_apk.bat
 lib/config/env.dart
+
+# Reverse engineering workspace (APK 解包目录，勿提交)
+/bbll_apk/
+
+# 本地 fork 的插件中的编译产物（源码需要提交）
+/packages/video_player_android/example/
+/packages/video_player_android/.dart_tool/

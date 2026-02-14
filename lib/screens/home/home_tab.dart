@@ -32,7 +32,7 @@ class HomeTab extends StatefulWidget {
 
 class HomeTabState extends State<HomeTab> {
   int _selectedCategoryIndex = 0;
-  final ScrollController _scrollController = ScrollController();
+  ScrollController _scrollController = ScrollController();
   late List<HomeCategory> _categories;
   late List<FocusNode> _categoryFocusNodes;
 
@@ -45,8 +45,9 @@ class HomeTabState extends State<HomeTab> {
   bool _firstLoadDone = false;
   bool _usedPreloadedData = false; // 标记是否使用了预加载数据
   bool _isRefreshing = false; // 标记是否正在刷新中（用于控制分帧渲染）
-  // 每个视频卡片的 FocusNode
-  final Map<int, FocusNode> _videoFocusNodes = {};
+  // 每个分类独立的视频 FocusNode 表，避免跨分类污染
+  final Map<int, Map<int, FocusNode>> _categoryFocusNodeMaps = {};
+  bool _isSwitchingCategory = false; // 防止 FocusNode dispose 引发的递归切换
 
   @override
   void initState() {
@@ -127,17 +128,23 @@ class HomeTabState extends State<HomeTab> {
     for (var node in _categoryFocusNodes) {
       node.dispose();
     }
-    // 清理视频卡片的 FocusNode
-    for (final node in _videoFocusNodes.values) {
-      node.dispose();
+    // 清理所有分类的视频 FocusNode
+    for (final map in _categoryFocusNodeMaps.values) {
+      for (final node in map.values) {
+        node.dispose();
+      }
     }
-    _videoFocusNodes.clear();
+    _categoryFocusNodeMaps.clear();
     super.dispose();
   }
 
-  // 获取或创建视频卡片的 FocusNode
+  // 获取或创建当前分类的视频卡片 FocusNode
   FocusNode _getFocusNode(int index) {
-    return _videoFocusNodes.putIfAbsent(index, () => FocusNode());
+    final map = _categoryFocusNodeMaps.putIfAbsent(
+      _selectedCategoryIndex,
+      () => {},
+    );
+    return map.putIfAbsent(index, () => FocusNode());
   }
 
   List<Video> get _currentVideos =>
@@ -181,11 +188,16 @@ class HomeTabState extends State<HomeTab> {
     if (refresh) {
       _categoryPage[categoryIndex] = 1;
       _categoryScrollOffset.remove(categoryIndex); // 刷新时清除滚动位置记忆
-      // 释放旧的 FocusNode，防止内存泄漏
-      for (final node in _videoFocusNodes.values) {
-        node.dispose();
-      }
-      _videoFocusNodes.clear();
+      // 重建 ScrollController，确保刷新后从顶部开始
+      // （jumpTo(0) 不够：loading 指示器会替换 ScrollView，
+      //   数据到达后重建 ScrollView 时 initialScrollOffset 仍是旧值）
+      _scrollController.dispose();
+      _scrollController = ScrollController(
+        initialScrollOffset: 0.0,
+        keepScrollOffset: false,
+      );
+      // 释放该分类的 FocusNode，防止内存泄漏
+      _disposeFocusNodesForCategory(categoryIndex);
       setState(() {
         _categoryLoading[categoryIndex] = true;
         _categoryVideos[categoryIndex] = [];
@@ -272,8 +284,8 @@ class HomeTabState extends State<HomeTab> {
   // ... (省略 _loadMore, _switchCategory 等辅助方法) ...
   void _loadMore() {
     if (_isLoading) return;
-    // 到 60 条后停止加载更多，防止内存无限增长
-    if ((_categoryVideos[_selectedCategoryIndex] ?? []).length >= 60) return;
+    // 到 40 条后停止加载更多，防止内存无限增长（TV 内存有限）
+    if ((_categoryVideos[_selectedCategoryIndex] ?? []).length >= 40) return;
     final page = (_categoryPage[_selectedCategoryIndex] ?? 1) + 1;
     _categoryPage[_selectedCategoryIndex] = page;
     _loadVideosForCategory(_selectedCategoryIndex);
@@ -281,24 +293,53 @@ class HomeTabState extends State<HomeTab> {
 
   void _switchCategory(int index) {
     if (_selectedCategoryIndex == index) return;
-    // 保存当前分类的滚动位置
+    // 防止 FocusNode dispose 引发焦点迁移，从而递归调用 _switchCategory
+    if (_isSwitchingCategory) return;
+    _isSwitchingCategory = true;
+
+    // ---- 保存当前分类的滚动位置 ----
     if (_scrollController.hasClients) {
       _categoryScrollOffset[_selectedCategoryIndex] = _scrollController.offset;
     }
+
+    final prevIndex = _selectedCategoryIndex;
+
+    // ---- 用 initialScrollOffset 创建新 ScrollController ----
+    // 避免先在 offset=0 处 build 一遍再 jumpTo 目标位置（双重 build）
+    // keepScrollOffset: false —— 我们自行管理 offset，禁止 PageStorage 干扰
+    _scrollController.dispose();
+    _scrollController = ScrollController(
+      initialScrollOffset: _categoryScrollOffset[index] ?? 0.0,
+      keepScrollOffset: false,
+    );
+
+    // ---- 主动释放 Flutter 图片内存缓存 ----
+    PaintingBinding.instance.imageCache.clear();
+
     // 切换分类后不再是初始预加载状态
     _usedPreloadedData = false;
     setState(() => _selectedCategoryIndex = index);
-    // 恢复目标分类的滚动位置（没有记录则回顶部）
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        final savedOffset = _categoryScrollOffset[index] ?? 0.0;
-        _scrollController.jumpTo(savedOffset.clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        ));
-      }
-    });
+
     if ((_categoryVideos[index] ?? []).isEmpty) _loadVideosForCategory(index);
+
+    _isSwitchingCategory = false;
+
+    // ---- 延迟释放旧分类的 FocusNode ----
+    // 必须在 setState 之后、widget 重建完成后再 dispose，
+    // 否则 dispose 会触发焦点迁移，导致递归调用 _switchCategory
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _disposeFocusNodesForCategory(prevIndex);
+    });
+  }
+
+  /// 释放指定分类的视频 FocusNode
+  void _disposeFocusNodesForCategory(int categoryIndex) {
+    final map = _categoryFocusNodeMaps.remove(categoryIndex);
+    if (map != null) {
+      for (final node in map.values) {
+        node.dispose();
+      }
+    }
   }
 
   void _onCategoryTap(int index) {
@@ -361,6 +402,9 @@ class HomeTabState extends State<HomeTab> {
                 ? const Center(child: CircularProgressIndicator())
                 : SizeCacheWidget(
                     child: CustomScrollView(
+                      // key 随分类变化，强制 Flutter 重建 Scrollable 和 ScrollPosition，
+                      // 否则 didUpdateWidget 只替换 controller 但复用旧 position（偏移量不对）
+                      key: ValueKey('category_$_selectedCategoryIndex'),
                       controller: _scrollController,
                       slivers: [
                         SliverPadding(
@@ -510,8 +554,14 @@ class HomeTabState extends State<HomeTab> {
                       isSelected: _selectedCategoryIndex == index,
                       focusNode: _categoryFocusNodes[index],
                       onTap: () => _onCategoryTap(index),
-                      onFocus: () => _switchCategory(index),
-                      onConfirm: refreshCurrentCategory,
+                      onFocus: () {
+                        // 聚焦即切换：移动焦点立刻切换分类
+                        // 普通模式：只高亮标签，不切换
+                        if (SettingsService.focusSwitchTab) {
+                          _switchCategory(index);
+                        }
+                      },
+                      onConfirm: () => _onCategoryTap(index),
                       onMoveLeft: index == 0
                           ? () => widget.sidebarFocusNode?.requestFocus()
                           : null,

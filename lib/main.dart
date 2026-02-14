@@ -13,9 +13,9 @@ import 'services/settings_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TV 设备内存有限，适度设置图片内存缓存
-  PaintingBinding.instance.imageCache.maximumSize = 100; // 100张图片
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50MB
+  // TV 设备内存有限（通常 1~2 GB），严格控制图片解码缓存
+  PaintingBinding.instance.imageCache.maximumSize = 60; // 最多 60 张解码图片
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 30 << 20; // 30 MB
 
   if (BuildFlags.pluginsEnabled) {
     // 初始化插件管理器并注册插件

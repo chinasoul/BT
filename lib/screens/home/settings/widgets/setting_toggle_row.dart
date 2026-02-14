@@ -8,6 +8,7 @@ import 'package:bili_tv_app/services/settings_service.dart';
 class SettingToggleRow extends StatelessWidget {
   final String label;
   final String? subtitle;
+  final Widget? subtitleWidget; // 优先于 subtitle，支持富文本
   final bool value;
   final ValueChanged<bool> onChanged;
   final bool autofocus;
@@ -22,6 +23,7 @@ class SettingToggleRow extends StatelessWidget {
     super.key,
     required this.label,
     this.subtitle,
+    this.subtitleWidget,
     required this.value,
     required this.onChanged,
     this.autofocus = false,
@@ -72,7 +74,12 @@ class SettingToggleRow extends StatelessWidget {
                           fontSize: 16,
                         ),
                       ),
-                      if (subtitle != null)
+                      if (subtitleWidget != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: subtitleWidget!,
+                        )
+                      else if (subtitle != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(

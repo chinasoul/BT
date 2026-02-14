@@ -13,6 +13,7 @@ import 'home/settings/settings_view.dart';
 import '../widgets/tv_focusable_item.dart';
 import '../services/auth_service.dart';
 import '../services/update_service.dart';
+import '../services/settings_service.dart';
 
 /// 主页框架
 /// Tab 顺序: 首页(0)、动态(1)、关注(2)、历史(3)、直播(4)、我(5)、搜索(6)、设置(7)
@@ -117,8 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    // 普通模式 / 聚焦即切换模式 均通过确认键切换 tab
     setState(() => _selectedTabIndex = index);
-    _sideBarFocusNodes[index].requestFocus();
   }
 
   void _handleLoginSuccess() {
@@ -253,7 +254,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         isSelected: _selectedTabIndex == index,
                         focusNode: _sideBarFocusNodes[index],
                         onFocus: () {
-                          setState(() => _selectedTabIndex = index);
+                          // 聚焦即切换：移动焦点立刻切换内容
+                          // 普通模式：只高亮图标，不切换内容
+                          if (SettingsService.focusSwitchTab) {
+                            setState(() => _selectedTabIndex = index);
+                          }
                         },
                         onTap: () => _handleSideBarTap(index),
                         onMoveUp: () => _moveUp(index),
@@ -269,7 +274,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       isSelected: _selectedTabIndex == _settingsIndex,
                       focusNode: _sideBarFocusNodes[_settingsIndex],
                       onFocus: () {
-                        setState(() => _selectedTabIndex = _settingsIndex);
+                        if (SettingsService.focusSwitchTab) {
+                          setState(() => _selectedTabIndex = _settingsIndex);
+                        }
                       },
                       onTap: () => _handleSideBarTap(_settingsIndex),
                       onMoveUp: () => _moveUp(_settingsIndex),

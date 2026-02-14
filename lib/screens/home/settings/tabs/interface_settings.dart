@@ -108,14 +108,46 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 聚焦即切换
+        SettingToggleRow(
+          label: '聚焦即切换',
+          subtitleWidget: Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: '开启后移动焦点立刻切换标签页，关闭则需按确认键。',
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                TextSpan(
+                  text: '开启可能导致低配设备卡顿',
+                  style: TextStyle(
+                    color: Colors.amber.shade300,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          value: SettingsService.focusSwitchTab,
+          autofocus: true,
+          isFirst: true,
+          onMoveUp: widget.onMoveUp,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (value) async {
+            await SettingsService.setFocusSwitchTab(value);
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: 10),
         // 启动时自动刷新首页
         SettingToggleRow(
           label: '启动时自动刷新首页',
           subtitle: '关闭后启动时使用缓存数据，显示上次更新时间',
           value: SettingsService.autoRefreshOnLaunch,
-          autofocus: true,
-          isFirst: true,
-          onMoveUp: widget.onMoveUp,
+          autofocus: false,
+          isFirst: false,
+          onMoveUp: null,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
             await SettingsService.setAutoRefreshOnLaunch(value);

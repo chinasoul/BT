@@ -693,6 +693,20 @@ class SettingsService {
     return pct > 0 ? '+$pct%' : '$pct%';
   }
 
+  // ==================== 聚焦即切换 ====================
+  static const String _focusSwitchTabKey = 'focus_switch_tab';
+
+  /// 聚焦即切换 (默认开启：移动焦点立刻切换 tab)
+  static bool get focusSwitchTab {
+    return _prefs?.getBool(_focusSwitchTabKey) ?? true;
+  }
+
+  /// 设置聚焦即切换
+  static Future<void> setFocusSwitchTab(bool value) async {
+    await init();
+    await _prefs!.setBool(_focusSwitchTabKey, value);
+  }
+
   // ==================== 主题色 ====================
   static const String _themeColorKey = 'theme_color';
 

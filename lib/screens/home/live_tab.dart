@@ -211,6 +211,11 @@ class LiveTabState extends State<LiveTab> {
 
   void _switchCategory(int index) {
     if (_selectedCategoryIndex == index) return;
+    // 释放旧分类的 FocusNode，减少内存占用
+    for (final node in _roomFocusNodes.values) {
+      node.dispose();
+    }
+    _roomFocusNodes.clear();
     if (_scrollController.hasClients) _scrollController.jumpTo(0);
     setState(() => _selectedCategoryIndex = index);
     if ((_categoryRooms[index] ?? []).isEmpty) {
@@ -411,12 +416,17 @@ class LiveTabState extends State<LiveTab> {
                       focusNode: _categoryFocusNodes[index],
                       onTap: () {
                         if (_selectedCategoryIndex == index) {
-                          refresh(); // Refresh if already selected
+                          refresh();
                         } else {
                           _switchCategory(index);
                         }
                       },
-                      onFocus: () => _switchCategory(index),
+                      onFocus: () {
+                        // 聚焦即切换：移动焦点立刻切换分类
+                        if (SettingsService.focusSwitchTab) {
+                          _switchCategory(index);
+                        }
+                      },
                       onMoveLeft: index == 0
                           ? () => widget.sidebarFocusNode.requestFocus()
                           : null,

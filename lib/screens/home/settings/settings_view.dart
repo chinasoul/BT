@@ -41,9 +41,9 @@ class SettingsViewState extends State<SettingsView> {
   int _selectedCategoryIndex = 0;
   late List<FocusNode> _categoryFocusNodes;
   List<SettingsCategory> get _visibleCategories => [
+    SettingsCategory.interface_,
     SettingsCategory.playback,
     SettingsCategory.danmaku,
-    SettingsCategory.interface_,
     if (BuildFlags.pluginsEnabled) SettingsCategory.plugins,
     SettingsCategory.storage,
     SettingsCategory.about,

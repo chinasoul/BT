@@ -130,7 +130,7 @@ class UpdateService {
 
   /// 自动检查间隔（天数，0 = 关闭）
   static int get autoCheckInterval {
-    return _prefs?.getInt(_autoCheckIntervalKey) ?? 0;
+    return _prefs?.getInt(_autoCheckIntervalKey) ?? 7;
   }
 
   static Future<void> setAutoCheckInterval(int days) async {
@@ -614,12 +614,12 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
   double _progress = 0;
   String? _error;
   bool _installing = false;
-  late String _downloadUrl;
+  String _downloadUrl = '';
+  bool _connecting = true;
 
   @override
   void initState() {
     super.initState();
-    _downloadUrl = widget.updateInfo.downloadUrl;
     _startDownload();
   }
 
@@ -641,7 +641,10 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
       },
       onUrl: (url) {
         if (mounted) {
-          setState(() => _downloadUrl = url);
+          setState(() {
+            _downloadUrl = url;
+            _connecting = false;
+          });
         }
       },
       onComplete: () {
@@ -691,8 +694,11 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
           ],
           const SizedBox(height: 12),
           Text(
-            _downloadUrl,
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
+            _connecting ? '正在连接下载源...' : _downloadUrl,
+            style: TextStyle(
+              color: _connecting ? Colors.white54 : Colors.white38,
+              fontSize: 11,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

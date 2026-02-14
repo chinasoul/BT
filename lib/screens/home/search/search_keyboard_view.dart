@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/search_history_service.dart';
 import '../../../widgets/tv_keyboard_button.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class SearchKeyboardView extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
@@ -225,7 +226,7 @@ class _SearchKeyboardViewState extends State<SearchKeyboardView> {
                       width: double.infinity,
                       child: TvActionButton(
                         label: '搜索',
-                        color: const Color(0xFF81C784),
+                        color: SettingsService.themeColor,
                         onTap: () => _handleKeyboardTap('搜索'),
                         onMoveLeft: () =>
                             widget.sidebarFocusNode?.requestFocus(),

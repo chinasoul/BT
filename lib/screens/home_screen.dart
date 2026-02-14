@@ -12,6 +12,7 @@ import 'home/live_tab.dart';
 import 'home/settings/settings_view.dart';
 import '../widgets/tv_focusable_item.dart';
 import '../services/auth_service.dart';
+import '../services/update_service.dart';
 
 /// 主页框架
 /// Tab 顺序: 首页(0)、动态(1)、关注(2)、历史(3)、直播(4)、我(5)、搜索(6)、设置(7)
@@ -73,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.highlightStrategy =
           FocusHighlightStrategy.alwaysTraditional;
+      // 自动检查更新（根据用户设置的间隔）
+      UpdateService.autoCheckAndNotify(context);
     });
   }
 

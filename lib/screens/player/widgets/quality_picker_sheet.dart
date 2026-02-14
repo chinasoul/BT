@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class QualityPickerSheet extends StatefulWidget {
   final List<Map<String, dynamic>> qualities;
@@ -118,7 +119,7 @@ class _QualityPickerSheetState extends State<QualityPickerSheet> {
                         q['desc'] ?? '${q['qn']}P',
                         style: TextStyle(
                           color: isCurrent
-                              ? const Color(0xFF81C784)
+                              ? SettingsService.themeColor
                               : Colors.white,
                           fontWeight: isCurrent || isFocused
                               ? FontWeight.bold
@@ -126,7 +127,7 @@ class _QualityPickerSheetState extends State<QualityPickerSheet> {
                         ),
                       ),
                       trailing: isCurrent
-                          ? const Icon(Icons.check, color: Color(0xFF81C784))
+                          ? Icon(Icons.check, color: SettingsService.themeColor)
                           : null,
                       onTap: () => widget.onSelect(q['qn']),
                     ),

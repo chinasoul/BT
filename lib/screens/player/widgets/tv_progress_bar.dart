@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// TV 遥控器优化的视频进度条
 ///
@@ -79,7 +80,7 @@ class TvProgressBar extends StatelessWidget {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(2),
-                            color: const Color(0xFF81C784), // B站粉
+                            color: SettingsService.themeColor, // B站粉
                           ),
                         ),
                       ),

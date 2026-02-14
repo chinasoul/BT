@@ -114,3 +114,39 @@ jobs:
           files: |
             release-assets/v7a.apk
             release-assets/v8a.apk
+
+      # ============ Gitee 镜像发布（可选，需配置 GITEE_TOKEN 和 GITEE_REPO） ============
+      - name: Publish to Gitee
+        if: ${{ secrets.GITEE_TOKEN != '' && vars.GITEE_REPO != '' }}
+        shell: bash
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_REPO: ${{ vars.GITEE_REPO }}
+        run: |
+          set -euo pipefail
+          API="https://gitee.com/api/v5/repos/${GITEE_REPO}/releases"
+          BODY=$(cat "$RELEASE_NOTES_FILE")
+
+          echo "Creating Gitee release for ${RELEASE_TAG}..."
+          RELEASE_RESP=$(curl -s -X POST "$API" \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "tag_name=${RELEASE_TAG}" \
+            -F "name=${RELEASE_TAG}" \
+            -F "body=${BODY}" \
+            -F "target_commitish=main")
+
+          RELEASE_ID=$(echo "$RELEASE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null || true)
+          if [[ -z "$RELEASE_ID" ]]; then
+            echo "::warning::Failed to create Gitee release. Response: $RELEASE_RESP"
+            exit 0
+          fi
+          echo "Gitee release created: ID=$RELEASE_ID"
+
+          for apk in release-assets/v7a.apk release-assets/v8a.apk; do
+            echo "Uploading $(basename $apk) to Gitee..."
+            curl -s -X POST "${API}/${RELEASE_ID}/attach_files" \
+              -H "Content-Type: multipart/form-data" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${apk}" || echo "::warning::Failed to upload $(basename $apk) to Gitee"
+          done
+          echo "Gitee publish done."

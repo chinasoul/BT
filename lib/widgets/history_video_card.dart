@@ -115,7 +115,7 @@ class HistoryVideoCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF81C784),
+                  color: SettingsService.themeColor,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -181,7 +181,7 @@ class HistoryVideoCard extends StatelessWidget {
                               : '${_formatTime(video.progress > 0 ? video.progress : 0)} / ${_formatTime(video.duration)}',
                           style: TextStyle(
                             color: _isCompleted
-                                ? const Color(0xFF81C784)
+                                ? SettingsService.themeColor
                                 : Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -202,7 +202,7 @@ class HistoryVideoCard extends StatelessWidget {
                       FractionallySizedBox(
                         alignment: Alignment.centerLeft,
                         widthFactor: _progressRatio,
-                        child: Container(color: const Color(0xFF81C784)),
+                        child: Container(color: SettingsService.themeColor),
                       ),
                     ],
                   ),

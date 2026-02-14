@@ -419,7 +419,7 @@ class _SortButtonState extends State<_SortButton> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? const Color(0xFF81C784)
+              ? SettingsService.themeColor
               : _isFocused
               ? Colors.white.withValues(alpha: 0.2)
               : Colors.white.withValues(alpha: 0.1),

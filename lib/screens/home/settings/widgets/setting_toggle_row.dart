@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/focus/focus_navigation.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 设置页开关行组件
 ///
@@ -55,7 +56,7 @@ class SettingToggleRow extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
               border: isFocused
-                  ? Border.all(color: const Color(0xFF81C784), width: 2)
+                  ? Border.all(color: SettingsService.themeColor, width: 2)
                   : null,
             ),
             child: Row(
@@ -93,7 +94,7 @@ class SettingToggleRow extends StatelessWidget {
                   ).withValues(alpha: 0.5),
                   thumbColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return const Color(0xFF81C784);
+                      return SettingsService.themeColor;
                     }
                     return Colors.grey;
                   }),

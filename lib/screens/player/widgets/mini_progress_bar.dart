@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 迷你进度条 - 显示在屏幕底部，当控制栏隐藏时显示
 /// 缓冲区间按实际 bufferedRanges 独立渲染，仅已缓冲部分显示黄色
@@ -57,8 +58,8 @@ class MiniProgressBar extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   widthFactor: progress.clamp(0.0, 1.0),
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF81C784),
+                    decoration: BoxDecoration(
+                      color: SettingsService.themeColor,
                     ),
                   ),
                 ),

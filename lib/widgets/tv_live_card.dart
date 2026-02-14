@@ -68,7 +68,7 @@ class TvLiveCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFF81C784),
+                color: SettingsService.themeColor,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Row(

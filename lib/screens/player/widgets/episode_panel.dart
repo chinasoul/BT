@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class EpisodePanel extends StatefulWidget {
   final List<dynamic> episodes;
@@ -175,9 +176,9 @@ class _EpisodeItem extends StatelessWidget {
         border: Border(
           left: BorderSide(
             color: isSelected
-                ? const Color(0xFF81C784)
+                ? SettingsService.themeColor
                 : (isFocused
-                      ? const Color(0xFF81C784).withValues(alpha: 0.5)
+                      ? SettingsService.themeColor.withValues(alpha: 0.5)
                       : Colors.transparent),
             width: 4,
           ),
@@ -186,7 +187,7 @@ class _EpisodeItem extends StatelessWidget {
       child: Text(
         title,
         style: TextStyle(
-          color: isSelected ? const Color(0xFF81C784) : Colors.white,
+          color: isSelected ? SettingsService.themeColor : Colors.white,
           fontSize: 16,
           fontWeight: isSelected || isFocused
               ? FontWeight.bold

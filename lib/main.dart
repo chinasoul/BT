@@ -49,7 +49,7 @@ class BiliTvApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: const Color(0xFF81C784), // Bilibili 粉色
+        primaryColor: SettingsService.themeColor,
         useMaterial3: true,
         focusColor: Colors.white.withValues(alpha: 0.1),
       ),

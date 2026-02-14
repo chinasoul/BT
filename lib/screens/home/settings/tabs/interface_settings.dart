@@ -22,6 +22,7 @@ class InterfaceSettings extends StatefulWidget {
 class _InterfaceSettingsState extends State<InterfaceSettings> {
   int _videoGridColumns = SettingsService.videoGridColumns;
   double _fontScale = SettingsService.fontScale;
+  int _themeColorValue = SettingsService.themeColorValue;
 
   // 分区排序相关
   List<String> _categoryOrder = [];
@@ -173,6 +174,88 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
           },
         ),
         const SizedBox(height: 10),
+        // 主题色
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            '主题色 (需重启APP完全生效)',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: SettingsService.themeColorOptions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final entry = SettingsService.themeColorOptions.entries.elementAt(index);
+              final colorValue = entry.key;
+              final label = entry.value;
+              final isSelected = _themeColorValue == colorValue;
+
+              return Focus(
+                onKeyEvent: (node, event) {
+                  if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                  if (event.logicalKey == LogicalKeyboardKey.select ||
+                      event.logicalKey == LogicalKeyboardKey.enter) {
+                    SettingsService.setThemeColor(colorValue);
+                    setState(() => _themeColorValue = colorValue);
+                    return KeyEventResult.handled;
+                  }
+                  if (event.logicalKey == LogicalKeyboardKey.arrowLeft && index == 0) {
+                    widget.sidebarFocusNode?.requestFocus();
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: Builder(
+                  builder: (context) {
+                    final focused = Focus.of(context).hasFocus;
+                    return GestureDetector(
+                      onTap: () {
+                        SettingsService.setThemeColor(colorValue);
+                        setState(() => _themeColorValue = colorValue);
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Color(colorValue),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: focused ? Colors.white : (isSelected ? Colors.white70 : Colors.transparent),
+                                width: focused ? 3 : (isSelected ? 2 : 0),
+                              ),
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                : null,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: focused ? Colors.white : Colors.white60,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
 
         // 分区开关
         Padding(
@@ -220,14 +303,14 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: isEnabled
-                            ? const Color(0xFF81C784).withValues(alpha: 0.3)
+                            ? SettingsService.themeColor.withValues(alpha: 0.3)
                             : Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: focused
                               ? Colors.white
                               : isEnabled
-                              ? const Color(0xFF81C784)
+                              ? SettingsService.themeColor
                               : Colors.transparent,
                           width: focused ? 2 : 1,
                         ),
@@ -275,7 +358,7 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
             _isDragging ? '← → 移动位置，确认键固定' : '确认键选中，← → 移动',
             style: TextStyle(
               color: _isDragging
-                  ? const Color(0xFF81C784)
+                  ? SettingsService.themeColor
                   : Colors.white.withValues(alpha: 0.5),
               fontSize: 12,
             ),
@@ -412,7 +495,7 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               color: _isDragging && isSelected
-                                  ? const Color(0xFF81C784)
+                                  ? SettingsService.themeColor
                                   : focused
                                   ? Colors.white.withValues(alpha: 0.2)
                                   : Colors.white.withValues(alpha: 0.1),
@@ -483,14 +566,14 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: isEnabled
-                            ? const Color(0xFF81C784).withValues(alpha: 0.3)
+                            ? SettingsService.themeColor.withValues(alpha: 0.3)
                             : Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: focused
                               ? Colors.white
                               : isEnabled
-                              ? const Color(0xFF81C784)
+                              ? SettingsService.themeColor
                               : Colors.transparent,
                           width: focused ? 2 : 1,
                         ),
@@ -538,7 +621,7 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
             _isLiveDragging ? '← → 移动位置，确认键固定' : '确认键选中，← → 移动',
             style: TextStyle(
               color: _isLiveDragging
-                  ? const Color(0xFF81C784)
+                  ? SettingsService.themeColor
                   : Colors.white.withValues(alpha: 0.5),
               fontSize: 12,
             ),
@@ -700,7 +783,7 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: _isLiveDragging && isSelected
-                                      ? const Color(0xFF81C784)
+                                      ? SettingsService.themeColor
                                       : focused
                                       ? Colors.white.withValues(alpha: 0.2)
                                       : Colors.white.withValues(alpha: 0.1),
@@ -738,13 +821,13 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF81C784).withValues(alpha: 0.2),
+        color: SettingsService.themeColor.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.info_outline, color: Color(0xFF81C784), size: 16),
+          Icon(Icons.info_outline, color: SettingsService.themeColor, size: 16),
           const SizedBox(width: 4),
           Text(
             '修改后需重启APP生效',

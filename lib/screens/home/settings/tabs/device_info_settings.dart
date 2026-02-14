@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../services/device_info_service.dart';
 import '../widgets/setting_action_row.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class DeviceInfoSettings extends StatefulWidget {
   final VoidCallback onMoveUp;
@@ -108,7 +109,7 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
                   : Colors.white.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(8),
               border: focused
-                  ? Border.all(color: const Color(0xFF81C784), width: 2)
+                  ? Border.all(color: SettingsService.themeColor, width: 2)
                   : null,
             ),
             child: Row(

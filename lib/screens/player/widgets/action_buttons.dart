@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../models/video.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 点赞/投币/收藏 按钮组件
 class ActionButtons extends StatefulWidget {
@@ -224,7 +225,7 @@ class _ActionButtonsState extends State<ActionButtons> {
     bool isActive = false,
   }) {
     final isFocused = widget.isFocused && _focusedIndex == index;
-    final color = isActive ? const Color(0xFF81C784) : Colors.white;
+    final color = isActive ? SettingsService.themeColor : Colors.white;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),

@@ -58,7 +58,7 @@ class ProfileViewState extends State<ProfileView> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child:
-                const Text('确认', style: TextStyle(color: Color(0xFF81C784))),
+                Text('确认', style: TextStyle(color: SettingsService.themeColor)),
           ),
         ],
       ),
@@ -113,7 +113,7 @@ class ProfileViewState extends State<ProfileView> {
                   AuthService.uname ?? '已登录',
                   style: TextStyle(
                     color: AuthService.isVip
-                        ? const Color(0xFF81C784)
+                        ? SettingsService.themeColor
                         : Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

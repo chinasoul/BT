@@ -1,10 +1,10 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter/material.dart';
 
 /// 视频编解码器枚举
 enum VideoCodec {
@@ -692,4 +692,40 @@ class SettingsService {
     final pct = ((scale - 1.0) * 100).round();
     return pct > 0 ? '+$pct%' : '$pct%';
   }
+
+  // ==================== 主题色 ====================
+  static const String _themeColorKey = 'theme_color';
+
+  /// 主题色选项：value → label
+  static const Map<int, String> themeColorOptions = {
+    0xFF81C784: '草绿',
+    0xFFFB7299: 'B站粉',
+    0xFF64B5F6: '天蓝',
+    0xFFBA68C8: '薰衣紫',
+    0xFFFFB74D: '暖橙',
+    0xFF4DD0E1: '湖青',
+    0xFFE57373: '珊瑚红',
+    0xFF4DB6AC: '薄荷',
+    0xFFFFD54F: '琥珀',
+    0xFFA1887F: '可可',
+  };
+
+  /// 当前主题色
+  static Color get themeColor {
+    final value = _prefs?.getInt(_themeColorKey) ?? 0xFF81C784;
+    return Color(value);
+  }
+
+  /// 当前主题色的 int 值
+  static int get themeColorValue => _prefs?.getInt(_themeColorKey) ?? 0xFF81C784;
+
+  /// 设置主题色
+  static Future<void> setThemeColor(int colorValue) async {
+    await init();
+    await _prefs!.setInt(_themeColorKey, colorValue);
+  }
+
+  /// 当前主题色标签
+  static String get themeColorLabel =>
+      themeColorOptions[themeColorValue] ?? '自定义';
 }

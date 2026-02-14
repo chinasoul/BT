@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class VideoLayer extends StatelessWidget {
   final VideoPlayerController? controller;
@@ -25,8 +26,8 @@ class VideoLayer extends StatelessWidget {
     }
 
     if (isLoading || controller == null || !controller!.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF81C784)),
+      return Center(
+        child: CircularProgressIndicator(color: SettingsService.themeColor),
       );
     }
 

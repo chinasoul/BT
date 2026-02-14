@@ -4,6 +4,7 @@ import 'package:bili_tv_app/core/plugin/plugin_manager.dart';
 import 'package:bili_tv_app/core/plugin/plugin_store.dart';
 import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/services/local_server.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 插件设置页
 class PluginsSettingsTab extends StatefulWidget {
@@ -130,14 +131,14 @@ class _PluginCardState extends State<_PluginCard> {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: _focused
-                    ? Border.all(color: const Color(0xFF81C784), width: 2)
+                    ? Border.all(color: SettingsService.themeColor, width: 2)
                     : null,
               ),
               child: Row(
                 children: [
                   Icon(
                     widget.plugin.icon ?? Icons.extension,
-                    color: isEnabled ? const Color(0xFF81C784) : Colors.white54,
+                    color: isEnabled ? SettingsService.themeColor : Colors.white54,
                     size: 28,
                   ),
                   const SizedBox(width: 16),
@@ -185,7 +186,7 @@ class _PluginCardState extends State<_PluginCard> {
                     ).withValues(alpha: 0.5),
                     thumbColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected)) {
-                        return const Color(0xFF81C784);
+                        return SettingsService.themeColor;
                       }
                       return Colors.grey;
                     }),

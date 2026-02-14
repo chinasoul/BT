@@ -965,7 +965,7 @@ class _TopTab extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: focused ? const Color(0xFF81C784) : Colors.transparent,
+                color: focused ? SettingsService.themeColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: focused ? Colors.white : Colors.transparent,
@@ -977,7 +977,7 @@ class _TopTab extends StatelessWidget {
                 style: TextStyle(
                   color: focused
                       ? Colors.white
-                      : (isSelected ? const Color(0xFF81C784) : Colors.white70),
+                      : (isSelected ? SettingsService.themeColor : Colors.white70),
                   fontSize: 16,
                   fontWeight: focused || isSelected
                       ? FontWeight.bold
@@ -1050,12 +1050,12 @@ class _FolderTab extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: focused ? const Color(0xFF81C784) : Colors.white10,
+                color: focused ? SettingsService.themeColor : Colors.white10,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: focused
                       ? Colors.white
-                      : (isSelected ? const Color(0xFF81C784) : Colors.transparent),
+                      : (isSelected ? SettingsService.themeColor : Colors.transparent),
                   width: focused ? 1.5 : 1,
                 ),
               ),
@@ -1064,7 +1064,7 @@ class _FolderTab extends StatelessWidget {
                 style: TextStyle(
                   color: focused
                       ? Colors.white
-                      : (isSelected ? const Color(0xFF81C784) : Colors.white70),
+                      : (isSelected ? SettingsService.themeColor : Colors.white70),
                   fontSize: 12,
                 ),
               ),
@@ -1141,7 +1141,7 @@ class _FollowingUserCard extends StatelessWidget {
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: focused ? const Color(0xFF81C784) : Colors.white10,
+              color: focused ? SettingsService.themeColor : Colors.white10,
               borderRadius: BorderRadius.circular(10),
               border: focused ? Border.all(color: Colors.white, width: 2) : null,
             ),

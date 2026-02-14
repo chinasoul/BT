@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 enum SettingsMenuType { main, quality, danmaku, speed }
 
@@ -296,11 +297,11 @@ class _SettingsPanelState extends State<SettingsPanel> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: isFocused
-                ? const Color(0xFF81C784).withValues(alpha: 0.3)
+                ? SettingsService.themeColor.withValues(alpha: 0.3)
                 : Colors.transparent,
             border: isFocused
-                ? const Border(
-                    left: BorderSide(color: Color(0xFF81C784), width: 3),
+                ? Border(
+                    left: BorderSide(color: SettingsService.themeColor, width: 3),
                   )
                 : null,
           ),
@@ -309,7 +310,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
               Icon(
                 icon,
                 color: isFocused
-                    ? const Color(0xFF81C784)
+                    ? SettingsService.themeColor
                     : Colors.white.withValues(alpha: 0.7),
                 size: 22,
               ),

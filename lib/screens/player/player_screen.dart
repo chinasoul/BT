@@ -450,7 +450,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               widthFactor: progress.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF81C784),
+                  color: SettingsService.themeColor,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),

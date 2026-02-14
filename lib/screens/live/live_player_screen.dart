@@ -836,8 +836,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const CircularProgressIndicator(
-                            color: Color(0xFF81C784),
+                          CircularProgressIndicator(
+                            color: SettingsService.themeColor,
                           ),
                           if (_errorMessage != null) ...[
                             const SizedBox(height: 20),
@@ -1058,10 +1058,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                     icon: _isFollowed ? Icons.favorite : Icons.favorite_border,
                     label: _isFollowed ? '已关注' : '关注',
                     iconColor: _isFollowed
-                        ? const Color(0xFF81C784)
+                        ? SettingsService.themeColor
                         : Colors.white,
                     textColor: _isFollowed
-                        ? const Color(0xFF81C784)
+                        ? SettingsService.themeColor
                         : Colors.white,
                   ),
                 ],
@@ -1085,11 +1085,11 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: isFocused
-            ? const Color(0xFF81C784)
+            ? SettingsService.themeColor
             : Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: isFocused
-            ? Border.all(color: const Color(0xFF81C784), width: 2)
+            ? Border.all(color: SettingsService.themeColor, width: 2)
             : null,
       ),
       child: Row(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../models/video.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// Uploader Panel - Shows uploader's videos and follow button
 class UpPanel extends StatefulWidget {
@@ -268,7 +269,7 @@ class _UpPanelState extends State<UpPanel> {
                         decoration: BoxDecoration(
                           color: _isFollowing
                               ? Colors.grey[700]
-                              : const Color(0xFF81C784),
+                              : SettingsService.themeColor,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(

@@ -46,13 +46,38 @@ class UpdateCheckResult {
 }
 
 /// 更新服务
+///
+/// 更新源优先级：GitHub → Gitee → GitHub 代理镜像
+/// 对用户完全透明，无需任何配置
 class UpdateService {
+  // ============ GitHub 配置 ============
   static const String _githubRepoKey = 'update_github_repo';
   static const String _githubTokenKey = 'update_github_token';
 
-  // 固定配置（可被本地设置覆盖）
   static const String defaultGitHubRepo = Env.githubRepo;
   static const String defaultGitHubToken = Env.githubToken;
+
+  // ============ Gitee 配置 ============
+  static const String _giteeRepoKey = 'update_gitee_repo';
+  static const String _giteeTokenKey = 'update_gitee_token';
+
+  static const String defaultGiteeRepo = Env.giteeRepo;
+  static const String defaultGiteeToken = Env.giteeToken;
+
+  // ============ GitHub 代理镜像（最后的回退手段） ============
+  static const List<String> _builtinProxies = [
+    'https://mirror.ghproxy.com/',
+    'https://ghfast.top/',
+    'https://gh-proxy.com/',
+  ];
+
+  // ============ 自动检查配置 ============
+  static const String _autoCheckIntervalKey = 'update_auto_check_interval';
+  static const String _lastCheckTimeKey = 'update_last_check_time';
+
+  /// 自动检查间隔选项 & 标签
+  static const List<int> autoCheckOptions = [0, 1, 3, 7];
+  static const List<String> autoCheckLabels = ['关闭', '每天', '每3天', '每7天'];
 
   static SharedPreferences? _prefs;
 
@@ -61,29 +86,85 @@ class UpdateService {
     _prefs ??= await SharedPreferences.getInstance();
   }
 
-  /// 获取 GitHub 仓库（owner/repo）
+  // ============ GitHub 仓库 & Token ============
+
   static String get githubRepo {
     return _prefs?.getString(_githubRepoKey) ?? defaultGitHubRepo;
   }
 
-  /// 设置 GitHub 仓库（owner/repo）
   static Future<void> setGitHubRepo(String repo) async {
     await init();
     await _prefs!.setString(_githubRepoKey, repo);
   }
 
-  /// 获取 GitHub Token
   static String get githubToken {
     return _prefs?.getString(_githubTokenKey) ?? defaultGitHubToken;
   }
 
-  /// 设置 GitHub Token
   static Future<void> setGitHubToken(String token) async {
     await init();
     await _prefs!.setString(_githubTokenKey, token);
   }
 
-  static bool get _isRepoConfigured => githubRepo.trim().isNotEmpty;
+  // ============ Gitee 仓库 & Token ============
+
+  static String get giteeRepo {
+    return _prefs?.getString(_giteeRepoKey) ?? defaultGiteeRepo;
+  }
+
+  static Future<void> setGiteeRepo(String repo) async {
+    await init();
+    await _prefs!.setString(_giteeRepoKey, repo);
+  }
+
+  static String get giteeToken {
+    return _prefs?.getString(_giteeTokenKey) ?? defaultGiteeToken;
+  }
+
+  static Future<void> setGiteeToken(String token) async {
+    await init();
+    await _prefs!.setString(_giteeTokenKey, token);
+  }
+
+  // ============ 自动检查设置 ============
+
+  /// 自动检查间隔（天数，0 = 关闭）
+  static int get autoCheckInterval {
+    return _prefs?.getInt(_autoCheckIntervalKey) ?? 0;
+  }
+
+  static Future<void> setAutoCheckInterval(int days) async {
+    await init();
+    await _prefs!.setInt(_autoCheckIntervalKey, days);
+  }
+
+  /// 上次检查时间（毫秒时间戳）
+  static int get lastCheckTime {
+    return _prefs?.getInt(_lastCheckTimeKey) ?? 0;
+  }
+
+  static Future<void> _recordCheckTime() async {
+    await init();
+    await _prefs!.setInt(
+      _lastCheckTimeKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// 是否需要自动检查更新
+  static bool shouldAutoCheck() {
+    final interval = autoCheckInterval;
+    if (interval <= 0) return false;
+    final last = lastCheckTime;
+    if (last == 0) return true;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - last;
+    return elapsed >= interval * 24 * 60 * 60 * 1000;
+  }
+
+  // ============ 内部工具方法 ============
+
+  static bool get _isGitHubConfigured => githubRepo.trim().isNotEmpty;
+  static bool get _isGiteeConfigured => giteeRepo.trim().isNotEmpty;
 
   static Map<String, String> _githubHeaders({bool asJson = false}) {
     final headers = <String, String>{
@@ -95,6 +176,15 @@ class UpdateService {
       headers['Authorization'] = 'Bearer $token';
     }
     return headers;
+  }
+
+  /// 构建 Gitee API URL（将 token 附加为查询参数）
+  static String _giteeApiUrl(String path) {
+    final base = 'https://gitee.com/api/v5/repos/$giteeRepo/$path';
+    final token = giteeToken.trim();
+    if (token.isEmpty) return base;
+    final sep = base.contains('?') ? '&' : '?';
+    return '$base${sep}access_token=$token';
   }
 
   /// 获取设备 CPU 架构（通过原生 MethodChannel 获取真实设备架构）
@@ -183,84 +273,140 @@ class UpdateService {
     return (apkAssets.first['browser_download_url'] ?? '').toString();
   }
 
-  /// 检查更新
-  static Future<UpdateCheckResult> checkForUpdate() async {
+  // ============ 通用 Release 检查 ============
+
+  /// 从指定 API 端点检查更新（GitHub / Gitee 通用）
+  /// 返回 null 表示该源不可用，调用方应尝试下一个源
+  static Future<UpdateCheckResult?> _checkRelease(
+    String apiUrl,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     try {
-      await init();
-
-      if (!_isRepoConfigured) {
-        return UpdateCheckResult(hasUpdate: false, error: '未配置 GitHub 仓库');
-      }
-
-      // 获取 GitHub latest release 信息
-      final latestReleaseUrl = 'https://api.github.com/repos/$githubRepo/releases/latest';
       final response = await http
-          .get(
-            Uri.parse(latestReleaseUrl),
-            headers: _githubHeaders(asJson: true),
-          )
-          .timeout(const Duration(seconds: 10));
+          .get(Uri.parse(apiUrl), headers: headers)
+          .timeout(timeout);
 
-      if (response.statusCode == 404) {
-        return UpdateCheckResult(
-          hasUpdate: false,
-          error: '未找到 Release（请先发布 release）',
-        );
-      }
-
-      if (response.statusCode == 403) {
-        return UpdateCheckResult(
-          hasUpdate: false,
-          error: 'GitHub API 访问受限（可能触发频率限制）',
-        );
-      }
-
-      if (response.statusCode != 200) {
-        return UpdateCheckResult(
-          hasUpdate: false,
-          error: 'GitHub 响应错误: ${response.statusCode}',
-        );
-      }
+      if (response.statusCode != 200) return null;
 
       final release = Map<String, dynamic>.from(jsonDecode(response.body));
-      if ((release['draft'] ?? false) == true) {
-        return UpdateCheckResult(hasUpdate: false, error: '当前 latest 是草稿 release');
-      }
+      if ((release['draft'] ?? false) == true) return null;
 
-      final tagName = _normalizeVersion((release['tag_name'] ?? '').toString());
-      if (tagName.isEmpty) {
-        return UpdateCheckResult(hasUpdate: false, error: 'Release 缺少 tag_name');
-      }
+      final tagName =
+          _normalizeVersion((release['tag_name'] ?? '').toString());
+      if (tagName.isEmpty) return null;
 
-      // 获取当前 App 版本
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-
-      // 比较版本号（支持 tag: v1.2.3 或 v1.2.3+4）
       final hasUpdate = _compareVersion(tagName, currentVersion) > 0;
+
       if (!hasUpdate) {
-        return UpdateCheckResult(hasUpdate: false, updateInfo: null);
+        return UpdateCheckResult(hasUpdate: false);
       }
 
       final arch = await _getDeviceArch();
       final assets = (release['assets'] as List?) ?? const [];
       final apkUrl = _pickApkAssetUrl(assets, arch);
-      if (apkUrl == null || apkUrl.isEmpty) {
-        return UpdateCheckResult(
-          hasUpdate: false,
-          error: 'Release 中未找到可下载的 APK 资产',
-        );
+      if (apkUrl == null || apkUrl.isEmpty) return null;
+
+      return UpdateCheckResult(
+        hasUpdate: true,
+        updateInfo: UpdateInfo(
+          version: tagName,
+          versionCode: 0,
+          downloadUrl: apkUrl,
+          changelog: (release['body'] ?? '').toString(),
+          forceUpdate: false,
+        ),
+      );
+    } catch (_) {
+      return null; // 连接失败，返回 null 让调用方尝试下一个源
+    }
+  }
+
+  // ============ GitHub 下载代理回退 ============
+
+  /// 为 GitHub URL 构建代理候选列表：直连 → 代理镜像
+  static List<String> _buildGitHubDownloadCandidates(String githubUrl) {
+    return [
+      githubUrl,
+      ...(_builtinProxies.map((p) => '$p$githubUrl')),
+    ];
+  }
+
+  /// 流式下载 GitHub 资源（自动代理回退）
+  /// 返回 (StreamedResponse, 实际使用的 URL)
+  static Future<(http.StreamedResponse, String)> _downloadWithGitHubFallback(
+    String githubUrl, {
+    Map<String, String>? headers,
+  }) async {
+    final urls = _buildGitHubDownloadCandidates(githubUrl);
+    Object? lastError;
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        final request = http.Request('GET', Uri.parse(urls[i]));
+        if (headers != null) request.headers.addAll(headers);
+        // 直连用较短超时以便快速回退
+        final timeout = i == 0
+            ? const Duration(seconds: 8)
+            : const Duration(seconds: 15);
+        final resp = await request.send().timeout(timeout);
+        if (resp.statusCode == 200) return (resp, urls[i]);
+        lastError = 'HTTP ${resp.statusCode} from ${urls[i]}';
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError ?? Exception('所有下载请求均失败');
+  }
+
+  // ============ 核心业务方法 ============
+
+  /// 检查更新（自动选择最佳源：GitHub → Gitee）
+  static Future<UpdateCheckResult> checkForUpdate() async {
+    try {
+      await init();
+
+      if (!_isGitHubConfigured && !_isGiteeConfigured) {
+        return UpdateCheckResult(hasUpdate: false, error: '未配置更新仓库');
       }
 
-      final updateInfo = UpdateInfo(
-        version: tagName,
-        versionCode: 0,
-        downloadUrl: apkUrl,
-        changelog: (release['body'] ?? '').toString(),
-        forceUpdate: false,
-      );
+      // 1. 尝试 GitHub（较短超时，不可用时快速切 Gitee）
+      if (_isGitHubConfigured) {
+        final result = await _checkRelease(
+          'https://api.github.com/repos/$githubRepo/releases/latest',
+          _githubHeaders(asJson: true),
+          timeout: const Duration(seconds: 6),
+        );
+        if (result != null) {
+          await _recordCheckTime();
+          return result;
+        }
+      }
 
-      return UpdateCheckResult(hasUpdate: true, updateInfo: updateInfo);
+      // 2. 尝试 Gitee
+      if (_isGiteeConfigured) {
+        final result = await _checkRelease(
+          _giteeApiUrl('releases/latest'),
+          const {'User-Agent': 'BiliTV-UpdateChecker'},
+          timeout: const Duration(seconds: 10),
+        );
+        if (result != null) {
+          await _recordCheckTime();
+          return result;
+        }
+      }
+
+      // 都不可用
+      await _recordCheckTime(); // 仍然记录，避免反复重试
+      final sources = [
+        if (_isGitHubConfigured) 'GitHub',
+        if (_isGiteeConfigured) 'Gitee',
+      ].join(' 和 ');
+      return UpdateCheckResult(
+        hasUpdate: false,
+        error: '无法连接更新服务器（$sources 均不可用）',
+      );
     } catch (e) {
       return UpdateCheckResult(hasUpdate: false, error: '检查更新失败: $e');
     }
@@ -271,6 +417,7 @@ class UpdateService {
     UpdateInfo updateInfo, {
     Function(double)? onProgress,
     Function(String)? onError,
+    Function(String)? onUrl,
     VoidCallback? onComplete,
   }) async {
     try {
@@ -284,16 +431,31 @@ class UpdateService {
         }
       }
 
-      // 下载 GitHub Release 资产 APK
-      final request = http.Request('GET', Uri.parse(updateInfo.downloadUrl));
-      request.headers.addAll(_githubHeaders());
+      final url = updateInfo.downloadUrl;
+      http.StreamedResponse streamedResponse;
+      String actualUrl;
 
-      final streamedResponse = await request.send();
-
-      if (streamedResponse.statusCode != 200) {
-        onError?.call('下载失败: ${streamedResponse.statusCode}');
-        return;
+      if (url.contains('github.com')) {
+        // GitHub URL: 直连 → 代理镜像自动回退
+        (streamedResponse, actualUrl) = await _downloadWithGitHubFallback(
+          url,
+          headers: _githubHeaders(),
+        );
+      } else {
+        // Gitee 或其他 URL: 直接下载
+        actualUrl = url;
+        final request = http.Request('GET', Uri.parse(url));
+        request.headers.addAll(const {'User-Agent': 'BiliTV-UpdateChecker'});
+        streamedResponse = await request
+            .send()
+            .timeout(const Duration(seconds: 30));
+        if (streamedResponse.statusCode != 200) {
+          onError?.call('下载失败: ${streamedResponse.statusCode}');
+          return;
+        }
       }
+
+      onUrl?.call(actualUrl);
 
       final contentLength = streamedResponse.contentLength ?? 0;
       final bytes = <int>[];
@@ -318,7 +480,6 @@ class UpdateService {
       await apkFile.writeAsBytes(bytes);
 
       // 先调用系统安装 Intent，再关闭对话框
-      // 顺序很重要：如果先关对话框，MethodChannel 可能通信失败，错误也无法显示
       await _installApk(apkFile.path);
 
       // 安装 Intent 已成功发送，关闭下载对话框
@@ -334,7 +495,6 @@ class UpdateService {
     try {
       await platform.invokeMethod('installApk', {'path': apkPath});
     } catch (e) {
-      // 如果原生方法不存在，使用备用方案
       throw Exception('安装 APK 需要原生代码支持: $e');
     }
   }
@@ -343,6 +503,26 @@ class UpdateService {
   static Future<String> getCurrentVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
     return '${packageInfo.version} (${packageInfo.buildNumber})';
+  }
+
+  /// 自动检查更新并弹窗通知（首页启动时调用）
+  static Future<void> autoCheckAndNotify(BuildContext context) async {
+    if (!shouldAutoCheck()) return;
+    try {
+      final result = await checkForUpdate();
+      if (!context.mounted) return;
+      if (result.hasUpdate && result.updateInfo != null) {
+        showUpdateDialog(
+          context,
+          result.updateInfo!,
+          onUpdate: () {
+            showDownloadProgress(context, result.updateInfo!);
+          },
+        );
+      }
+    } catch (_) {
+      // 自动检查静默失败，不打扰用户
+    }
   }
 
   /// 显示更新对话框
@@ -434,10 +614,12 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
   double _progress = 0;
   String? _error;
   bool _installing = false;
+  late String _downloadUrl;
 
   @override
   void initState() {
     super.initState();
+    _downloadUrl = widget.updateInfo.downloadUrl;
     _startDownload();
   }
 
@@ -455,6 +637,11 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
             _error = error;
             _installing = false;
           });
+        }
+      },
+      onUrl: (url) {
+        if (mounted) {
+          setState(() => _downloadUrl = url);
         }
       },
       onComplete: () {
@@ -504,7 +691,7 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
           ],
           const SizedBox(height: 12),
           Text(
-            widget.updateInfo.downloadUrl,
+            _downloadUrl,
             style: const TextStyle(color: Colors.white38, fontSize: 11),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

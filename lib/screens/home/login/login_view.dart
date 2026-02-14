@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/auth_service.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class LoginView extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
@@ -151,11 +152,11 @@ class _LoginViewState extends State<LoginView> {
         break;
       case 'scanned':
         text = '已扫描，请在手机上确认登录';
-        color = const Color(0xFF81C784);
+        color = SettingsService.themeColor;
         break;
       case 'success':
         text = '登录成功！';
-        color = const Color(0xFF81C784);
+        color = SettingsService.themeColor;
         break;
       case 'expired':
         text = '二维码已过期，请刷新';
@@ -223,8 +224,8 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       decoration: BoxDecoration(
                         color: isFocused
-                            ? const Color(0xFF81C784)
-                            : const Color(0xFF81C784).withValues(alpha: 0.3),
+                            ? SettingsService.themeColor
+                            : SettingsService.themeColor.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(8),
                         border: isFocused
                             ? Border.all(color: Colors.white, width: 2)

@@ -9,6 +9,7 @@ import 'tabs/storage_settings.dart';
 import 'tabs/about_settings.dart';
 import 'tabs/device_info_settings.dart';
 import '../../../widgets/time_display.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 设置分类枚举
 enum SettingsCategory {
@@ -106,7 +107,7 @@ class SettingsViewState extends State<SettingsView> {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: isFocused ? const Color(0xFF81C784) : Colors.transparent,
+                color: isFocused ? SettingsService.themeColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isFocused ? Colors.white : Colors.transparent,
@@ -122,7 +123,7 @@ class SettingsViewState extends State<SettingsView> {
                       color: isFocused
                           ? Colors.white
                           : (isSelected
-                                ? const Color(0xFF81C784)
+                                ? SettingsService.themeColor
                                 : Colors.grey),
                       fontSize: 15,
                       fontWeight: isFocused || isSelected
@@ -136,7 +137,7 @@ class SettingsViewState extends State<SettingsView> {
                     width: 24,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF81C784)
+                          ? SettingsService.themeColor
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(1.5),
                     ),

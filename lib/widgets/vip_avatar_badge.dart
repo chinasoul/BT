@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class VipAvatarBadge extends StatelessWidget {
   final Widget child;
@@ -28,7 +29,7 @@ class VipAvatarBadge extends StatelessWidget {
             width: badgeSize,
             height: badgeSize,
             decoration: BoxDecoration(
-              color: const Color(0xFF81C784), // B站粉
+              color: SettingsService.themeColor, // B站粉
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white,

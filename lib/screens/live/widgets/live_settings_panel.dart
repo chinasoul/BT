@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 enum LiveSettingsMenuType { main, quality, danmaku, line }
 
@@ -367,10 +368,10 @@ class _LiveSettingsPanelState extends State<LiveSettingsPanel> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: isFocused ? const Color(0xFF81C784) : Colors.transparent,
+            color: isFocused ? SettingsService.themeColor : Colors.transparent,
             border: isFocused
-                ? const Border(
-                    left: BorderSide(color: Color(0xFF81C784), width: 3),
+                ? Border(
+                    left: BorderSide(color: SettingsService.themeColor, width: 3),
                   )
                 : null,
           ),

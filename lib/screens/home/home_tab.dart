@@ -593,7 +593,7 @@ class _CategoryTab extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
                 decoration: BoxDecoration(
-                  color: f ? const Color(0xFF81C784) : Colors.transparent,
+                  color: f ? SettingsService.themeColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: f ? Colors.white : Colors.transparent,
@@ -609,7 +609,7 @@ class _CategoryTab extends StatelessWidget {
                         color: f
                             ? Colors.white
                             : (isSelected
-                                  ? const Color(0xFF81C784)
+                                  ? SettingsService.themeColor
                                   : Colors.grey),
                         fontSize: 16,
                         fontWeight: f || isSelected
@@ -624,7 +624,7 @@ class _CategoryTab extends StatelessWidget {
                       width: 20,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF81C784)
+                            ? SettingsService.themeColor
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(1.5),
                       ),

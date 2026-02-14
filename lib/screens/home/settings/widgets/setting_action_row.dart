@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/focus/focus_navigation.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 设置页操作按钮行组件
 ///
@@ -62,12 +63,12 @@ class SettingActionRow extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF81C784).withValues(alpha: 0.3)
+                        ? SettingsService.themeColor.withValues(alpha: 0.3)
                         : Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF81C784)
+                          ? SettingsService.themeColor
                           : Colors.transparent,
                       width: 1.2,
                     ),
@@ -92,7 +93,7 @@ class SettingActionRow extends StatelessWidget {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
               border: isFocused
-                  ? Border.all(color: const Color(0xFF81C784), width: 2)
+                  ? Border.all(color: SettingsService.themeColor, width: 2)
                   : null,
             ),
             child: Row(
@@ -130,7 +131,7 @@ class SettingActionRow extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isFocused
-                        ? const Color(0xFF81C784)
+                        ? SettingsService.themeColor
                         : Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),

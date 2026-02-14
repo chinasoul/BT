@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 下一集预览卡片 — 从右下角滑入
 class NextEpisodePreview extends StatelessWidget {
@@ -81,8 +82,8 @@ class NextEpisodePreview extends StatelessWidget {
                 children: [
                   Text(
                     '$countdown秒后播放',
-                    style: const TextStyle(
-                      color: Color(0xFF81C784),
+                    style: TextStyle(
+                      color: SettingsService.themeColor,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),

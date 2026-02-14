@@ -67,7 +67,7 @@ class _StorageSettingsState extends State<StorageSettings> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确认', style: TextStyle(color: Color(0xFF81C784))),
+            child: Text('确认', style: TextStyle(color: SettingsService.themeColor)),
           ),
         ],
       ),

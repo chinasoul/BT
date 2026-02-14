@@ -4,6 +4,7 @@ import '../../../models/video.dart';
 import '../../../widgets/time_display.dart';
 import '../../../widgets/conditional_marquee.dart';
 import 'tv_progress_bar.dart';
+import 'package:bili_tv_app/services/settings_service.dart';
 
 class ControlsOverlay extends StatelessWidget {
   final Video video;
@@ -293,7 +294,7 @@ class ControlsOverlay extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isFocused
-            ? const Color(0xFF81C784).withValues(alpha: 0.8)
+            ? SettingsService.themeColor.withValues(alpha: 0.8)
             : Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: isFocused ? Border.all(color: Colors.white, width: 3) : null,

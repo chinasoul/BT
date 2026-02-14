@@ -243,11 +243,11 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                     onPressed: _toggleOrder,
                     icon: Icon(
                       _order == 'pubdate' ? Icons.schedule : Icons.whatshot,
-                      color: const Color(0xFF81C784),
+                      color: SettingsService.themeColor,
                     ),
                     label: Text(
                       _order == 'pubdate' ? '按最新' : '按最热',
-                      style: const TextStyle(color: Color(0xFF81C784)),
+                      style: TextStyle(color: SettingsService.themeColor),
                     ),
                   ),
                 ],

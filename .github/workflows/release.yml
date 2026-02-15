@@ -148,7 +148,7 @@ jobs:
           BODY=$(cat "$RELEASE_NOTES_FILE")
 
           echo "Creating Gitee release for ${RELEASE_TAG}..."
-          RELEASE_RESP=$(curl -s -X POST "$API" \
+          RELEASE_RESP=$(curl -s --connect-timeout 15 --max-time 30 -X POST "$API" \
             -F "access_token=${GITEE_TOKEN}" \
             -F "tag_name=${RELEASE_TAG}" \
             -F "name=${RELEASE_TAG}" \
@@ -164,7 +164,7 @@ jobs:
 
           for apk in release-assets/v7a.apk release-assets/v8a.apk; do
             echo "Uploading $(basename $apk) to Gitee..."
-            curl -s -X POST "${API}/${RELEASE_ID}/attach_files" \
+            curl -s --connect-timeout 15 --max-time 120 -X POST "${API}/${RELEASE_ID}/attach_files" \
               -H "Content-Type: multipart/form-data" \
               -F "access_token=${GITEE_TOKEN}" \
               -F "file=@${apk}" || echo "::warning::Failed to upload $(basename $apk) to Gitee"

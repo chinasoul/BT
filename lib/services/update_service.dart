@@ -371,12 +371,12 @@ class UpdateService {
         return UpdateCheckResult(hasUpdate: false, error: '未配置更新仓库');
       }
 
-      // 1. 尝试 GitHub（较短超时，不可用时快速切 Gitee）
+      // 1. 尝试 GitHub（短超时，不可用时快速切 Gitee）
       if (_isGitHubConfigured) {
         final result = await _checkRelease(
           'https://api.github.com/repos/$githubRepo/releases/latest',
           _githubHeaders(asJson: true),
-          timeout: const Duration(seconds: 6),
+          timeout: const Duration(seconds: 3),
         );
         if (result != null) {
           await _recordCheckTime();

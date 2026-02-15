@@ -417,6 +417,10 @@ class LiveTabState extends State<LiveTab> {
                       onMoveLeft: index == 0
                           ? () => widget.sidebarFocusNode.requestFocus()
                           : null,
+                      // 最后一项向右循环到第一项
+                      onMoveRight: index == _categories.length - 1
+                          ? () => _categoryFocusNodes[0].requestFocus()
+                          : null,
                     );
                   }),
                 ),
@@ -454,6 +458,7 @@ class _LiveCategoryTab extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onFocus;
   final VoidCallback? onMoveLeft;
+  final VoidCallback? onMoveRight;
 
   const _LiveCategoryTab({
     required this.label,
@@ -462,6 +467,7 @@ class _LiveCategoryTab extends StatelessWidget {
     required this.onTap,
     required this.onFocus,
     this.onMoveLeft,
+    this.onMoveRight,
   });
 
   @override
@@ -476,6 +482,11 @@ class _LiveCategoryTab extends StatelessWidget {
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
                 onMoveLeft != null) {
               onMoveLeft!();
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                onMoveRight != null) {
+              onMoveRight!();
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.select ||

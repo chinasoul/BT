@@ -81,6 +81,7 @@ class SettingsViewState extends State<SettingsView> {
     required FocusNode focusNode,
     required VoidCallback onTap,
     VoidCallback? onMoveLeft,
+    VoidCallback? onMoveRight,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 16),
@@ -93,6 +94,11 @@ class SettingsViewState extends State<SettingsView> {
           if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
               onMoveLeft != null) {
             onMoveLeft();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+              onMoveRight != null) {
+            onMoveRight();
             return KeyEventResult.handled;
           }
           // 设置页顶部，阻止向上导航
@@ -193,6 +199,10 @@ class SettingsViewState extends State<SettingsView> {
                     onTap: () => setState(() => _selectedCategoryIndex = index),
                     onMoveLeft: index == 0
                         ? () => widget.sidebarFocusNode?.requestFocus()
+                        : null,
+                    // 最后一项向右循环到第一项
+                    onMoveRight: index == _visibleCategories.length - 1
+                        ? () => _categoryFocusNodes[0].requestFocus()
                         : null,
                   );
                 }),

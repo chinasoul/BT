@@ -535,6 +535,10 @@ class HomeTabState extends State<HomeTab> {
                       onMoveLeft: index == 0
                           ? () => widget.sidebarFocusNode?.requestFocus()
                           : null,
+                      // 最后一项向右循环到第一项
+                      onMoveRight: index == _categories.length - 1
+                          ? () => _categoryFocusNodes[0].requestFocus()
+                          : null,
                     );
                   }),
                 ),
@@ -571,6 +575,7 @@ class _CategoryTab extends StatelessWidget {
   final VoidCallback onFocus;
   final VoidCallback onConfirm;
   final VoidCallback? onMoveLeft;
+  final VoidCallback? onMoveRight;
 
   const _CategoryTab({
     required this.label,
@@ -580,6 +585,7 @@ class _CategoryTab extends StatelessWidget {
     required this.onFocus,
     required this.onConfirm,
     this.onMoveLeft,
+    this.onMoveRight,
   });
 
   @override
@@ -594,6 +600,11 @@ class _CategoryTab extends StatelessWidget {
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
                 onMoveLeft != null) {
               onMoveLeft!();
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                onMoveRight != null) {
+              onMoveRight!();
               return KeyEventResult.handled;
             }
             // 确定键刷新当前分类

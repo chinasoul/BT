@@ -30,6 +30,7 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
   bool _isDragging = false;
   late List<FocusNode> _categoryOrderFocusNodes;
   late List<FocusNode> _categoryToggleFocusNodes; // 分区开关焦点
+  late List<FocusNode> _themeColorFocusNodes; // 主题色焦点
 
   // 直播分区排序相关
   List<String> _liveCategoryOrder = [];
@@ -67,6 +68,9 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     for (var node in _categoryToggleFocusNodes) {
       node.dispose();
     }
+    for (var node in _themeColorFocusNodes) {
+      node.dispose();
+    }
     for (var node in _liveCategoryOrderFocusNodes) {
       node.dispose();
     }
@@ -84,6 +88,10 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     );
     _categoryToggleFocusNodes = List.generate(
       _categoryOrder.length,
+      (_) => FocusNode(),
+    );
+    _themeColorFocusNodes = List.generate(
+      SettingsService.themeColorOptions.length,
       (_) => FocusNode(),
     );
 
@@ -193,6 +201,8 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
           value: '当前: ${SettingsService.fontScaleLabel(_fontScale)}',
           buttonLabel: SettingsService.fontScaleLabel(_fontScale),
           sidebarFocusNode: widget.sidebarFocusNode,
+          isLast: true,
+          onMoveDown: () => _themeColorFocusNodes[0].requestFocus(),
           optionLabels: SettingsService.fontScaleOptions
               .map((s) => SettingsService.fontScaleLabel(s))
               .toList(),
@@ -229,20 +239,16 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
               final label = entry.value;
               final isSelected = _themeColorValue == colorValue;
 
-              return Focus(
-                onKeyEvent: (node, event) {
-                  if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                  if (event.logicalKey == LogicalKeyboardKey.select ||
-                      event.logicalKey == LogicalKeyboardKey.enter) {
-                    SettingsService.setThemeColor(colorValue);
-                    setState(() => _themeColorValue = colorValue);
-                    return KeyEventResult.handled;
-                  }
-                  if (event.logicalKey == LogicalKeyboardKey.arrowLeft && index == 0) {
-                    widget.sidebarFocusNode?.requestFocus();
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
+              return TvFocusScope(
+                pattern: FocusPattern.horizontal,
+                focusNode: _themeColorFocusNodes[index],
+                isFirst: index == 0,
+                isLast: index == SettingsService.themeColorOptions.length - 1,
+                exitLeft: widget.sidebarFocusNode,
+                exitDown: _categoryToggleFocusNodes[0],
+                onSelect: () {
+                  SettingsService.setThemeColor(colorValue);
+                  setState(() => _themeColorValue = colorValue);
                 },
                 child: Builder(
                   builder: (context) {
@@ -323,6 +329,19 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                 isFirst: index == 0,
                 isLast: index == _categoryOrder.length - 1,
                 exitLeft: widget.sidebarFocusNode,
+                exitUp: _themeColorFocusNodes[0],
+                onExitDown: () {
+                  // 跳转到分区排序的第一个已启用分区
+                  final enabled = _categoryOrder
+                      .where((n) => SettingsService.isCategoryEnabled(n))
+                      .toList();
+                  if (enabled.isNotEmpty) {
+                    final idx = _categoryOrder.indexOf(enabled.first);
+                    if (idx >= 0 && idx < _categoryOrderFocusNodes.length) {
+                      _categoryOrderFocusNodes[idx].requestFocus();
+                    }
+                  }
+                },
                 onSelect: () {
                   SettingsService.toggleCategory(catName, !isEnabled);
                   setState(() {});
@@ -439,6 +458,12 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                             (event.logicalKey == LogicalKeyboardKey.select ||
                                 event.logicalKey == LogicalKeyboardKey.enter)) {
                           setState(() => _isDragging = !_isDragging);
+                          return KeyEventResult.handled;
+                        }
+
+                        // 向上导航到分区开关第一项
+                        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                          _categoryToggleFocusNodes[0].requestFocus();
                           return KeyEventResult.handled;
                         }
 
@@ -586,6 +611,21 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
               return TvFocusScope(
                 pattern: FocusPattern.horizontal,
                 focusNode: _liveCategoryToggleFocusNodes[index],
+                isFirst: index == 0,
+                isLast: index == _liveCategoryOrder.length - 1,
+                exitLeft: widget.sidebarFocusNode,
+                onExitDown: () {
+                  // 跳转到直播分区排序的第一个已启用分区
+                  final enabled = _liveCategoryOrder
+                      .where((n) => SettingsService.isLiveCategoryEnabled(n))
+                      .toList();
+                  if (enabled.isNotEmpty) {
+                    final idx = _liveCategoryOrder.indexOf(enabled.first);
+                    if (idx >= 0 && idx < _liveCategoryOrderFocusNodes.length) {
+                      _liveCategoryOrderFocusNodes[idx].requestFocus();
+                    }
+                  }
+                },
                 onSelect: () {
                   SettingsService.toggleLiveCategory(catKey, !isEnabled);
                   setState(() {});

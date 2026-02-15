@@ -91,6 +91,9 @@ mixin PlayerEventMixin on PlayerActionMixin {
         textColor: Colors.white,
       );
     } else {
+      // 先移除监听再暂停，避免 pause 触发 UI 闪现暂停指示
+      cancelPlayerListeners();
+      videoController?.pause();
       Navigator.of(context).pop();
     }
   }

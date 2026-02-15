@@ -713,6 +713,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
       }
     }
 
+    // 先暂停播放，防止 dispose 过程中视频表面已销毁但音频仍在播放
+    await videoController?.pause();
     await videoController?.dispose();
     videoController = null;
     LocalServer.instance.clearMpdContent();

@@ -237,6 +237,8 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
     if (disposeHandler != null) {
       disposeHandler.onDispose();
     }
+    // 立即停止播放，防止 release 过程中音频仍短暂输出
+    exoPlayer.stop();
     exoPlayer.release();
   }
 }

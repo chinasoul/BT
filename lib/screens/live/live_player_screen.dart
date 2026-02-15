@@ -149,6 +149,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     _socketService.dispose();
     _hideTimer?.cancel();
     _popularityTimer?.cancel();
+    // 先暂停播放，防止 dispose 过程中音频仍短暂输出
+    _controller?.pause();
     _controller?.dispose();
     super.dispose();
   }
@@ -820,6 +822,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
           return;
         }
 
+        // 先暂停播放再退出，避免视频表面销毁后音频仍短暂输出
+        _controller?.pause();
         Navigator.of(context).pop();
       },
       child: Scaffold(

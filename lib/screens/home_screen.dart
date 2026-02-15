@@ -28,8 +28,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedTabIndex = 0; // 默认选中首页
+  final Set<int> _visitedTabs = {0}; // 已访问过的 tab（首页始终构建）
   DateTime? _lastBackPressed;
   DateTime? _backFromSearchHandled; // 防止搜索键盘返回键重复处理
 
@@ -74,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _sideBarFocusNodes = List.generate(
       _totalTabs,
       (index) => FocusNode(),
@@ -159,12 +161,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     SettingsService.onShowMemoryInfoChanged = null;
     _memoryTimer?.cancel();
     for (var node in _sideBarFocusNodes) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    super.didHaveMemoryPressure();
+    // 系统内存不足时主动释放图片缓存
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    debugPrint('⚠️ [Memory] System memory pressure — image cache cleared');
+    if (mounted) {
+      Fluttertoast.showToast(
+        msg: '系统内存不足，已释放图片缓存',
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.orange.shade800,
+        textColor: Colors.white,
+        fontSize: 14,
+      );
+    }
   }
 
   void _handleSideBarTap(int index) {
@@ -188,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _syncMemorySetting();
 
     // 普通模式 / 聚焦即切换模式 均通过确认键切换 tab
+    _visitedTabs.add(index);
     setState(() => _selectedTabIndex = index);
   }
 
@@ -327,10 +350,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           // 聚焦即切换：移动焦点立刻切换内容
                           // 普通模式：只高亮图标，不切换内容
                           if (SettingsService.focusSwitchTab) {
+                            _visitedTabs.add(index);
                             setState(() => _selectedTabIndex = index);
                           }
                         },
                         onTap: () => _handleSideBarTap(index),
+                        onMoveLeft: () {}, // 侧边栏最左侧，阻止左键导航
                         onMoveUp: () => _moveUp(index),
                         onMoveDown: () => _moveDown(index),
                         onMoveRight: _getMoveRightHandler(index),
@@ -361,10 +386,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       focusNode: _sideBarFocusNodes[_settingsIndex],
                       onFocus: () {
                         if (SettingsService.focusSwitchTab) {
+                          _visitedTabs.add(_settingsIndex);
                           setState(() => _selectedTabIndex = _settingsIndex);
                         }
                       },
                       onTap: () => _handleSideBarTap(_settingsIndex),
+                      onMoveLeft: () {}, // 侧边栏最左侧，阻止左键导航
                       onMoveUp: () => _moveUp(_settingsIndex),
                       onMoveDown: () => _moveDown(_settingsIndex),
                       onMoveRight: _getMoveRightHandler(_settingsIndex),
@@ -383,10 +410,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRightContent() {
+    // 懒构建：未访问过的 tab 用占位符代替，避免一次性构建全部 widget 树
+    Widget _lazyTab(int index, Widget Function() builder) {
+      return _visitedTabs.contains(index) ? builder() : const SizedBox.shrink();
+    }
+
     return IndexedStack(
       index: _selectedTabIndex,
       children: [
-        // 0: 首页
+        // 0: 首页（始终构建）
         HomeTab(
           key: _homeTabKey,
           sidebarFocusNode: _sideBarFocusNodes[0],
@@ -394,49 +426,49 @@ class _HomeScreenState extends State<HomeScreen> {
           preloadedVideos: widget.preloadedVideos,
         ),
         // 1: 动态
-        DynamicTab(
+        _lazyTab(1, () => DynamicTab(
           key: _dynamicTabKey,
           sidebarFocusNode: _sideBarFocusNodes[1],
           isVisible: _selectedTabIndex == 1,
-        ),
+        )),
         // 2: 关注
-        FollowingTab(
+        _lazyTab(2, () => FollowingTab(
           key: _followingTabKey,
           sidebarFocusNode: _sideBarFocusNodes[2],
           isVisible: _selectedTabIndex == 2,
-        ),
+        )),
         // 3: 历史
-        HistoryTab(
+        _lazyTab(3, () => HistoryTab(
           key: _historyTabKey,
           sidebarFocusNode: _sideBarFocusNodes[3],
           isVisible: _selectedTabIndex == 3,
-        ),
+        )),
         // 4: 直播
-        LiveTab(
+        _lazyTab(4, () => LiveTab(
           key: _liveTabKey,
           sidebarFocusNode: _sideBarFocusNodes[4],
           isVisible: _selectedTabIndex == 4,
-        ),
+        )),
         // 5: 我 (登录/个人资料)
-        LoginTab(
+        _lazyTab(5, () => LoginTab(
           key: _loginTabKey,
           sidebarFocusNode: _sideBarFocusNodes[5],
           onLoginSuccess: _handleLoginSuccess,
-        ),
+        )),
         // 6: 搜索
-        SearchTab(
+        _lazyTab(6, () => SearchTab(
           key: _searchTabKey,
           sidebarFocusNode: _sideBarFocusNodes[6],
           onBackToHome: () {
             _backFromSearchHandled = DateTime.now();
             _focusSelectedSidebarItem();
           },
-        ),
+        )),
         // 7: 设置
-        SettingsView(
+        _lazyTab(7, () => SettingsView(
           key: _settingsKey,
           sidebarFocusNode: _sideBarFocusNodes[_settingsIndex],
-        ),
+        )),
       ],
     );
   }

@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../widgets/time_display.dart';
+import '../../utils/image_url_utils.dart';
 import '../../widgets/tv_video_card.dart';
 import '../player/player_screen.dart';
 import 'up_space_screen.dart';
@@ -47,6 +48,7 @@ class FollowingTabState extends State<FollowingTab> {
   List<FocusNode> _folderFocusNodes = [];
 
   int _selectedTabIndex = 0; // 0=关注列表, 1=收藏夹, 2=稍后再看
+  final Set<int> _visitedSubTabs = {0}; // 已访问过的子 tab（默认只构建关注列表）
   bool _hasLoadedFollowing = false;
   bool _hasLoadedFavorites = false;
   bool _hasLoadedWatchLater = false;
@@ -80,16 +82,18 @@ class FollowingTabState extends State<FollowingTab> {
     _tabFocusNodes = List.generate(3, (_) => FocusNode());
     _followingScrollController.addListener(_onFollowingScroll);
     _favoritesScrollController.addListener(_onFavoritesScroll);
+    // 首次创建且可见时立即加载当前子 tab（默认关注列表）
+    if (widget.isVisible && AuthService.isLoggedIn) {
+      _loadCurrentTab(reset: false);
+    }
   }
 
   @override
   void didUpdateWidget(covariant FollowingTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 首次切换到可见时触发加载（优先使用缓存）
+    // 从不可见切换到可见时，加载当前子 tab（如尚未加载）
     if (widget.isVisible && !oldWidget.isVisible && AuthService.isLoggedIn) {
-      if (!_hasLoadedFollowing && !_hasLoadedFavorites && !_hasLoadedWatchLater) {
-        _loadCurrentTab(reset: false);
-      }
+      _loadCurrentTab(reset: false);
     }
   }
 
@@ -190,6 +194,7 @@ class FollowingTabState extends State<FollowingTab> {
       }
       return;
     }
+    _visitedSubTabs.add(index);
     setState(() => _selectedTabIndex = index);
     // 不重置滚动位置，IndexedStack 保持各 tab 的滚动状态
     _loadCurrentTab(reset: false);
@@ -607,6 +612,10 @@ class FollowingTabState extends State<FollowingTab> {
             onMoveLeft: index == 0
                 ? () => widget.sidebarFocusNode?.requestFocus()
                 : null,
+            // 最后一项向右循环到第一项
+            onMoveRight: index == labels.length - 1
+                ? () => _tabFocusNodes[0].requestFocus()
+                : null,
           ),
         );
       }),
@@ -637,7 +646,7 @@ class FollowingTabState extends State<FollowingTab> {
                     : () => _folderFocusNodes[index - 1].requestFocus(),
                 onMoveRight: (index + 1 < _folderFocusNodes.length)
                     ? () => _folderFocusNodes[index + 1].requestFocus()
-                    : null,
+                    : () => _folderFocusNodes[0].requestFocus(),
                 onMoveUp: () => _tabFocusNodes[1].requestFocus(),
               ),
             );
@@ -648,13 +657,17 @@ class FollowingTabState extends State<FollowingTab> {
   }
 
   Widget _buildCurrentContent() {
-    // 使用 IndexedStack 保持各子 tab 的 widget 状态和滚动位置
+    // 懒构建：未访问过的子 tab 用占位符代替，减少不必要的 widget 构建
+    Widget _lazySubTab(int index, Widget Function() builder) {
+      return _visitedSubTabs.contains(index) ? builder() : const SizedBox.shrink();
+    }
+
     return IndexedStack(
       index: _selectedTabIndex,
       children: [
         _buildFollowingContent(),
-        _buildFavoritesContent(),
-        _buildWatchLaterContent(),
+        _lazySubTab(1, _buildFavoritesContent),
+        _lazySubTab(2, _buildWatchLaterContent),
       ],
     );
   }
@@ -727,13 +740,13 @@ class FollowingTabState extends State<FollowingTab> {
       controller: _followingScrollController,
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(24, 90, 24, 80),
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 80),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              childAspectRatio: 320 / 132,
+              childAspectRatio: 320 / 100,
               crossAxisSpacing: 20,
-              mainAxisSpacing: 12,
+              mainAxisSpacing: 10,
             ),
             delegate: SliverChildBuilderDelegate((context, index) {
               final user = _users[index];
@@ -784,7 +797,7 @@ class FollowingTabState extends State<FollowingTab> {
   }) {
     final gridColumns = SettingsService.videoGridColumns;
     // 收藏夹存在子标签时，给列表更大顶部间距，避免覆盖第一行卡片
-    final topPadding = (_selectedTabIndex == 1 && _folders.isNotEmpty) ? 120.0 : 90.0;
+    final topPadding = (_selectedTabIndex == 1 && _folders.isNotEmpty) ? 90.0 : 60.0;
     return CustomScrollView(
       controller: scrollController,
       slivers: [
@@ -900,15 +913,6 @@ class FollowingTabState extends State<FollowingTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '我的内容',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 _buildTopTabs(),
                 _buildFolderTabs(),
               ],
@@ -928,6 +932,7 @@ class _TopTab extends StatelessWidget {
   final VoidCallback onFocus;
   final VoidCallback onTap;
   final VoidCallback? onMoveLeft;
+  final VoidCallback? onMoveRight;
 
   const _TopTab({
     required this.label,
@@ -936,6 +941,7 @@ class _TopTab extends StatelessWidget {
     required this.onFocus,
     required this.onTap,
     this.onMoveLeft,
+    this.onMoveRight,
   });
 
   @override
@@ -948,6 +954,11 @@ class _TopTab extends StatelessWidget {
         if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
             onMoveLeft != null) {
           onMoveLeft!();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+            onMoveRight != null) {
+          onMoveRight!();
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.enter ||
@@ -1139,7 +1150,7 @@ class _FollowingUserCard extends StatelessWidget {
           final focused = Focus.of(ctx).hasFocus;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 120),
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
               color: focused ? SettingsService.themeColor : Colors.white10,
               borderRadius: BorderRadius.circular(10),
@@ -1152,11 +1163,15 @@ class _FollowingUserCard extends StatelessWidget {
                 children: [
                   ClipOval(
                     child: CachedNetworkImage(
-                      imageUrl: user.face,
+                      imageUrl: ImageUrlUtils.getResizedUrl(user.face, width: 80, height: 80),
                       cacheManager: BiliCacheManager.instance,
-                      width: 48,
-                      height: 48,
+                      memCacheWidth: 80,
+                      memCacheHeight: 80,
+                      width: 40,
+                      height: 40,
                       fit: BoxFit.cover,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
                       placeholder: (_, _) => Container(
                         color: Colors.white12,
                         alignment: Alignment.center,

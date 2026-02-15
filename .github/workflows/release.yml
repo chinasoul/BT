@@ -43,18 +43,32 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
-      - name: Resolve Release Notes File
+      - name: Resolve version & release notes from tag
         shell: bash
         run: |
           set -euo pipefail
-          NOTES_FILE="release-notes/${RELEASE_TAG}.md"
-          if [[ ! -f "$NOTES_FILE" ]]; then
-            echo "Release notes file not found: $NOTES_FILE" >&2
-            echo "Please add this file before pushing tag ${RELEASE_TAG}." >&2
+
+          # 从 tag 提取版本号：v0.4.2 → 0.4.2
+          VERSION="${RELEASE_TAG#v}"
+          if [[ -z "$VERSION" ]]; then
+            echo "::error::Unable to extract version from tag '${RELEASE_TAG}'"
             exit 1
           fi
-          echo "RELEASE_NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
-          echo "Using release notes: $NOTES_FILE"
+          echo "BUILD_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Version: $VERSION, Build number: ${{ github.run_number }}"
+
+          # release notes：优先用文件，不存在则用 tag 所在 commit message
+          NOTES_FILE="release-notes/${RELEASE_TAG}.md"
+          if [[ -f "$NOTES_FILE" ]]; then
+            echo "RELEASE_NOTES_FILE=$NOTES_FILE" >> "$GITHUB_ENV"
+            echo "Using release notes from file: $NOTES_FILE"
+          else
+            echo "No release notes file found, using commit message."
+            FALLBACK_FILE="release-notes/_auto_generated.md"
+            git log -1 --format='%B' > "$FALLBACK_FILE"
+            echo "RELEASE_NOTES_FILE=$FALLBACK_FILE" >> "$GITHUB_ENV"
+          fi
 
       - name: Build Obfuscated Plugin APKs
         shell: bash
@@ -69,11 +83,13 @@ jobs:
             local output_name="$3"
             local symbol_dir="$4"
 
-            echo "Building: $output_name"
+            echo "Building: $output_name (version=${BUILD_NAME}+${BUILD_NUMBER})"
             flutter build apk \
               --release \
               --split-per-abi \
               --target-platform "$target_platform" \
+              --build-name="${BUILD_NAME}" \
+              --build-number="${BUILD_NUMBER}" \
               --dart-define=ENABLE_PLUGINS=true \
               --obfuscate \
               --split-debug-info="build/symbols/$symbol_dir"

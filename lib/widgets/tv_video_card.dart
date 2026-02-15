@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/video.dart';
 import 'base_tv_card.dart';
-import 'staggered_image.dart';
 import 'conditional_marquee.dart';
 import '../services/settings_service.dart'; // 包含 BiliCacheManager
 import '../utils/image_url_utils.dart';
@@ -19,7 +18,6 @@ class TvVideoCard extends StatelessWidget {
   final bool autofocus;
   final bool disableCache;
   final FocusNode? focusNode;
-  final int? staggerIndex;
 
   const TvVideoCard({
     super.key,
@@ -34,7 +32,6 @@ class TvVideoCard extends StatelessWidget {
     this.autofocus = false,
     this.disableCache = false,
     this.focusNode,
-    this.staggerIndex,
   });
 
   String get _durationText => video.durationFormatted;
@@ -193,22 +190,6 @@ class TvVideoCard extends StatelessWidget {
     const int targetWidth = 360;
     const int targetHeight = 200;
 
-    // 交错加载逻辑
-    if (staggerIndex != null) {
-      return StaggeredImage(
-        imageUrl: ImageUrlUtils.getResizedUrl(
-          video.pic,
-          width: 360,
-          height: 200,
-        ),
-        delayMs: staggerIndex! * 80,
-        fit: BoxFit.cover,
-        cacheWidth: targetWidth,
-        cacheHeight: targetHeight,
-      );
-    }
-
-    // 标准加载逻辑 (用于预加载过的数据或不需要交错的数据)
     return CachedNetworkImage(
       imageUrl: ImageUrlUtils.getResizedUrl(video.pic, width: 360, height: 200),
       fit: BoxFit.cover,

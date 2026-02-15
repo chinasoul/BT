@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
-import 'package:keframe/keframe.dart';
 import '../../services/api/live_api.dart';
 import '../../services/api/base_api.dart';
 import '../../services/auth_service.dart';
@@ -38,7 +37,6 @@ class LiveTabState extends State<LiveTab> {
   // Focus Nodes for Grid Items
   final Map<int, FocusNode> _roomFocusNodes = {};
 
-  bool _isRefreshing = false;
   bool _hasLoaded = false;
 
   @override
@@ -135,11 +133,12 @@ class LiveTabState extends State<LiveTab> {
         node.dispose();
       }
       _roomFocusNodes.clear();
+      // 主动释放图片内存缓存，避免旧图片占用内存
+      PaintingBinding.instance.imageCache.clear();
       setState(() {
         _categoryLoading[index] = true;
         _categoryRooms[index] = [];
         _categoryPage[index] = 1;
-        _isRefreshing = true;
       });
     } else {
       setState(() {
@@ -184,14 +183,12 @@ class LiveTabState extends State<LiveTab> {
             ];
           }
           _categoryLoading[index] = false;
-          _isRefreshing = false; // Clear refreshing
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _categoryLoading[index] = false;
-          _isRefreshing = false; // Clear refreshing on error too
         });
       }
     }
@@ -221,6 +218,10 @@ class LiveTabState extends State<LiveTab> {
     if ((_categoryRooms[index] ?? []).isEmpty) {
       _loadDataForCategory(index);
     }
+    // 延迟释放图片缓存，等旧 widget 完成 dispose 后再清理
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PaintingBinding.instance.imageCache.clear();
+    });
   }
 
   void _navigateToRoom(dynamic room) {
@@ -284,8 +285,7 @@ class LiveTabState extends State<LiveTab> {
                       ),
                     ),
                   )
-                : SizeCacheWidget(
-                    child: CustomScrollView(
+                : CustomScrollView(
                       controller: _scrollController,
                       slivers: [
                         SliverPadding(
@@ -374,25 +374,12 @@ class LiveTabState extends State<LiveTab> {
                                 );
                               }
 
-                              // 只有刷新时使用分帧渲染 (match HomeTab)
-                              if (_isRefreshing) {
-                                return FrameSeparateWidget(
-                                  index: index,
-                                  placeHolder: const SizedBox(
-                                    width: 30,
-                                    height: 30,
-                                  ),
-                                  child: Builder(builder: buildCard),
-                                );
-                              }
-
                               return Builder(builder: buildCard);
                             }, childCount: currentRooms.length),
                           ),
                         ),
                       ],
                     ),
-                  ),
           ),
         ),
 

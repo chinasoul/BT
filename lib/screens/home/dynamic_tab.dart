@@ -5,7 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
-import 'package:keframe/keframe.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../widgets/tv_video_card.dart';
@@ -31,7 +30,6 @@ class DynamicTabState extends State<DynamicTab> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingMore = false;
   bool _hasLoaded = false;
-  bool _isRefreshing = false; // 标记是否正在刷新中（用于控制分帧渲染）
   // 每个视频卡片的 FocusNode
   final Map<int, FocusNode> _videoFocusNodes = {};
 
@@ -95,7 +93,6 @@ class DynamicTabState extends State<DynamicTab> {
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
-        _isRefreshing = false;
         _videos = [];
         _offset = '';
         _hasMore = true;
@@ -117,7 +114,6 @@ class DynamicTabState extends State<DynamicTab> {
       _videoFocusNodes.clear();
       setState(() {
         _isLoading = true;
-        _isRefreshing = true; // 开始刷新
         _videos = [];
         _offset = '';
         _hasMore = true;
@@ -147,7 +143,6 @@ class DynamicTabState extends State<DynamicTab> {
       _hasMore = feed.hasMore;
       _isLoading = false;
       _isLoadingMore = false;
-      _isRefreshing = false; // 刷新完成
     });
 
     // 首次加载完成后保存缓存
@@ -291,8 +286,7 @@ class DynamicTabState extends State<DynamicTab> {
           child: Column(
             children: [
               Expanded(
-                child: SizeCacheWidget(
-                  child: CustomScrollView(
+                child: CustomScrollView(
                     controller: _scrollController,
                     slivers: [
                       SliverPadding(
@@ -387,31 +381,12 @@ class DynamicTabState extends State<DynamicTab> {
                               );
                             }
 
-                            // 只有在刷新时才使用分帧渲染，否则直接渲染
-                            if (_isRefreshing) {
-                              return FrameSeparateWidget(
-                                index: index,
-                                placeHolder: const Center(
-                                  child: SizedBox(
-                                    width: 30,
-                                    height: 30,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                                child: Builder(builder: buildCard),
-                              );
-                            }
-
-                            // 非刷新状态（从播放器返回）直接渲染
                             return Builder(builder: buildCard);
                           }, childCount: _videos.length),
                         ),
                       ),
                     ],
                   ),
-                ),
               ),
               if (_isLoadingMore)
                 const Padding(

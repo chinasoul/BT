@@ -296,14 +296,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.10.0"
-  keframe:
-    dependency: "direct main"
-    description:
-      name: keframe
-      sha256: a84add1826c54cd68e6095dbcc00cdd84fd4d97820712bfc8e1d06f41b0bfac3
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.0"
   leak_tracker:
     dependency: transitive
     description:

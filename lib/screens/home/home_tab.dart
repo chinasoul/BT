@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
-import 'package:keframe/keframe.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../config/build_flags.dart';
@@ -44,7 +43,6 @@ class HomeTabState extends State<HomeTab> {
   final Map<int, double> _categoryScrollOffset = {}; // 记忆每个分类的滚动位置
   bool _firstLoadDone = false;
   bool _usedPreloadedData = false; // 标记是否使用了预加载数据
-  bool _isRefreshing = false; // 标记是否正在刷新中（用于控制分帧渲染）
   // 每个分类独立的视频 FocusNode 表，避免跨分类污染
   final Map<int, Map<int, FocusNode>> _categoryFocusNodeMaps = {};
   bool _isSwitchingCategory = false; // 防止 FocusNode dispose 引发的递归切换
@@ -198,10 +196,11 @@ class HomeTabState extends State<HomeTab> {
       );
       // 释放该分类的 FocusNode，防止内存泄漏
       _disposeFocusNodesForCategory(categoryIndex);
+      // 主动释放图片内存缓存，避免旧图片占用内存
+      PaintingBinding.instance.imageCache.clear();
       setState(() {
         _categoryLoading[categoryIndex] = true;
         _categoryVideos[categoryIndex] = [];
-        _isRefreshing = true; // 开始刷新
       });
     } else {
       setState(() => _categoryLoading[categoryIndex] = true);
@@ -254,7 +253,6 @@ class HomeTabState extends State<HomeTab> {
         ];
       }
       _categoryLoading[categoryIndex] = false;
-      _isRefreshing = false; // 刷新完成
 
       // 保存推荐视频缓存 (仅分类 0)
       if (categoryIndex == 0 && (refresh || page == 1)) {
@@ -311,9 +309,6 @@ class HomeTabState extends State<HomeTab> {
       keepScrollOffset: false,
     );
 
-    // ---- 主动释放 Flutter 图片内存缓存 ----
-    PaintingBinding.instance.imageCache.clear();
-
     // 切换分类后不再是初始预加载状态
     _usedPreloadedData = false;
     setState(() => _selectedCategoryIndex = index);
@@ -322,11 +317,14 @@ class HomeTabState extends State<HomeTab> {
 
     _isSwitchingCategory = false;
 
-    // ---- 延迟释放旧分类的 FocusNode ----
+    // ---- 延迟释放旧分类的 FocusNode + 图片缓存 ----
     // 必须在 setState 之后、widget 重建完成后再 dispose，
-    // 否则 dispose 会触发焦点迁移，导致递归调用 _switchCategory
+    // 否则 dispose 会触发焦点迁移，导致递归调用 _switchCategory。
+    // imageCache.clear() 也放在这里：此时旧 widget 已 dispose 掉
+    // ImageStreamCompleter listener，clear 能真正释放 native 图片内存。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _disposeFocusNodesForCategory(prevIndex);
+      PaintingBinding.instance.imageCache.clear();
     });
   }
 
@@ -398,8 +396,7 @@ class HomeTabState extends State<HomeTab> {
           child: FocusTraversalGroup(
             child: _isLoading && _currentVideos.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : SizeCacheWidget(
-                    child: CustomScrollView(
+                : CustomScrollView(
                       // key 随分类变化，强制 Flutter 重建 Scrollable 和 ScrollPosition，
                       // 否则 didUpdateWidget 只替换 controller 但复用旧 position（偏移量不对）
                       key: ValueKey('category_$_selectedCategoryIndex'),
@@ -425,12 +422,6 @@ class HomeTabState extends State<HomeTab> {
                                 _loadMore();
                               }
 
-                              // 【优化】只有刷新时才使用交错加载
-                              // 初始加载和从播放器返回时，图片已在缓存中，直接显示
-                              final int? staggerIdx = _isRefreshing
-                                  ? (index % 8)
-                                  : null;
-
                               // 构建卡片内容
                               Widget buildCard(BuildContext ctx) {
                                 return TvVideoCard(
@@ -438,7 +429,6 @@ class HomeTabState extends State<HomeTab> {
                                   focusNode: _getFocusNode(index),
                                   autofocus: isInitialLoad && index == 0,
                                   disableCache: false,
-                                  staggerIndex: staggerIdx,
                                   onTap: () => _onVideoTap(video),
                                   onMoveLeft: (index % gridColumns == 0)
                                       ? () => widget.sidebarFocusNode
@@ -506,30 +496,12 @@ class HomeTabState extends State<HomeTab> {
                                 );
                               }
 
-                              // 只有刷新时使用分帧渲染，其他情况直接渲染
-                              if (_isRefreshing) {
-                                return FrameSeparateWidget(
-                                  index: index,
-                                  placeHolder: const Center(
-                                    child: SizedBox(
-                                      width: 30,
-                                      height: 30,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Builder(builder: buildCard),
-                                );
-                              }
-
                               return Builder(builder: buildCard);
                             }, childCount: _currentVideos.length),
                           ),
                         ),
                       ],
                     ),
-                  ),
           ),
         ),
 

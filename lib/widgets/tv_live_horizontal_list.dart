@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:keframe/keframe.dart';
 import 'tv_live_card.dart';
 
 class TvLiveHorizontalList extends StatefulWidget {
@@ -56,9 +55,7 @@ class _TvLiveHorizontalListState extends State<TvLiveHorizontalList> {
               addAutomaticKeepAlives: true,
               itemBuilder: (context, index) {
                 final item = widget.items[index];
-                return FrameSeparateWidget(
-                  index: index,
-                  child: Container(
+                return Container(
                     width: 240, // 固定宽度
                     margin: const EdgeInsets.only(right: 20),
                     child: TvLiveCard(
@@ -71,7 +68,6 @@ class _TvLiveHorizontalListState extends State<TvLiveHorizontalList> {
                           ? true
                           : false,
                     ),
-                  ),
                 );
               },
             ),

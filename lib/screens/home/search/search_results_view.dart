@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:keframe/keframe.dart';
 import '../../../models/video.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
@@ -35,8 +34,6 @@ class _SearchResultsViewState extends State<SearchResultsView> {
   String _currentOrder = 'totalrank'; // totalrank, click, pubdate, dm
   bool _isLoadingMore = false;
   bool _hasMore = true;
-  bool _isRefreshing = false; // 用于控制分帧渲染
-
   // Focus Management
   late final List<FocusNode> _sortFocusNodes;
   final Map<int, FocusNode> _videoFocusNodes = {};
@@ -104,7 +101,6 @@ class _SearchResultsViewState extends State<SearchResultsView> {
       _videoFocusNodes.clear();
       setState(() {
         _isLoading = true;
-        _isRefreshing = true; // 开始刷新
         _currentPage = 1;
         _searchResults = [];
         _hasMore = true;
@@ -127,8 +123,6 @@ class _SearchResultsViewState extends State<SearchResultsView> {
 
       _isLoading = false;
       _isLoadingMore = false;
-      _isRefreshing = false; // 刷新完成
-
       if (results.length < 20) {
         _hasMore = false;
       }
@@ -203,8 +197,7 @@ class _SearchResultsViewState extends State<SearchResultsView> {
         ),
       );
     } else {
-      content = SizeCacheWidget(
-        child: CustomScrollView(
+      content = CustomScrollView(
           controller: _scrollController,
           slivers: [
             SliverPadding(
@@ -282,21 +275,6 @@ class _SearchResultsViewState extends State<SearchResultsView> {
                     );
                   }
 
-                  // 只有刷新时使用分帧渲染
-                  if (_isRefreshing) {
-                    return FrameSeparateWidget(
-                      index: index,
-                      placeHolder: const Center(
-                        child: SizedBox(
-                          width: 30,
-                          height: 30,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      child: Builder(builder: (ctx) => buildCard(ctx)),
-                    );
-                  }
-
                   return Builder(builder: (ctx) => buildCard(ctx));
                 }, childCount: _searchResults.length),
               ),
@@ -309,7 +287,6 @@ class _SearchResultsViewState extends State<SearchResultsView> {
                 ),
               ),
           ],
-        ),
       );
     }
 

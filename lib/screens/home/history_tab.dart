@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
-import 'package:keframe/keframe.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../widgets/history_video_card.dart';
@@ -32,7 +31,6 @@ class HistoryTabState extends State<HistoryTab> {
   int _max = 0;
   final ScrollController _scrollController = ScrollController();
   bool _hasLoaded = false;
-  bool _isRefreshing = false; // 标记是否正在刷新中（用于控制分帧渲染）
   // 每个视频卡片的 FocusNode
   final Map<int, FocusNode> _videoFocusNodes = {};
 
@@ -98,7 +96,6 @@ class HistoryTabState extends State<HistoryTab> {
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
-        _isRefreshing = false;
         _videos = [];
         _viewAt = 0;
         _max = 0;
@@ -121,7 +118,6 @@ class HistoryTabState extends State<HistoryTab> {
       _videoFocusNodes.clear();
       setState(() {
         _isLoading = true;
-        _isRefreshing = true; // 开始刷新
         _videos = [];
         _viewAt = 0;
         _max = 0;
@@ -148,7 +144,6 @@ class HistoryTabState extends State<HistoryTab> {
       if (reset) {
         _videos = newVideos;
         _isLoading = false;
-        _isRefreshing = false; // 刷新完成
       } else {
         // 去重：过滤掉已存在的视频
         final existingBvids = _videos.map((v) => v.bvid).toSet();
@@ -281,8 +276,7 @@ class HistoryTabState extends State<HistoryTab> {
       children: [
         // 视频网格
         Positioned.fill(
-          child: SizeCacheWidget(
-            child: CustomScrollView(
+          child: CustomScrollView(
               controller: _scrollController,
               slivers: [
                 SliverPadding(
@@ -354,22 +348,6 @@ class HistoryTabState extends State<HistoryTab> {
                         );
                       }
 
-                      // 只有在刷新时才使用分帧渲染，否则直接渲染
-                      if (_isRefreshing) {
-                        return FrameSeparateWidget(
-                          index: index,
-                          placeHolder: const Center(
-                            child: SizedBox(
-                              width: 30,
-                              height: 30,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                          child: Builder(builder: buildCard),
-                        );
-                      }
-
-                      // 非刷新状态（从播放器返回）直接渲染
                       return Builder(builder: buildCard);
                     }, childCount: _videos.length),
                   ),
@@ -383,7 +361,6 @@ class HistoryTabState extends State<HistoryTab> {
                   ),
               ],
             ),
-          ),
         ),
         // 固定标题
         Positioned(

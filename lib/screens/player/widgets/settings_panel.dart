@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
+import 'package:bili_tv_app/config/app_style.dart';
 
 enum SettingsMenuType { main, quality, danmaku, speed }
 
@@ -103,7 +104,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
       bottom: 0,
       width: panelWidth,
       child: Container(
-        color: const Color(0xFF1F1F1F).withValues(alpha: 0.95),
+        color: SidePanelStyle.background,
         child: Column(
           children: [
             // 标题栏

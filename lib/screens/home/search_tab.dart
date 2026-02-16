@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../widgets/time_display.dart';
 import 'search/search_keyboard_view.dart';
 import 'search/search_results_view.dart';
 
@@ -76,7 +75,6 @@ class SearchTabState extends State<SearchTab> {
                 onBackToHome: widget.onBackToHome,
                 onSearch: _onSearch,
               ),
-        const Positioned(top: 10, right: 14, child: TimeDisplay()),
       ],
     );
   }

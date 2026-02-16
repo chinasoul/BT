@@ -228,19 +228,26 @@ class SettingsService {
     await _prefs!.setBool(_hideControlsOnStartKey, value);
   }
 
-  // 播放器右上角时间显示设置
-  static const String _alwaysShowPlayerTimeKey = 'always_show_player_time';
+  // 全局时间显示设置（控制app所有界面右上角时间显示）
+  static const String _showTimeDisplayKey = 'show_time_display';
 
-  /// 是否在播放器右上角常驻显示时间
-  static bool get alwaysShowPlayerTime {
-    return _prefs?.getBool(_alwaysShowPlayerTimeKey) ?? true; // 默认开启
+  /// 时间显示变更回调
+  static VoidCallback? onShowTimeDisplayChanged;
+
+  /// 是否显示时间（全局控制）
+  static bool get showTimeDisplay {
+    return _prefs?.getBool(_showTimeDisplayKey) ?? false; // 默认关闭
   }
 
-  /// 设置是否在播放器右上角常驻显示时间
-  static Future<void> setAlwaysShowPlayerTime(bool value) async {
+  /// 设置是否显示时间（全局控制）
+  static Future<void> setShowTimeDisplay(bool value) async {
     await init();
-    await _prefs!.setBool(_alwaysShowPlayerTimeKey, value);
+    await _prefs!.setBool(_showTimeDisplayKey, value);
+    onShowTimeDisplayChanged?.call();
   }
+
+  /// 兼容旧 API：alwaysShowPlayerTime 现在指向全局设置
+  static bool get alwaysShowPlayerTime => showTimeDisplay;
 
   // 视频网格列数设置
   static const String _videoGridColumnsKey = 'video_grid_columns';

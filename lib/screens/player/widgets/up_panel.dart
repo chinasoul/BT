@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../models/video.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
+import 'package:bili_tv_app/config/app_style.dart';
 
 /// Uploader Panel - Shows uploader's videos and follow button
 class UpPanel extends StatefulWidget {
@@ -236,7 +237,7 @@ class _UpPanelState extends State<UpPanel> {
         child: Container(
           width: panelWidth,
           height: double.infinity,
-          color: Colors.black.withValues(alpha: 0.9),
+          color: SidePanelStyle.background,
           child: Column(
             children: [
               // Header: Uploader Info

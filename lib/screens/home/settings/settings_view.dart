@@ -8,7 +8,6 @@ import 'tabs/plugins_settings.dart';
 import 'tabs/storage_settings.dart';
 import 'tabs/about_settings.dart';
 import 'tabs/device_info_settings.dart';
-import '../../../widgets/time_display.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 import 'package:bili_tv_app/config/app_style.dart';
 
@@ -29,10 +28,7 @@ enum SettingsCategory {
 class SettingsView extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
 
-  const SettingsView({
-    super.key,
-    this.sidebarFocusNode,
-  });
+  const SettingsView({super.key, this.sidebarFocusNode});
 
   @override
   State<SettingsView> createState() => SettingsViewState();
@@ -112,7 +108,9 @@ class SettingsViewState extends State<SettingsView> {
           return Container(
             padding: TabStyle.tabPadding,
             decoration: BoxDecoration(
-              color: isFocused ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.transparent,
+              color: isFocused
+                  ? SettingsService.themeColor.withValues(alpha: 0.6)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(TabStyle.tabBorderRadius),
             ),
             child: Column(
@@ -141,7 +139,9 @@ class SettingsViewState extends State<SettingsView> {
                     color: isSelected
                         ? SettingsService.themeColor
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                    borderRadius: BorderRadius.circular(
+                      TabStyle.tabUnderlineRadius,
+                    ),
                   ),
                 ),
               ],
@@ -186,9 +186,7 @@ class SettingsViewState extends State<SettingsView> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: List.generate(_visibleCategories.length, (
-                  index,
-                ) {
+                children: List.generate(_visibleCategories.length, (index) {
                   final category = _visibleCategories[index];
                   final isSelected = _selectedCategoryIndex == index;
                   return _buildCategoryTab(
@@ -209,9 +207,6 @@ class SettingsViewState extends State<SettingsView> {
             ),
           ),
         ),
-
-        // 常驻时间显示 (与主界面位置保持一致)
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
       ],
     );
   }
@@ -226,7 +221,10 @@ class SettingsViewState extends State<SettingsView> {
     }).toList();
   }
 
-  Widget _buildContentForCategory(SettingsCategory category, VoidCallback moveToCurrentTab) {
+  Widget _buildContentForCategory(
+    SettingsCategory category,
+    VoidCallback moveToCurrentTab,
+  ) {
     switch (category) {
       case SettingsCategory.playback:
         return PlaybackSettings(

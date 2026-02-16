@@ -4,18 +4,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../widgets/vip_avatar_badge.dart';
-import '../../widgets/time_display.dart';
 
 /// 个人资料页面 (登录后显示)
 class ProfileView extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
   final VoidCallback onLogout;
 
-  const ProfileView({
-    super.key,
-    this.sidebarFocusNode,
-    required this.onLogout,
-  });
+  const ProfileView({super.key, this.sidebarFocusNode, required this.onLogout});
 
   @override
   State<ProfileView> createState() => ProfileViewState();
@@ -58,8 +53,10 @@ class ProfileViewState extends State<ProfileView> {
           TextButton(
             autofocus: true,
             onPressed: () => Navigator.of(context).pop(true),
-            child:
-                Text('确认', style: TextStyle(color: SettingsService.themeColor)),
+            child: Text(
+              '确认',
+              style: TextStyle(color: SettingsService.themeColor),
+            ),
           ),
         ],
       ),
@@ -190,8 +187,7 @@ class ProfileViewState extends State<ProfileView> {
                           child: Text(
                             '退出登录',
                             style: TextStyle(
-                              color:
-                                  isFocused ? Colors.white : Colors.red[300],
+                              color: isFocused ? Colors.white : Colors.red[300],
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -205,9 +201,6 @@ class ProfileViewState extends State<ProfileView> {
             ),
           ),
         ),
-
-        // 常驻时间显示
-        const Positioned(top: 10, right: 14, child: TimeDisplay()),
       ],
     );
   }

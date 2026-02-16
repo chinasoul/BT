@@ -20,36 +20,27 @@ EXTRA_ARGS=("$@")
 
 mkdir -p "$OUTPUT_DIR"
 
-build_one() {
-  local abi="$1"
-  local target_platform="$2"
-  local src_apk
-  local dst_apk
-  local output_name
+echo
+echo "==> Building armeabi-v7a + arm64-v8a (plugins-on)"
 
-  echo
-  echo "==> Building $abi (plugins-on)"
-  local cmd=(
-    flutter build apk
-    --release
-    --split-per-abi
-    --target-platform "$target_platform"
-    --dart-define=ENABLE_PLUGINS=true
-  )
-  if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-    cmd+=("${EXTRA_ARGS[@]}")
-  fi
-  "${cmd[@]}"
+cmd=(
+  flutter build apk
+  --release
+  --split-per-abi
+  --target-platform android-arm,android-arm64
+  --dart-define=ENABLE_PLUGINS=true
+)
+if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+  cmd+=("${EXTRA_ARGS[@]}")
+fi
+"${cmd[@]}"
 
+# Copy output APKs
+for abi_pair in "armeabi-v7a:v7a" "arm64-v8a:v8a"; do
+  abi="${abi_pair%%:*}"
+  name="${abi_pair##*:}"
   src_apk="$FLUTTER_OUTPUT_DIR/app-$abi-release.apk"
-  if [[ "$abi" == "armeabi-v7a" ]]; then
-    output_name="v7a.apk"
-  elif [[ "$abi" == "arm64-v8a" ]]; then
-    output_name="v8a.apk"
-  else
-    output_name="${abi}.apk"
-  fi
-  dst_apk="$OUTPUT_DIR/$output_name"
+  dst_apk="$OUTPUT_DIR/$name.apk"
 
   if [[ ! -f "$src_apk" ]]; then
     echo "ERROR: Expected APK not found: $src_apk" >&2
@@ -58,10 +49,7 @@ build_one() {
 
   cp "$src_apk" "$dst_apk"
   echo "Saved: $dst_apk"
-}
-
-build_one "armeabi-v7a" "android-arm"
-build_one "arm64-v8a" "android-arm64"
+done
 
 echo
 echo "Done. Output files:"

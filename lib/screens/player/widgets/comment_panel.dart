@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/comment.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
+import '../../../config/app_style.dart';
 import '../../../utils/image_url_utils.dart';
 
 /// 视频评论面板 (从右侧滑入)
@@ -351,7 +352,7 @@ class _CommentPanelState extends State<CommentPanel> {
         child: Container(
           width: panelWidth,
           height: double.infinity,
-          color: Colors.black.withValues(alpha: 0.92),
+          color: SidePanelStyle.background,
           child: Column(
             children: [
               // 头部

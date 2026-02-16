@@ -10,7 +10,6 @@ import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../config/app_style.dart';
 import '../../widgets/history_video_card.dart';
-import '../../widgets/time_display.dart';
 import '../player/player_screen.dart';
 
 /// 观看历史 Tab
@@ -466,12 +465,6 @@ class HistoryTabState extends State<HistoryTab> {
               ],
             ),
           ),
-        ),
-        // 右上角时间
-        const Positioned(
-          top: TabStyle.timeDisplayTop,
-          right: TabStyle.timeDisplayRight,
-          child: TimeDisplay(),
         ),
       ],
     );

@@ -305,14 +305,17 @@ mixin PlayerEventMixin on PlayerActionMixin {
         break;
       case 6: // 视频数据实时监测
         toggleStatsForNerds();
+        startHideTimer(); // 重置隐藏定时器
         break;
       case 7: // 点赞/投币/收藏
         setState(() {
           showActionButtons = !showActionButtons;
         });
+        startHideTimer(); // 重置隐藏定时器
         break;
       case 8: // 循环播放
         toggleLoopMode();
+        startHideTimer(); // 重置隐藏定时器
         break;
       case 9: // 关闭视频
         Navigator.of(context).pop();

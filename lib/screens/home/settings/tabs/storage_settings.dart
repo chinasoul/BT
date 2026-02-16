@@ -59,29 +59,6 @@ class _StorageSettingsState extends State<StorageSettings> {
     }
   }
 
-  Future<bool> _showConfirmDialog(String title, String message) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消', style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text('确认', style: TextStyle(color: SettingsService.themeColor)),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -98,15 +75,7 @@ class _StorageSettingsState extends State<StorageSettings> {
           onMoveUp: widget.onMoveUp,
           onMoveDown: () => _memoryToggleFocusNode.requestFocus(),
           sidebarFocusNode: widget.sidebarFocusNode,
-          onTap: _isClearing
-              ? null
-              : () async {
-                  final confirmed = await _showConfirmDialog(
-                    '确认清除',
-                    '确定要清除图片缓存吗？',
-                  );
-                  if (confirmed) _clearCache();
-                },
+          onTap: _isClearing ? null : _clearCache,
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
         SettingToggleRow(

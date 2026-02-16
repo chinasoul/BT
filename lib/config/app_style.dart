@@ -236,3 +236,16 @@ abstract final class TabStyle {
   /// 右上角 TimeDisplay 的 right 偏移
   static const double timeDisplayRight = 14;
 }
+
+/// 播放器右侧面板样式
+abstract final class SidePanelStyle {
+  /// 面板背景色
+  static const Color backgroundColor = Color(0xFF2A2A2A);
+
+  /// 面板背景透明度
+  static const double backgroundAlpha = 0.95;
+
+  /// 获取带透明度的背景色
+  static Color get background =>
+      backgroundColor.withValues(alpha: backgroundAlpha);
+}

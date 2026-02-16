@@ -9,7 +9,6 @@ import '../../services/settings_service.dart';
 import '../../config/build_flags.dart';
 import '../../config/app_style.dart';
 import '../../widgets/tv_video_card.dart';
-import '../../widgets/time_display.dart';
 import '../../core/plugin/plugin_manager.dart';
 import '../../core/plugin/plugin_types.dart';
 import '../player/player_screen.dart';
@@ -630,11 +629,6 @@ class HomeTabState extends State<HomeTab> {
               ),
             ),
           ),
-        ),
-        const Positioned(
-          top: TabStyle.timeDisplayTop,
-          right: TabStyle.timeDisplayRight,
-          child: TimeDisplay(),
         ),
       ],
     );

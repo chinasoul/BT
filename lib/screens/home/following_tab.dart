@@ -11,7 +11,6 @@ import '../../services/auth_service.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../config/app_style.dart';
-import '../../widgets/time_display.dart';
 import '../../utils/image_url_utils.dart';
 import '../../widgets/tv_video_card.dart';
 import '../player/player_screen.dart';
@@ -1022,11 +1021,6 @@ class FollowingTabState extends State<FollowingTab> {
               ],
             ),
           ),
-        ),
-        const Positioned(
-          top: TabStyle.timeDisplayTop,
-          right: TabStyle.timeDisplayRight,
-          child: TimeDisplay(),
         ),
       ],
     );

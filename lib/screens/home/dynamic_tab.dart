@@ -10,7 +10,6 @@ import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../config/app_style.dart';
 import '../../widgets/tv_video_card.dart';
-import '../../widgets/time_display.dart';
 import '../player/player_screen.dart';
 
 /// 动态 Tab
@@ -494,12 +493,6 @@ class DynamicTabState extends State<DynamicTab> {
               ],
             ),
           ),
-        ),
-        // 右上角时间
-        const Positioned(
-          top: TabStyle.timeDisplayTop,
-          right: TabStyle.timeDisplayRight,
-          child: TimeDisplay(),
         ),
       ],
     );

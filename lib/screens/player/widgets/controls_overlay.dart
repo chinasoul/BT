@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../../models/video.dart';
-import '../../../widgets/time_display.dart';
 import '../../../widgets/conditional_marquee.dart';
 import 'tv_progress_bar.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
@@ -149,11 +148,10 @@ class ControlsOverlay extends StatelessWidget {
           ),
         ),
 
-        // 顶部时间显示 (仅当非全局常驻时显示)
-        // 位置与 PlayerScreen 的常驻时间保持一致 (top: 20, right: 30)
-        // 注意：Global Time 在 PlayerScreen 中处理，这里只处理 Controls overlay 内部的临时显示
-        if (!alwaysShowPlayerTime)
-          const Positioned(top: 10, right: 14, child: TimeDisplay()),
+        // 顶部时间显示 (仅当全局开启且非常驻时显示)
+        // 位置与 PlayerScreen 的常驻时间保持一致 (top: 10, right: 14)
+        // 注意：当全局开启时，常驻时间在 PlayerScreen 中处理，这里不显示
+        // 当全局关闭时，控制栏也不显示时间
 
         // 底部控制区
         Positioned(
@@ -201,82 +199,125 @@ class ControlsOverlay extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    // 播放/暂停 (index 0)
-                    _buildControlButton(
-                      index: 0,
-                      icon: controller.value.isPlaying
-                          ? Icons.pause
-                          : Icons.play_arrow,
-                      onTap: onPlayPause,
-                    ),
-                    const SizedBox(width: 24),
-                    // 评论 (index 1)
-                    _buildControlButton(
-                      index: 1,
-                      icon: Icons.comment_outlined,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 24),
-                    // 选集 (index 2)
-                    _buildControlButton(
-                      index: 2,
-                      icon: Icons.playlist_play,
-                      onTap: onEpisodes,
-                    ),
-                    const SizedBox(width: 24),
-                    // UP主 (index 3)
-                    _buildControlButton(
-                      index: 3,
-                      icon: Icons.person,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 24),
-                    // 更多视频 (index 4)
-                    _buildControlButton(
-                      index: 4,
-                      icon: Icons.expand_more,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 24),
-                    // 设置 (index 5)
-                    _buildControlButton(
-                      index: 5,
-                      icon: Icons.tune,
-                      onTap: onSettings,
-                    ),
-                    const SizedBox(width: 24),
-                    // 视频数据实时监测开关 (index 6)
-                    _buildControlButton(
-                      index: 6,
-                      icon: showStatsForNerds
-                          ? Icons.monitor_heart
-                          : Icons.monitor_heart_outlined,
-                      onTap: onToggleStatsForNerds,
-                    ),
-                    const SizedBox(width: 24),
-                    // 点赞/投币/收藏 (index 7)
-                    _buildControlButton(
-                      index: 7,
-                      icon: Icons.thumb_up_outlined,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 24),
-                    // 循环播放 (index 8)
-                    _buildControlButton(
-                      index: 8,
-                      icon: isLoopMode ? Icons.repeat_one : Icons.repeat,
-                      onTap: onToggleLoop,
-                    ),
-                    const SizedBox(width: 24),
-                    // 关闭视频 (index 9)
-                    _buildControlButton(
-                      index: 9,
-                      icon: Icons.close,
-                      onTap: onClose,
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 根据可用宽度计算按钮尺寸和间距
+                    // 10个按钮 + 9个间距
+                    final availableWidth = constraints.maxWidth;
+
+                    // 基准值（1920px宽度时）
+                    const baseWidth = 1920.0;
+                    const baseIconSize = 36.0;
+                    const basePadding = 12.0;
+                    const baseSpacing = 24.0;
+
+                    // 根据屏幕宽度缩放
+                    final scale = (availableWidth / baseWidth).clamp(0.5, 1.0);
+                    final iconSize = baseIconSize * scale;
+                    final buttonPadding = basePadding * scale;
+                    final spacing = baseSpacing * scale;
+
+                    return Row(
+                      children: [
+                        // 播放/暂停 (index 0)
+                        _buildControlButton(
+                          index: 0,
+                          icon: controller.value.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                          onTap: onPlayPause,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 评论 (index 1)
+                        _buildControlButton(
+                          index: 1,
+                          icon: Icons.comment_outlined,
+                          onTap: () {},
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 选集 (index 2)
+                        _buildControlButton(
+                          index: 2,
+                          icon: Icons.playlist_play,
+                          onTap: onEpisodes,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // UP主 (index 3)
+                        _buildControlButton(
+                          index: 3,
+                          icon: Icons.person,
+                          onTap: () {},
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 更多视频 (index 4)
+                        _buildControlButton(
+                          index: 4,
+                          icon: Icons.expand_more,
+                          onTap: () {},
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 设置 (index 5)
+                        _buildControlButton(
+                          index: 5,
+                          icon: Icons.tune,
+                          onTap: onSettings,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 视频数据实时监测开关 (index 6)
+                        _buildControlButton(
+                          index: 6,
+                          icon: showStatsForNerds
+                              ? Icons.monitor_heart
+                              : Icons.monitor_heart_outlined,
+                          onTap: onToggleStatsForNerds,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 点赞/投币/收藏 (index 7)
+                        _buildControlButton(
+                          index: 7,
+                          icon: Icons.thumb_up_outlined,
+                          onTap: () {},
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 循环播放 (index 8)
+                        _buildControlButton(
+                          index: 8,
+                          icon: isLoopMode ? Icons.repeat_one : Icons.repeat,
+                          onTap: onToggleLoop,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        SizedBox(width: spacing),
+                        // 关闭视频 (index 9)
+                        _buildControlButton(
+                          index: 9,
+                          icon: Icons.close,
+                          onTap: onClose,
+                          buttonPadding: buttonPadding,
+                          iconSize: iconSize,
+                        ),
+                        const Spacer(),
+                        // 右侧信息区：在看人数、弹幕数、画质
+                        _buildInfoText(scale),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -290,11 +331,13 @@ class ControlsOverlay extends StatelessWidget {
     required int index,
     required IconData icon,
     required VoidCallback onTap,
+    required double buttonPadding,
+    required double iconSize,
   }) {
     final isFocused =
         !isProgressBarFocused && focusedIndex == index && showControls;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(buttonPadding),
       decoration: BoxDecoration(
         color: isFocused
             ? SettingsService.themeColor.withValues(alpha: 0.8)
@@ -302,7 +345,50 @@ class ControlsOverlay extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: isFocused ? Border.all(color: Colors.white, width: 3) : null,
       ),
-      child: Icon(icon, color: Colors.white, size: 36),
+      child: Icon(icon, color: Colors.white, size: iconSize),
+    );
+  }
+
+  Widget _buildInfoText(double scale) {
+    final fontSize = 14.0 * scale;
+    final spacing = 16.0 * scale;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 在线人数
+        if (onlineCount != null && onlineCount!.isNotEmpty) ...[
+          Text(
+            '在看:$onlineCount',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: fontSize,
+            ),
+          ),
+          SizedBox(width: spacing),
+        ],
+        // 弹幕数
+        Text(
+          isDanmakuEnabled && danmakuCount > 0
+              ? '弹幕:${_formatDanmakuCount(danmakuCount)}'
+              : (isDanmakuEnabled ? '弹幕' : '弹幕关'),
+          style: TextStyle(
+            color: isDanmakuEnabled
+                ? Colors.white.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.5),
+            fontSize: fontSize,
+          ),
+        ),
+        SizedBox(width: spacing),
+        // 画质
+        Text(
+          currentQuality,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: fontSize,
+          ),
+        ),
+      ],
     );
   }
 }

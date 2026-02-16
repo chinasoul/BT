@@ -1017,7 +1017,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                       ],
                     ),
                   ),
-                  const TimeDisplay(),
+                  if (SettingsService.showTimeDisplay) const TimeDisplay(),
                 ],
               ),
             ),

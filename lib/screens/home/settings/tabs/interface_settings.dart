@@ -238,16 +238,16 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
-        // 播放器时间显示开关
+        // 时间显示开关（全局）
         SettingToggleRow(
-          label: '总是显示时间',
-          subtitle: '播放界面右上角总是显示当前时间',
-          value: SettingsService.alwaysShowPlayerTime,
+          label: '显示时间',
+          subtitle: '在界面右上角显示当前时间',
+          value: SettingsService.showTimeDisplay,
           autofocus: false,
           onMoveUp: null, // 允许自然向上导航到上一项
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
-            await SettingsService.setAlwaysShowPlayerTime(value);
+            await SettingsService.setShowTimeDisplay(value);
             setState(() {});
           },
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
+import '../../../config/app_style.dart';
 import '../../../models/video.dart';
 
 /// Related Videos Panel
@@ -112,7 +113,7 @@ class _RelatedPanelState extends State<RelatedPanel> {
         child: Container(
           width: panelWidth,
           height: double.infinity,
-          color: Colors.black.withValues(alpha: 0.9),
+          color: SidePanelStyle.background,
           child: Column(
             children: [
               // 头部

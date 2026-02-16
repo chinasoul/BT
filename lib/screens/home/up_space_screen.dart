@@ -145,7 +145,10 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                                 crossAxisSpacing: 20,
                                 mainAxisSpacing: 10,
                               ),
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final video = _videos[index];
                             return Builder(
                               builder: (ctx) => TvVideoCard(
@@ -172,7 +175,8 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                                               .position
                                               .maxScrollExtent,
                                         );
-                                    if ((_scrollController.offset - targetOffset)
+                                    if ((_scrollController.offset -
+                                                targetOffset)
                                             .abs() >
                                         50) {
                                       _scrollController.animateTo(
@@ -254,7 +258,8 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
               ),
             ),
           ),
-          const Positioned(top: 10, right: 14, child: TimeDisplay()),
+          if (SettingsService.showTimeDisplay)
+            const Positioned(top: 10, right: 14, child: TimeDisplay()),
         ],
       ),
     );

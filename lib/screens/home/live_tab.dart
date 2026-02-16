@@ -7,7 +7,6 @@ import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../config/app_style.dart';
 import '../../widgets/tv_live_card.dart';
-import '../../widgets/time_display.dart';
 import '../live/live_player_screen.dart';
 
 class LiveTab extends StatefulWidget {
@@ -499,12 +498,6 @@ class LiveTabState extends State<LiveTab> {
               ),
             ),
           ),
-        ),
-
-        const Positioned(
-          top: TabStyle.timeDisplayTop,
-          right: TabStyle.timeDisplayRight,
-          child: TimeDisplay(),
         ),
       ],
     );

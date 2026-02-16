@@ -11,9 +11,11 @@ import 'home/following_tab.dart';
 import 'home/live_tab.dart';
 import 'home/settings/settings_view.dart';
 import '../widgets/tv_focusable_item.dart';
+import '../widgets/time_display.dart';
 import '../services/auth_service.dart';
 import '../services/update_service.dart';
 import '../services/settings_service.dart';
+import '../config/app_style.dart';
 
 /// 主页框架
 /// Tab 顺序: 首页(0)、动态(1)、关注(2)、历史(3)、直播(4)、我(5)、搜索(6)、设置(7)
@@ -71,6 +73,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 根据低内存模式配置图片缓存
     _applyImageCacheConfig();
     SettingsService.onHighPerformanceModeChanged = _applyImageCacheConfig;
+
+    // 时间显示设置变更时刷新界面
+    SettingsService.onShowTimeDisplayChanged = () {
+      if (mounted) setState(() {});
+    };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.highlightStrategy =
@@ -280,53 +287,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       },
       child: Scaffold(
-        body: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        body: Stack(
           children: [
-            // 左侧边栏
-            Expanded(
-              flex: 5,
-              child: Container(
-                color: const Color(0xFF1E1E1E),
-                child: Column(
-                  children: [
-                    // 上部区域微调，让首页图标与推荐标签行平齐
-                    const SizedBox(height: 2),
-                    // 主导航图标 (0~7)，设置按钮已移到搜索后面
-                    ...List.generate(_mainTabIcons.length, (index) {
-                      final isUserTab = index == 5;
-                      final avatarUrl = isUserTab && AuthService.isLoggedIn
-                          ? AuthService.face
-                          : null;
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 左侧边栏
+                Expanded(
+                  flex: 5,
+                  child: Container(
+                    color: const Color(0xFF1E1E1E),
+                    child: Column(
+                      children: [
+                        // 上部区域微调，让首页图标与推荐标签行平齐
+                        const SizedBox(height: 2),
+                        // 主导航图标 (0~7)，设置按钮已移到搜索后面
+                        ...List.generate(_mainTabIcons.length, (index) {
+                          final isUserTab = index == 5;
+                          final avatarUrl = isUserTab && AuthService.isLoggedIn
+                              ? AuthService.face
+                              : null;
 
-                      return TvFocusableItem(
-                        iconPath: _mainTabIcons[index],
-                        avatarUrl: avatarUrl,
-                        isSelected: _selectedTabIndex == index,
-                        focusNode: _sideBarFocusNodes[index],
-                        onFocus: () {
-                          // 聚焦即切换：移动焦点立刻切换内容
-                          // 普通模式：只高亮图标，不切换内容
-                          if (SettingsService.focusSwitchTab) {
-                            _visitedTabs.add(index);
-                            setState(() => _selectedTabIndex = index);
-                          }
-                        },
-                        onTap: () => _handleSideBarTap(index),
-                        onMoveLeft: () {}, // 侧边栏最左侧，阻止左键导航
-                        onMoveUp: () => _moveUp(index),
-                        onMoveDown: () => _moveDown(index),
-                        onMoveRight: _getMoveRightHandler(index),
-                      );
-                    }),
-                    const Spacer(),
-                    const SizedBox(height: 16),
-                  ],
+                          return TvFocusableItem(
+                            iconPath: _mainTabIcons[index],
+                            avatarUrl: avatarUrl,
+                            isSelected: _selectedTabIndex == index,
+                            focusNode: _sideBarFocusNodes[index],
+                            onFocus: () {
+                              // 聚焦即切换：移动焦点立刻切换内容
+                              // 普通模式：只高亮图标，不切换内容
+                              if (SettingsService.focusSwitchTab) {
+                                _visitedTabs.add(index);
+                                setState(() => _selectedTabIndex = index);
+                              }
+                            },
+                            onTap: () => _handleSideBarTap(index),
+                            onMoveLeft: () {}, // 侧边栏最左侧，阻止左键导航
+                            onMoveUp: () => _moveUp(index),
+                            onMoveDown: () => _moveDown(index),
+                            onMoveRight: _getMoveRightHandler(index),
+                          );
+                        }),
+                        const Spacer(),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // 右侧内容区
+                Expanded(flex: 95, child: _buildRightContent()),
+              ],
             ),
-            // 右侧内容区
-            Expanded(flex: 95, child: _buildRightContent()),
+            // 全局时间显示（右上角）
+            if (SettingsService.showTimeDisplay)
+              const Positioned(
+                top: TabStyle.timeDisplayTop,
+                right: TabStyle.timeDisplayRight,
+                child: TimeDisplay(),
+              ),
           ],
         ),
       ),

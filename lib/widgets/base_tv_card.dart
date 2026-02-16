@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/focus/focus_navigation.dart';
 import '../services/settings_service.dart';
+import '../config/app_style.dart';
 
 /// TV 视频卡片基类
 ///
@@ -28,6 +29,15 @@ class BaseTvCard extends StatefulWidget {
   final bool isFirst;
   final bool isLast;
 
+  /// 当前卡片在列表中的索引
+  final int index;
+
+  /// 网格列数（用于判断是否第一行）
+  final int gridColumns;
+
+  /// 顶部遮挡区域高度（如分类标签、收藏夹标签等）
+  final double topOffset;
+
   const BaseTvCard({
     super.key,
     required this.onTap,
@@ -43,6 +53,9 @@ class BaseTvCard extends StatefulWidget {
     this.focusNode,
     this.isFirst = false,
     this.isLast = false,
+    this.index = 0,
+    this.gridColumns = 4,
+    this.topOffset = TabStyle.defaultTopOffset,
   });
 
   @override
@@ -78,21 +91,57 @@ class _BaseTvCardState extends State<BaseTvCard> {
     if (scrollableState == null) return;
 
     final position = scrollableState.position;
-    final scrollableRO = scrollableState.context.findRenderObject() as RenderBox?;
+    final scrollableRO =
+        scrollableState.context.findRenderObject() as RenderBox?;
     if (scrollableRO == null || !scrollableRO.hasSize) return;
 
-    final cardInViewport = ro.localToGlobal(Offset.zero, ancestor: scrollableRO);
+    final cardInViewport = ro.localToGlobal(
+      Offset.zero,
+      ancestor: scrollableRO,
+    );
     final viewportHeight = scrollableRO.size.height;
+    final cardHeight = ro.size.height;
+    final cardTop = cardInViewport.dy;
+    final cardBottom = cardTop + cardHeight;
 
-    final desiredY = viewportHeight * 0.2;
-    final delta = cardInViewport.dy - desiredY;
+    // 顶部安全边界：考虑顶部遮挡区域 + 露出上一行的比例
+    final revealHeight = cardHeight * TabStyle.scrollRevealRatio;
+    final topBoundary = widget.topOffset + revealHeight;
 
-    if (delta.abs() < 4.0) return;
+    // 底部安全边界：屏幕底部留出空间，用于显示下一行
+    final bottomBoundary = viewportHeight - revealHeight;
 
-    final target = (position.pixels + delta).clamp(
+    // 判断是否是第一行
+    final isFirstRow = widget.index < widget.gridColumns;
+
+    double? targetScrollOffset;
+
+    if (isFirstRow) {
+      // 第一行：确保卡片顶部在顶部边界位置（初始位置）
+      if ((cardTop - topBoundary).abs() > 50) {
+        final delta = cardTop - topBoundary;
+        targetScrollOffset = position.pixels + delta;
+      }
+    } else if (cardBottom > bottomBoundary) {
+      // 卡片底部超出底部边界：向上滚动，使卡片底部对齐到边界
+      final delta = cardBottom - bottomBoundary;
+      targetScrollOffset = position.pixels + delta;
+    } else if (cardTop < topBoundary) {
+      // 卡片顶部超出顶部边界：向下滚动，使卡片顶部对齐到边界
+      final delta = cardTop - topBoundary;
+      targetScrollOffset = position.pixels + delta;
+    }
+    // 卡片在安全区域内：不滚动
+
+    if (targetScrollOffset == null) return;
+
+    final target = targetScrollOffset.clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
+
+    // 只有滚动距离超过阈值才执行
+    if ((position.pixels - target).abs() < 4.0) return;
 
     if (animate) {
       position.animateTo(
@@ -124,7 +173,9 @@ class _BaseTvCardState extends State<BaseTvCard> {
         child: Container(
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: _isFocused ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.transparent,
+            color: _isFocused
+                ? SettingsService.themeColor.withValues(alpha: 0.6)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(

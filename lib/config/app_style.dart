@@ -114,16 +114,20 @@ abstract final class AppRadius {
 /// 全局间距
 abstract final class AppSpacing {
   /// 设置内容区域水平 padding（16 + settingRowPadding 14 = 30，与 Tab 文字对齐）
-  static const EdgeInsets settingContentPadding =
-      EdgeInsets.symmetric(horizontal: 16);
+  static const EdgeInsets settingContentPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+  );
 
   /// 设置项行内水平 padding
-  static const EdgeInsets settingRowPadding =
-      EdgeInsets.symmetric(horizontal: 14);
+  static const EdgeInsets settingRowPadding = EdgeInsets.symmetric(
+    horizontal: 14,
+  );
 
   /// 设置项 section 标题左侧 padding（与 settingRowPadding 对齐）
-  static const EdgeInsets settingSectionTitlePadding =
-      EdgeInsets.only(left: 14, bottom: 8);
+  static const EdgeInsets settingSectionTitlePadding = EdgeInsets.only(
+    left: 14,
+    bottom: 8,
+  );
 
   /// 设置项之间的间距
   static const double settingItemGap = 6;
@@ -176,8 +180,11 @@ abstract final class TabStyle {
   static const Color headerBackgroundColor = AppColors.background;
 
   /// Header 外层 padding（适用于 Positioned / Container）
-  static const EdgeInsets headerPadding =
-      EdgeInsets.only(left: 20, right: 20, top: 12);
+  static const EdgeInsets headerPadding = EdgeInsets.only(
+    left: 20,
+    right: 20,
+    top: 12,
+  );
 
   /// Header 固定高度（单行 tab 场景）
   static const double headerHeight = 56;
@@ -211,8 +218,15 @@ abstract final class TabStyle {
   // ── 内容区域 ─────────────────────────────────────────────
 
   /// 内容网格默认 padding（首行与 header 不重叠）
-  static const EdgeInsets contentPadding =
-      EdgeInsets.fromLTRB(24, 60, 24, 80);
+  static const EdgeInsets contentPadding = EdgeInsets.fromLTRB(24, 60, 24, 80);
+
+  /// 默认顶部遮挡区域高度（分类标签等）
+  static const double defaultTopOffset = 60.0;
+
+  // ── 滚动行为 ─────────────────────────────────────────────
+
+  /// 滚动时露出相邻行的比例（卡片高度的 1/4）
+  static const double scrollRevealRatio = 0.25;
 
   // ── 时间显示 ─────────────────────────────────────────────
 

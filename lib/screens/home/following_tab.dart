@@ -22,7 +22,11 @@ class FollowingTab extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
   final bool isVisible;
 
-  const FollowingTab({super.key, this.sidebarFocusNode, this.isVisible = false});
+  const FollowingTab({
+    super.key,
+    this.sidebarFocusNode,
+    this.isVisible = false,
+  });
 
   @override
   State<FollowingTab> createState() => FollowingTabState();
@@ -36,9 +40,12 @@ class FollowingTabState extends State<FollowingTab> {
 
   ScrollController get _activeScrollController {
     switch (_selectedTabIndex) {
-      case 0: return _followingScrollController;
-      case 1: return _favoritesScrollController;
-      default: return _watchLaterScrollController;
+      case 0:
+        return _followingScrollController;
+      case 1:
+        return _favoritesScrollController;
+      default:
+        return _watchLaterScrollController;
     }
   }
 
@@ -47,6 +54,27 @@ class FollowingTabState extends State<FollowingTab> {
   final Map<int, FocusNode> _watchLaterFocusNodes = {};
   late final List<FocusNode> _tabFocusNodes;
   List<FocusNode> _folderFocusNodes = [];
+
+  /// 处理返回键：如果焦点在内容卡片上，先回到顶部 Tab；否则返回 false 让上层处理
+  bool handleBack() {
+    // 检查焦点是否在顶部 Tab 上
+    for (final node in _tabFocusNodes) {
+      if (node.hasFocus) {
+        return false; // 已经在顶部 Tab 上，让上层处理
+      }
+    }
+    // 检查焦点是否在收藏夹文件夹标签上
+    for (final node in _folderFocusNodes) {
+      if (node.hasFocus) {
+        // 在文件夹标签上，回到顶部 Tab
+        _tabFocusNodes[_selectedTabIndex].requestFocus();
+        return true;
+      }
+    }
+    // 焦点在内容卡片上，回到当前顶部 Tab
+    _tabFocusNodes[_selectedTabIndex].requestFocus();
+    return true;
+  }
 
   int _selectedTabIndex = 0; // 0=关注列表, 1=收藏夹, 2=稍后再看
   final Set<int> _visitedSubTabs = {0}; // 已访问过的子 tab（默认只构建关注列表）
@@ -141,18 +169,24 @@ class FollowingTabState extends State<FollowingTab> {
 
   void _onFollowingScroll() {
     if (_followingScrollController.position.pixels <
-        _followingScrollController.position.maxScrollExtent - 200) return;
-    if (!_followingLoading && !_followingLoadingMore &&
-        _followingHasMore && _users.length < 60) {
+        _followingScrollController.position.maxScrollExtent - 200)
+      return;
+    if (!_followingLoading &&
+        !_followingLoadingMore &&
+        _followingHasMore &&
+        _users.length < 60) {
       _loadFollowingUsers(reset: false);
     }
   }
 
   void _onFavoritesScroll() {
     if (_favoritesScrollController.position.pixels <
-        _favoritesScrollController.position.maxScrollExtent - 200) return;
-    if (!_favoritesLoading && !_favoritesLoadingMore &&
-        _favoritesHasMore && _favoriteVideos.length < 60) {
+        _favoritesScrollController.position.maxScrollExtent - 200)
+      return;
+    if (!_favoritesLoading &&
+        !_favoritesLoadingMore &&
+        _favoritesHasMore &&
+        _favoriteVideos.length < 60) {
       _loadFavoriteVideos(reset: false);
     }
   }
@@ -351,6 +385,10 @@ class FollowingTabState extends State<FollowingTab> {
       return;
     }
 
+    // 在请求发起时捕获当前选中的收藏夹索引和 ID
+    final requestFolderIndex = _selectedFolderIndex;
+    final folderId = _folders[requestFolderIndex].id;
+
     if (reset) {
       setState(() {
         _favoritesLoading = true;
@@ -362,7 +400,6 @@ class FollowingTabState extends State<FollowingTab> {
       setState(() => _favoritesLoadingMore = true);
     }
 
-    final folderId = _folders[_selectedFolderIndex].id;
     final result = await BilibiliApi.getFavoriteFolderVideos(
       mediaId: folderId,
       page: reset ? 1 : _favoritesPage,
@@ -372,33 +409,42 @@ class FollowingTabState extends State<FollowingTab> {
 
     final list = result['list'] as List<Video>;
     final hasMore = result['hasMore'] as bool;
-    setState(() {
-      if (reset) {
-        _favoriteVideos = list;
-        _favoritesLoading = false;
-      } else {
-        final existingBvids = _favoriteVideos.map((v) => v.bvid).toSet();
-        final unique = list.where((v) => !existingBvids.contains(v.bvid)).toList();
-        _favoriteVideos.addAll(unique);
-        _favoritesLoadingMore = false;
-      }
-      _favoritesHasMore = hasMore;
-      if (!reset && list.isNotEmpty) {
-        _favoritesPage += 1;
-      } else if (reset) {
-        _favoritesPage = 2;
-      }
+    final nextPage = reset ? 2 : _favoritesPage + 1;
 
-      // 按收藏夹缓存内容和分页状态，切换子收藏夹时可直接显示
-      _favoriteVideosCache[folderId] = List<Video>.from(_favoriteVideos);
-      _favoriteNextPageCache[folderId] = _favoritesPage;
-      _favoriteHasMoreCache[folderId] = _favoritesHasMore;
-    });
-
-    // 首页加载完成后保存缓存（仅保存首次 reset 加载的默认收藏夹）
-    if (reset && _favoriteVideos.isNotEmpty && _folders.isNotEmpty) {
-      _saveFavoritesCache();
+    // 先更新缓存（无论当前选中的收藏夹是否改变）
+    if (reset) {
+      _favoriteVideosCache[folderId] = List<Video>.from(list);
+    } else {
+      final cached = _favoriteVideosCache[folderId] ?? [];
+      final existingBvids = cached.map((v) => v.bvid).toSet();
+      final unique = list
+          .where((v) => !existingBvids.contains(v.bvid))
+          .toList();
+      _favoriteVideosCache[folderId] = [...cached, ...unique];
     }
+    _favoriteNextPageCache[folderId] = nextPage;
+    _favoriteHasMoreCache[folderId] = hasMore;
+
+    // 只有当前选中的收藏夹仍然是请求发起时的收藏夹，才更新 UI
+    if (_selectedFolderIndex == requestFolderIndex) {
+      setState(() {
+        // 直接引用缓存，避免额外拷贝
+        _favoriteVideos = _favoriteVideosCache[folderId]!;
+        _favoritesHasMore = hasMore;
+        _favoritesPage = nextPage;
+        if (reset) {
+          _favoritesLoading = false;
+        } else {
+          _favoritesLoadingMore = false;
+        }
+      });
+
+      // 首页加载完成后保存缓存（仅保存首次 reset 加载的默认收藏夹）
+      if (reset && _favoriteVideos.isNotEmpty && _folders.isNotEmpty) {
+        _saveFavoritesCache();
+      }
+    }
+    // 收藏夹已切换时不更新 UI，缓存已保存供后续使用
   }
 
   Future<void> _loadWatchLaterVideos() async {
@@ -434,7 +480,9 @@ class FollowingTabState extends State<FollowingTab> {
     try {
       final foldersJson = jsonEncode(_folders.map((f) => f.toMap()).toList());
       SettingsService.setCachedFavoriteFoldersJson(foldersJson);
-      final videosJson = jsonEncode(_favoriteVideos.map((v) => v.toMap()).toList());
+      final videosJson = jsonEncode(
+        _favoriteVideos.map((v) => v.toMap()).toList(),
+      );
       SettingsService.setCachedFavoriteVideosJson(videosJson);
     } catch (_) {}
   }
@@ -541,7 +589,7 @@ class FollowingTabState extends State<FollowingTab> {
     if (cachedVideos != null) {
       setState(() {
         _selectedFolderIndex = index;
-        _favoriteVideos = List<Video>.from(cachedVideos);
+        _favoriteVideos = cachedVideos; // 直接引用缓存
         _favoritesLoading = false;
         _favoritesLoadingMore = false;
         _favoritesPage = _favoriteNextPageCache[folderId] ?? 1;
@@ -592,8 +640,11 @@ class FollowingTabState extends State<FollowingTab> {
   void _openUserSpace(FollowingUser user) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            UpSpaceScreen(upMid: user.mid, upName: user.uname, upFace: user.face),
+        builder: (context) => UpSpaceScreen(
+          upMid: user.mid,
+          upName: user.uname,
+          upFace: user.face,
+        ),
       ),
     );
   }
@@ -614,6 +665,10 @@ class FollowingTabState extends State<FollowingTab> {
           // 最后一项向右循环到第一项
           onMoveRight: index == labels.length - 1
               ? () => _tabFocusNodes[0].requestFocus()
+              : null,
+          // 收藏夹 Tab 向下移动到第一个子收藏夹
+          onMoveDown: index == 1 && _folderFocusNodes.isNotEmpty
+              ? () => _folderFocusNodes[_selectedFolderIndex].requestFocus()
               : null,
         );
       }),
@@ -657,7 +712,9 @@ class FollowingTabState extends State<FollowingTab> {
   Widget _buildCurrentContent() {
     // 懒构建：未访问过的子 tab 用占位符代替，减少不必要的 widget 构建
     Widget _lazySubTab(int index, Widget Function() builder) {
-      return _visitedSubTabs.contains(index) ? builder() : const SizedBox.shrink();
+      return _visitedSubTabs.contains(index)
+          ? builder()
+          : const SizedBox.shrink();
     }
 
     return IndexedStack(
@@ -727,7 +784,10 @@ class FollowingTabState extends State<FollowingTab> {
         children: [
           Icon(icon, size: 80, color: Colors.white38),
           const SizedBox(height: 20),
-          Text(text, style: const TextStyle(color: Colors.white70, fontSize: 20)),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 20),
+          ),
         ],
       ),
     );
@@ -795,7 +855,9 @@ class FollowingTabState extends State<FollowingTab> {
   }) {
     final gridColumns = SettingsService.videoGridColumns;
     // 收藏夹存在子标签时，给列表更大顶部间距，避免覆盖第一行卡片
-    final topPadding = (_selectedTabIndex == 1 && _folders.isNotEmpty) ? 90.0 : 60.0;
+    final topPadding = (_selectedTabIndex == 1 && _folders.isNotEmpty)
+        ? 90.0
+        : 60.0;
     return CustomScrollView(
       controller: scrollController,
       slivers: [
@@ -822,6 +884,9 @@ class FollowingTabState extends State<FollowingTab> {
                   video: video,
                   focusNode: focusNodeAt(index),
                   disableCache: false,
+                  index: index,
+                  gridColumns: gridColumns,
+                  topOffset: topPadding,
                   onTap: () => _openVideo(video),
                   onMoveLeft: (index % gridColumns == 0)
                       ? () => widget.sidebarFocusNode?.requestFocus()
@@ -832,8 +897,10 @@ class FollowingTabState extends State<FollowingTab> {
                   onMoveUp: index >= gridColumns
                       ? () => focusNodeAt(index - gridColumns).requestFocus()
                       : () {
-                          if (_selectedTabIndex == 1 && _folderFocusNodes.isNotEmpty) {
-                            _folderFocusNodes[_selectedFolderIndex].requestFocus();
+                          if (_selectedTabIndex == 1 &&
+                              _folderFocusNodes.isNotEmpty) {
+                            _folderFocusNodes[_selectedFolderIndex]
+                                .requestFocus();
                           } else {
                             _tabFocusNodes[_selectedTabIndex].requestFocus();
                           }
@@ -841,7 +908,7 @@ class FollowingTabState extends State<FollowingTab> {
                   onMoveDown: (index + gridColumns < videos.length)
                       ? () => focusNodeAt(index + gridColumns).requestFocus()
                       : null,
-                  onFocus: () => _scrollToCard(ctx),
+                  onFocus: () {},
                 ),
               );
             }, childCount: videos.length),
@@ -861,22 +928,57 @@ class FollowingTabState extends State<FollowingTab> {
   void _scrollToCard(BuildContext cardContext) {
     final controller = _activeScrollController;
     if (!controller.hasClients) return;
+
     final RenderObject? object = cardContext.findRenderObject();
-    if (object != null && object is RenderBox) {
-      final viewport = RenderAbstractViewport.of(object);
-      final offsetToReveal = viewport.getOffsetToReveal(object, 0.0).offset;
-      final targetOffset = (offsetToReveal - 120).clamp(
-        0.0,
-        controller.position.maxScrollExtent,
-      );
-      if ((controller.offset - targetOffset).abs() > 50) {
-        controller.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOutCubic,
-        );
-      }
+    if (object == null || object is! RenderBox || !object.hasSize) return;
+
+    final scrollableState = Scrollable.maybeOf(cardContext);
+    if (scrollableState == null) return;
+
+    final scrollableRO =
+        scrollableState.context.findRenderObject() as RenderBox?;
+    if (scrollableRO == null || !scrollableRO.hasSize) return;
+
+    final cardInViewport = object.localToGlobal(
+      Offset.zero,
+      ancestor: scrollableRO,
+    );
+    final viewportHeight = scrollableRO.size.height;
+    final cardHeight = object.size.height;
+    final cardTop = cardInViewport.dy;
+    final cardBottom = cardTop + cardHeight;
+
+    // 使用与 BaseTvCard 相同的渐进式滚动逻辑
+    final revealHeight = cardHeight * TabStyle.scrollRevealRatio;
+    final topBoundary = TabStyle.defaultTopOffset + revealHeight;
+    final bottomBoundary = viewportHeight - revealHeight;
+
+    double? targetScrollOffset;
+
+    if (cardBottom > bottomBoundary) {
+      // 卡片底部超出底部边界：向上滚动
+      final delta = cardBottom - bottomBoundary;
+      targetScrollOffset = controller.offset + delta;
+    } else if (cardTop < topBoundary) {
+      // 卡片顶部超出顶部边界：向下滚动
+      final delta = cardTop - topBoundary;
+      targetScrollOffset = controller.offset + delta;
     }
+
+    if (targetScrollOffset == null) return;
+
+    final target = targetScrollOffset.clamp(
+      controller.position.minScrollExtent,
+      controller.position.maxScrollExtent,
+    );
+
+    if ((controller.offset - target).abs() < 4.0) return;
+
+    controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -921,7 +1023,11 @@ class FollowingTabState extends State<FollowingTab> {
             ),
           ),
         ),
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
+        const Positioned(
+          top: TabStyle.timeDisplayTop,
+          right: TabStyle.timeDisplayRight,
+          child: TimeDisplay(),
+        ),
       ],
     );
   }
@@ -935,6 +1041,7 @@ class _TopTab extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onMoveLeft;
   final VoidCallback? onMoveRight;
+  final VoidCallback? onMoveDown;
 
   const _TopTab({
     required this.label,
@@ -944,6 +1051,7 @@ class _TopTab extends StatelessWidget {
     required this.onTap,
     this.onMoveLeft,
     this.onMoveRight,
+    this.onMoveDown,
   });
 
   @override
@@ -963,6 +1071,11 @@ class _TopTab extends StatelessWidget {
           onMoveRight!();
           return KeyEventResult.handled;
         }
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+            onMoveDown != null) {
+          onMoveDown!();
+          return KeyEventResult.handled;
+        }
         if (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.select) {
           onTap();
@@ -978,7 +1091,9 @@ class _TopTab extends StatelessWidget {
             child: Container(
               padding: TabStyle.tabPadding,
               decoration: BoxDecoration(
-                color: focused ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.transparent,
+                color: focused
+                    ? SettingsService.themeColor.withValues(alpha: 0.6)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(TabStyle.tabBorderRadius),
               ),
               child: Column(
@@ -989,7 +1104,9 @@ class _TopTab extends StatelessWidget {
                     style: TextStyle(
                       color: focused
                           ? Colors.white
-                          : (isSelected ? SettingsService.themeColor : Colors.white70),
+                          : (isSelected
+                                ? SettingsService.themeColor
+                                : Colors.white70),
                       fontSize: TabStyle.tabFontSize,
                       fontWeight: focused || isSelected
                           ? FontWeight.bold
@@ -1005,7 +1122,9 @@ class _TopTab extends StatelessWidget {
                       color: isSelected
                           ? SettingsService.themeColor
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                      borderRadius: BorderRadius.circular(
+                        TabStyle.tabUnderlineRadius,
+                      ),
                     ),
                   ),
                 ],
@@ -1076,7 +1195,9 @@ class _FolderTab extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: focused ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.white10,
+                color: focused
+                    ? SettingsService.themeColor.withValues(alpha: 0.6)
+                    : Colors.white10,
                 borderRadius: BorderRadius.circular(10),
                 border: isSelected && !focused
                     ? Border.all(color: SettingsService.themeColor, width: 1)
@@ -1087,7 +1208,9 @@ class _FolderTab extends StatelessWidget {
                 style: TextStyle(
                   color: focused
                       ? Colors.white
-                      : (isSelected ? SettingsService.themeColor : Colors.white70),
+                      : (isSelected
+                            ? SettingsService.themeColor
+                            : Colors.white70),
                   fontSize: 12,
                 ),
               ),
@@ -1141,7 +1264,8 @@ class _FollowingUserCard extends StatelessWidget {
           onMoveRight!();
           return KeyEventResult.handled;
         }
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp && onMoveUp != null) {
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+            onMoveUp != null) {
           onMoveUp!();
           return KeyEventResult.handled;
         }
@@ -1164,7 +1288,9 @@ class _FollowingUserCard extends StatelessWidget {
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              color: focused ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.white10,
+              color: focused
+                  ? SettingsService.themeColor.withValues(alpha: 0.6)
+                  : Colors.white10,
               borderRadius: BorderRadius.circular(10),
               border: null,
             ),
@@ -1175,7 +1301,11 @@ class _FollowingUserCard extends StatelessWidget {
                 children: [
                   ClipOval(
                     child: CachedNetworkImage(
-                      imageUrl: ImageUrlUtils.getResizedUrl(user.face, width: 80, height: 80),
+                      imageUrl: ImageUrlUtils.getResizedUrl(
+                        user.face,
+                        width: 80,
+                        height: 80,
+                      ),
                       cacheManager: BiliCacheManager.instance,
                       memCacheWidth: 80,
                       memCacheHeight: 80,

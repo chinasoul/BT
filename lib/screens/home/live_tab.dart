@@ -42,6 +42,17 @@ class LiveTabState extends State<LiveTab> {
 
   bool _hasLoaded = false;
 
+  /// 处理返回键：如果焦点在直播卡片上，先回到分类标签；否则返回 false 让上层处理
+  bool handleBack() {
+    for (final node in _categoryFocusNodes) {
+      if (node.hasFocus) {
+        return false; // 已经在分类标签上，让上层处理
+      }
+    }
+    _categoryFocusNodes[_selectedCategoryIndex].requestFocus();
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -249,7 +260,9 @@ class LiveTabState extends State<LiveTab> {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
           final lastRowStart = (rooms.length ~/ 4) * 4;
-          final targetIndex = lastRowStart < rooms.length ? lastRowStart : rooms.length - 1;
+          final targetIndex = lastRowStart < rooms.length
+              ? lastRowStart
+              : rooms.length - 1;
           _getFocusNode(targetIndex).requestFocus();
           return KeyEventResult.handled;
         }
@@ -354,7 +367,9 @@ class LiveTabState extends State<LiveTab> {
                   )
                 : isLoading && currentRooms.isEmpty
                 ? Center(
-                    child: CircularProgressIndicator(color: SettingsService.themeColor),
+                    child: CircularProgressIndicator(
+                      color: SettingsService.themeColor,
+                    ),
                   )
                 : currentRooms.isEmpty
                 ? const Center(
@@ -368,107 +383,75 @@ class LiveTabState extends State<LiveTab> {
                     ),
                   )
                 : CustomScrollView(
-                      controller: _scrollController,
-                      slivers: [
-                        SliverPadding(
-                          padding: TabStyle.contentPadding,
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  childAspectRatio: 320 / 280,
-                                  crossAxisSpacing: 20,
-                                  mainAxisSpacing: 10,
-                                ),
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              if (!_reachedLimit &&
-                                  index == currentRooms.length - 4) {
-                                _loadMore();
-                              }
+                    controller: _scrollController,
+                    slivers: [
+                      SliverPadding(
+                        padding: TabStyle.contentPadding,
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                childAspectRatio: 320 / 280,
+                                crossAxisSpacing: 20,
+                                mainAxisSpacing: 10,
+                              ),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (!_reachedLimit &&
+                                index == currentRooms.length - 4) {
+                              _loadMore();
+                            }
 
-                              final room = currentRooms[index];
+                            final room = currentRooms[index];
 
-                              // 构建卡片
-                              Widget buildCard(BuildContext ctx) {
-                                return TvLiveCard(
-                                  room: room,
-                                  autofocus: isInitialLoad && index == 0,
-                                  focusNode: _getFocusNode(index),
-                                  onTap: () => _navigateToRoom(room),
-                                  onFocus: () {
-                                    if (!_scrollController.hasClients) {
-                                      return;
-                                    }
-                                    final RenderObject? object = ctx
-                                        .findRenderObject();
-                                    if (object != null && object is RenderBox) {
-                                      final viewport =
-                                          RenderAbstractViewport.of(object);
-                                      final offsetToReveal = viewport
-                                          .getOffsetToReveal(object, 0.0)
-                                          .offset;
-                                      final targetOffset =
-                                          (offsetToReveal - 120).clamp(
-                                            0.0,
-                                            _scrollController
-                                                .position
-                                                .maxScrollExtent,
-                                          );
-                                      if ((_scrollController.offset -
-                                                  targetOffset)
-                                              .abs() >
-                                          50) {
-                                        _scrollController.animateTo(
-                                          targetOffset,
-                                          duration: const Duration(
-                                            milliseconds: 500,
-                                          ),
-                                          curve: Curves.easeOutCubic,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  onMoveLeft: (index % 4 == 0)
-                                      ? () => widget.sidebarFocusNode
-                                            .requestFocus()
-                                      : () => _getFocusNode(
-                                          index - 1,
-                                        ).requestFocus(),
-                                  onMoveRight: (index + 1 < currentRooms.length)
-                                      ? () => _getFocusNode(
-                                          index + 1,
-                                        ).requestFocus()
-                                      : null,
-                                  onMoveUp: index >= 4
-                                      ? () => _getFocusNode(
-                                          index - 4,
-                                        ).requestFocus()
-                                      : () =>
-                                            _categoryFocusNodes[_selectedCategoryIndex]
-                                                .requestFocus(),
-                                  onMoveDown: (index + 4 < currentRooms.length)
-                                      ? () => _getFocusNode(
-                                          index + 4,
-                                        ).requestFocus()
-                                      : _reachedLimit
-                                          ? () => _loadMoreFocusNode.requestFocus()
-                                          : () {},
-                                );
-                              }
+                            // 构建卡片
+                            Widget buildCard(BuildContext ctx) {
+                              return TvLiveCard(
+                                room: room,
+                                autofocus: isInitialLoad && index == 0,
+                                focusNode: _getFocusNode(index),
+                                index: index,
+                                gridColumns: 4,
+                                onTap: () => _navigateToRoom(room),
+                                onFocus: () {},
+                                onMoveLeft: (index % 4 == 0)
+                                    ? () =>
+                                          widget.sidebarFocusNode.requestFocus()
+                                    : () => _getFocusNode(
+                                        index - 1,
+                                      ).requestFocus(),
+                                onMoveRight: (index + 1 < currentRooms.length)
+                                    ? () => _getFocusNode(
+                                        index + 1,
+                                      ).requestFocus()
+                                    : null,
+                                onMoveUp: index >= 4
+                                    ? () => _getFocusNode(
+                                        index - 4,
+                                      ).requestFocus()
+                                    : () =>
+                                          _categoryFocusNodes[_selectedCategoryIndex]
+                                              .requestFocus(),
+                                onMoveDown: (index + 4 < currentRooms.length)
+                                    ? () => _getFocusNode(
+                                        index + 4,
+                                      ).requestFocus()
+                                    : _reachedLimit
+                                    ? () => _loadMoreFocusNode.requestFocus()
+                                    : () {},
+                              );
+                            }
 
-                              return Builder(builder: buildCard);
-                            }, childCount: currentRooms.length),
-                          ),
+                            return Builder(builder: buildCard);
+                          }, childCount: currentRooms.length),
                         ),
-                        if (_reachedLimit)
-                          SliverToBoxAdapter(
-                            child: _buildLoadMoreTile(),
-                          ),
-                      ],
-                    ),
+                      ),
+                      if (_reachedLimit)
+                        SliverToBoxAdapter(child: _buildLoadMoreTile()),
+                    ],
+                  ),
           ),
         ),
 
@@ -518,7 +501,11 @@ class LiveTabState extends State<LiveTab> {
           ),
         ),
 
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
+        const Positioned(
+          top: TabStyle.timeDisplayTop,
+          right: TabStyle.timeDisplayRight,
+          child: TimeDisplay(),
+        ),
       ],
     );
   }
@@ -595,7 +582,9 @@ class _LiveCategoryTab extends StatelessWidget {
               child: Container(
                 padding: TabStyle.tabPadding,
                 decoration: BoxDecoration(
-                  color: f ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.transparent,
+                  color: f
+                      ? SettingsService.themeColor.withValues(alpha: 0.6)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(TabStyle.tabBorderRadius),
                 ),
                 child: Column(
@@ -624,7 +613,9 @@ class _LiveCategoryTab extends StatelessWidget {
                         color: isSelected
                             ? SettingsService.themeColor
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                        borderRadius: BorderRadius.circular(
+                          TabStyle.tabUnderlineRadius,
+                        ),
                       ),
                     ),
                   ],

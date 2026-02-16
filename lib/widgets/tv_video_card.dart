@@ -5,6 +5,7 @@ import 'base_tv_card.dart';
 import 'conditional_marquee.dart';
 import '../services/settings_service.dart'; // 包含 BiliCacheManager
 import '../utils/image_url_utils.dart';
+import '../config/app_style.dart';
 
 class TvVideoCard extends StatelessWidget {
   final Video video;
@@ -19,6 +20,15 @@ class TvVideoCard extends StatelessWidget {
   final bool disableCache;
   final FocusNode? focusNode;
 
+  /// 当前卡片在列表中的索引
+  final int index;
+
+  /// 网格列数
+  final int gridColumns;
+
+  /// 顶部遮挡区域高度
+  final double topOffset;
+
   const TvVideoCard({
     super.key,
     required this.video,
@@ -32,6 +42,9 @@ class TvVideoCard extends StatelessWidget {
     this.autofocus = false,
     this.disableCache = false,
     this.focusNode,
+    this.index = 0,
+    this.gridColumns = 4,
+    this.topOffset = TabStyle.defaultTopOffset,
   });
 
   String get _durationText => video.durationFormatted;
@@ -48,6 +61,9 @@ class TvVideoCard extends StatelessWidget {
       onMoveUp: onMoveUp,
       onMoveDown: onMoveDown,
       onBack: onBack,
+      index: index,
+      gridColumns: gridColumns,
+      topOffset: topOffset,
       imageContent: Stack(
         fit: StackFit.expand,
         children: [
@@ -166,7 +182,11 @@ class TvVideoCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     video.ownerName,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -175,7 +195,11 @@ class TvVideoCard extends StatelessWidget {
                 if (video.pubdateFormatted.isNotEmpty)
                   Text(
                     video.pubdateFormatted,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
               ],
             ),

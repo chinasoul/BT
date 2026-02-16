@@ -37,13 +37,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // 主导航区图标 (0~6)
   static const List<String> _mainTabIcons = [
-    'assets/icons/home.svg',     // 0: 首页
-    'assets/icons/dynamic.svg',  // 1: 动态
+    'assets/icons/home.svg', // 0: 首页
+    'assets/icons/dynamic.svg', // 1: 动态
     'assets/icons/favorite.svg', // 2: 关注
-    'assets/icons/history.svg',  // 3: 历史
-    'assets/icons/live.svg',     // 4: 直播
-    'assets/icons/user.svg',     // 5: 我
-    'assets/icons/search.svg',   // 6: 搜索
+    'assets/icons/history.svg', // 3: 历史
+    'assets/icons/live.svg', // 4: 直播
+    'assets/icons/user.svg', // 5: 我
+    'assets/icons/search.svg', // 6: 搜索
   ];
 
   // 设置图标 (底部，index 7)
@@ -80,10 +80,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _sideBarFocusNodes = List.generate(
-      _totalTabs,
-      (index) => FocusNode(),
-    );
+    _sideBarFocusNodes = List.generate(_totalTabs, (index) => FocusNode());
 
     _showMemoryInfo = SettingsService.showMemoryInfo;
     if (_showMemoryInfo) _startMemoryMonitor();
@@ -309,10 +306,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// 获取向右导航回调
   VoidCallback? _getMoveRightHandler(int index) {
-    if (index == 2) {
-      return () =>
-          _followingTabKey.currentState?.focusSelectedTopTab();
+    // 首页：聚焦记忆的分类标签
+    if (index == 0) {
+      return () => _homeTabKey.currentState?.focusSelectedCategoryTab();
     }
+    // 关注页：聚焦记忆的顶部标签
+    if (index == 2) {
+      return () => _followingTabKey.currentState?.focusSelectedTopTab();
+    }
+    // 直播页：聚焦记忆的分类标签
     if (index == 4) {
       return () => _liveTabKey.currentState?.focusFirstItem();
     }
@@ -367,8 +369,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // 其他页面：内容区按返回 -> 回当前页面对应的侧边栏
-        _focusSelectedSidebarItem();
+        // 其他页面：内容区按返回 -> 先返回顶部 Tab，再返回侧边栏
+        bool handled = false;
+        switch (_selectedTabIndex) {
+          case 0:
+            handled = _homeTabKey.currentState?.handleBack() ?? false;
+            break;
+          case 2:
+            handled = _followingTabKey.currentState?.handleBack() ?? false;
+            break;
+          case 4:
+            handled = _liveTabKey.currentState?.handleBack() ?? false;
+            break;
+        }
+        if (!handled) {
+          _focusSelectedSidebarItem();
+        }
       },
       child: Scaffold(
         body: Row(
@@ -481,49 +497,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           preloadedVideos: widget.preloadedVideos,
         ),
         // 1: 动态
-        _lazyTab(1, () => DynamicTab(
-          key: _dynamicTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[1],
-          isVisible: _selectedTabIndex == 1,
-        )),
+        _lazyTab(
+          1,
+          () => DynamicTab(
+            key: _dynamicTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[1],
+            isVisible: _selectedTabIndex == 1,
+          ),
+        ),
         // 2: 关注
-        _lazyTab(2, () => FollowingTab(
-          key: _followingTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[2],
-          isVisible: _selectedTabIndex == 2,
-        )),
+        _lazyTab(
+          2,
+          () => FollowingTab(
+            key: _followingTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[2],
+            isVisible: _selectedTabIndex == 2,
+          ),
+        ),
         // 3: 历史
-        _lazyTab(3, () => HistoryTab(
-          key: _historyTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[3],
-          isVisible: _selectedTabIndex == 3,
-        )),
+        _lazyTab(
+          3,
+          () => HistoryTab(
+            key: _historyTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[3],
+            isVisible: _selectedTabIndex == 3,
+          ),
+        ),
         // 4: 直播
-        _lazyTab(4, () => LiveTab(
-          key: _liveTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[4],
-          isVisible: _selectedTabIndex == 4,
-        )),
+        _lazyTab(
+          4,
+          () => LiveTab(
+            key: _liveTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[4],
+            isVisible: _selectedTabIndex == 4,
+          ),
+        ),
         // 5: 我 (登录/个人资料)
-        _lazyTab(5, () => LoginTab(
-          key: _loginTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[5],
-          onLoginSuccess: _handleLoginSuccess,
-        )),
+        _lazyTab(
+          5,
+          () => LoginTab(
+            key: _loginTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[5],
+            onLoginSuccess: _handleLoginSuccess,
+          ),
+        ),
         // 6: 搜索
-        _lazyTab(6, () => SearchTab(
-          key: _searchTabKey,
-          sidebarFocusNode: _sideBarFocusNodes[6],
-          onBackToHome: () {
-            _backFromSearchHandled = DateTime.now();
-            _focusSelectedSidebarItem();
-          },
-        )),
+        _lazyTab(
+          6,
+          () => SearchTab(
+            key: _searchTabKey,
+            sidebarFocusNode: _sideBarFocusNodes[6],
+            onBackToHome: () {
+              _backFromSearchHandled = DateTime.now();
+              _focusSelectedSidebarItem();
+            },
+          ),
+        ),
         // 7: 设置
-        _lazyTab(7, () => SettingsView(
-          key: _settingsKey,
-          sidebarFocusNode: _sideBarFocusNodes[_settingsIndex],
-        )),
+        _lazyTab(
+          7,
+          () => SettingsView(
+            key: _settingsKey,
+            sidebarFocusNode: _sideBarFocusNodes[_settingsIndex],
+          ),
+        ),
       ],
     );
   }

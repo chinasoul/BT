@@ -50,6 +50,29 @@ class HomeTabState extends State<HomeTab> {
   final Map<int, Map<int, FocusNode>> _categoryFocusNodeMaps = {};
   bool _isSwitchingCategory = false; // 防止 FocusNode dispose 引发的递归切换
 
+  /// 处理返回键：如果焦点在视频卡片上，先回到分类标签；否则返回 false 让上层处理
+  bool handleBack() {
+    // 检查焦点是否在分类标签上
+    for (final node in _categoryFocusNodes) {
+      if (node.hasFocus) {
+        return false; // 已经在分类标签上，让上层处理（回到侧边栏）
+      }
+    }
+    // 焦点在视频卡片或其他地方，回到当前分类标签
+    _categoryFocusNodes[_selectedCategoryIndex].requestFocus();
+    return true;
+  }
+
+  /// 公开焦点方法 - 从侧边栏进入时聚焦当前分类标签（记忆上次位置）
+  void focusSelectedCategoryTab() {
+    if (_categoryFocusNodes.isEmpty) return;
+    final index = _selectedCategoryIndex.clamp(
+      0,
+      _categoryFocusNodes.length - 1,
+    );
+    _categoryFocusNodes[index].requestFocus();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -401,8 +424,11 @@ class HomeTabState extends State<HomeTab> {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
           final gridColumns = SettingsService.videoGridColumns;
-          final lastRowStart = (_currentVideos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _currentVideos.length ? lastRowStart : _currentVideos.length - 1;
+          final lastRowStart =
+              (_currentVideos.length ~/ gridColumns) * gridColumns;
+          final targetIndex = lastRowStart < _currentVideos.length
+              ? lastRowStart
+              : _currentVideos.length - 1;
           _getFocusNode(targetIndex).requestFocus();
           return KeyEventResult.handled;
         }
@@ -482,119 +508,85 @@ class HomeTabState extends State<HomeTab> {
             child: _isLoading && _currentVideos.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : CustomScrollView(
-                      // key 随分类变化，强制 Flutter 重建 Scrollable 和 ScrollPosition，
-                      // 否则 didUpdateWidget 只替换 controller 但复用旧 position（偏移量不对）
-                      key: ValueKey('category_$_selectedCategoryIndex'),
-                      controller: _scrollController,
-                      slivers: [
-                        SliverPadding(
-                          padding: TabStyle.contentPadding,
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: gridColumns,
-                                  childAspectRatio: 320 / 280,
-                                  crossAxisSpacing: 20,
-                                  mainAxisSpacing: 10,
-                                ),
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              final video = _currentVideos[index];
+                    // key 随分类变化，强制 Flutter 重建 Scrollable 和 ScrollPosition，
+                    // 否则 didUpdateWidget 只替换 controller 但复用旧 position（偏移量不对）
+                    key: ValueKey('category_$_selectedCategoryIndex'),
+                    controller: _scrollController,
+                    slivers: [
+                      SliverPadding(
+                        padding: TabStyle.contentPadding,
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: gridColumns,
+                                childAspectRatio: 320 / 280,
+                                crossAxisSpacing: 20,
+                                mainAxisSpacing: 10,
+                              ),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final video = _currentVideos[index];
 
-                              if (!_reachedLimit &&
-                                  index == _currentVideos.length - gridColumns) {
-                                _loadMore();
-                              }
+                            if (!_reachedLimit &&
+                                index == _currentVideos.length - gridColumns) {
+                              _loadMore();
+                            }
 
-                              // 构建卡片内容
-                              Widget buildCard(BuildContext ctx) {
-                                return TvVideoCard(
-                                  video: video,
-                                  focusNode: _getFocusNode(index),
-                                  autofocus: isInitialLoad && index == 0,
-                                  disableCache: false,
-                                  onTap: () => _onVideoTap(video),
-                                  onMoveLeft: (index % gridColumns == 0)
-                                      ? () => widget.sidebarFocusNode
-                                            ?.requestFocus()
-                                      : () => _getFocusNode(
-                                          index - 1,
-                                        ).requestFocus(),
-                                  // 强制向右导航，避免 ScaleTransition 导致的误判
-                                  onMoveRight:
-                                      (index + 1 < _currentVideos.length)
-                                      ? () => _getFocusNode(
-                                          index + 1,
-                                        ).requestFocus()
-                                      : null,
-                                  // 严格按列向上移动，最顶行跳到分类标签
-                                  onMoveUp: index >= gridColumns
-                                      ? () => _getFocusNode(
-                                          index - gridColumns,
-                                        ).requestFocus()
-                                      : () =>
-                                            _categoryFocusNodes[_selectedCategoryIndex]
-                                                .requestFocus(),
-                                  // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
-                                  onMoveDown:
-                                      (index + gridColumns < _currentVideos.length)
-                                      ? () => _getFocusNode(
-                                          index + gridColumns,
-                                        ).requestFocus()
-                                      : _reachedLimit
-                                          ? () => _loadMoreFocusNode.requestFocus()
-                                          : () {},
-                                  onFocus: () {
-                                    if (!_scrollController.hasClients) {
-                                      return;
-                                    }
+                            // 构建卡片内容
+                            Widget buildCard(BuildContext ctx) {
+                              return TvVideoCard(
+                                video: video,
+                                focusNode: _getFocusNode(index),
+                                autofocus: isInitialLoad && index == 0,
+                                disableCache: false,
+                                index: index,
+                                gridColumns: gridColumns,
+                                onTap: () => _onVideoTap(video),
+                                onMoveLeft: (index % gridColumns == 0)
+                                    ? () => widget.sidebarFocusNode
+                                          ?.requestFocus()
+                                    : () => _getFocusNode(
+                                        index - 1,
+                                      ).requestFocus(),
+                                // 强制向右导航，避免 ScaleTransition 导致的误判
+                                onMoveRight: (index + 1 < _currentVideos.length)
+                                    ? () => _getFocusNode(
+                                        index + 1,
+                                      ).requestFocus()
+                                    : null,
+                                // 严格按列向上移动，最顶行跳到分类标签
+                                onMoveUp: index >= gridColumns
+                                    ? () => _getFocusNode(
+                                        index - gridColumns,
+                                      ).requestFocus()
+                                    : () =>
+                                          _categoryFocusNodes[_selectedCategoryIndex]
+                                              .requestFocus(),
+                                // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
+                                onMoveDown:
+                                    (index + gridColumns <
+                                        _currentVideos.length)
+                                    ? () => _getFocusNode(
+                                        index + gridColumns,
+                                      ).requestFocus()
+                                    : _reachedLimit
+                                    ? () => _loadMoreFocusNode.requestFocus()
+                                    : () {},
+                                onFocus: () {},
+                              );
+                            }
 
-                                    final RenderObject? object = ctx
-                                        .findRenderObject();
-                                    if (object != null && object is RenderBox) {
-                                      final viewport =
-                                          RenderAbstractViewport.of(object);
-                                      final offsetToReveal = viewport
-                                          .getOffsetToReveal(object, 0.0)
-                                          .offset;
-                                      final targetOffset =
-                                          (offsetToReveal - 120).clamp(
-                                            0.0,
-                                            _scrollController
-                                                .position
-                                                .maxScrollExtent,
-                                          );
-
-                                      if ((_scrollController.offset -
-                                                  targetOffset)
-                                              .abs() >
-                                          50) {
-                                        _scrollController.animateTo(
-                                          targetOffset,
-                                          duration: const Duration(
-                                            milliseconds: 500,
-                                          ),
-                                          curve: Curves.easeOutCubic,
-                                        );
-                                      }
-                                    }
-                                  },
-                                );
-                              }
-
-                              return Builder(builder: buildCard);
-                            }, childCount: _currentVideos.length),
-                          ),
+                            return Builder(builder: buildCard);
+                          }, childCount: _currentVideos.length),
                         ),
-                        // 到达上限后显示"加载更多"提示
-                        if (_reachedLimit)
-                          SliverToBoxAdapter(
-                            child: _buildLoadMoreTile(),
-                          ),
-                      ],
-                    ),
+                      ),
+                      // 到达上限后显示"加载更多"提示
+                      if (_reachedLimit)
+                        SliverToBoxAdapter(child: _buildLoadMoreTile()),
+                    ],
+                  ),
           ),
         ),
 
@@ -639,7 +631,11 @@ class HomeTabState extends State<HomeTab> {
             ),
           ),
         ),
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
+        const Positioned(
+          top: TabStyle.timeDisplayTop,
+          right: TabStyle.timeDisplayRight,
+          child: TimeDisplay(),
+        ),
       ],
     );
   }
@@ -717,7 +713,9 @@ class _CategoryTab extends StatelessWidget {
               child: Container(
                 padding: TabStyle.tabPadding,
                 decoration: BoxDecoration(
-                  color: f ? SettingsService.themeColor.withValues(alpha: 0.6) : Colors.transparent,
+                  color: f
+                      ? SettingsService.themeColor.withValues(alpha: 0.6)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(TabStyle.tabBorderRadius),
                 ),
                 child: Column(
@@ -746,7 +744,9 @@ class _CategoryTab extends StatelessWidget {
                         color: isSelected
                             ? SettingsService.themeColor
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                        borderRadius: BorderRadius.circular(
+                          TabStyle.tabUnderlineRadius,
+                        ),
                       ),
                     ),
                   ],

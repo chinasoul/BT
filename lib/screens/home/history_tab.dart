@@ -237,7 +237,9 @@ class HistoryTabState extends State<HistoryTab> {
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
           final gridColumns = SettingsService.videoGridColumns;
           final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _videos.length ? lastRowStart : _videos.length - 1;
+          final targetIndex = lastRowStart < _videos.length
+              ? lastRowStart
+              : _videos.length - 1;
           _getFocusNode(targetIndex).requestFocus();
           return KeyEventResult.handled;
         }
@@ -358,96 +360,69 @@ class HistoryTabState extends State<HistoryTab> {
         // 视频网格
         Positioned.fill(
           child: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                SliverPadding(
-                  padding: TabStyle.contentPadding,
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: gridColumns,
-                          childAspectRatio: 320 / 280,
-                          crossAxisSpacing: 20,
-                          mainAxisSpacing: 10,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final video = _videos[index];
+            controller: _scrollController,
+            slivers: [
+              SliverPadding(
+                padding: TabStyle.contentPadding,
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: gridColumns,
+                    childAspectRatio: 320 / 280,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 10,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final video = _videos[index];
 
-                      // 构建卡片内容
-                      Widget buildCard(BuildContext ctx) {
-                        return HistoryVideoCard(
-                          video: video,
-                          focusNode: _getFocusNode(index),
-                          onTap: () => _onVideoTap(video),
-                          // 最左列按左键跳到侧边栏
-                          onMoveLeft: (index % gridColumns == 0)
-                              ? () => widget.sidebarFocusNode?.requestFocus()
-                              : () => _getFocusNode(index - 1).requestFocus(),
-                          // 强制向右导航
-                          onMoveRight: (index + 1 < _videos.length)
-                              ? () => _getFocusNode(index + 1).requestFocus()
-                              : null,
-                          // 严格按列向上移动
-                          onMoveUp: index >= gridColumns
-                              ? () => _getFocusNode(
-                                  index - gridColumns,
-                                ).requestFocus()
-                              : () {}, // 最顶行为无效输入
-                          // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
-                          onMoveDown: (index + gridColumns < _videos.length)
-                              ? () => _getFocusNode(
-                                  index + gridColumns,
-                                ).requestFocus()
-                              : _reachedLimit
-                                  ? () => _loadMoreFocusNode.requestFocus()
-                                  : () {},
-                          onFocus: () {
-                            if (!_scrollController.hasClients) return;
+                    // 构建卡片内容
+                    Widget buildCard(BuildContext ctx) {
+                      return HistoryVideoCard(
+                        video: video,
+                        focusNode: _getFocusNode(index),
+                        index: index,
+                        gridColumns: gridColumns,
+                        onTap: () => _onVideoTap(video),
+                        // 最左列按左键跳到侧边栏
+                        onMoveLeft: (index % gridColumns == 0)
+                            ? () => widget.sidebarFocusNode?.requestFocus()
+                            : () => _getFocusNode(index - 1).requestFocus(),
+                        // 强制向右导航
+                        onMoveRight: (index + 1 < _videos.length)
+                            ? () => _getFocusNode(index + 1).requestFocus()
+                            : null,
+                        // 严格按列向上移动
+                        onMoveUp: index >= gridColumns
+                            ? () => _getFocusNode(
+                                index - gridColumns,
+                              ).requestFocus()
+                            : () {}, // 最顶行为无效输入
+                        // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
+                        onMoveDown: (index + gridColumns < _videos.length)
+                            ? () => _getFocusNode(
+                                index + gridColumns,
+                              ).requestFocus()
+                            : _reachedLimit
+                            ? () => _loadMoreFocusNode.requestFocus()
+                            : () {},
+                        onFocus: () {},
+                      );
+                    }
 
-                            final RenderObject? object = ctx.findRenderObject();
-                            if (object != null && object is RenderBox) {
-                              final viewport = RenderAbstractViewport.of(
-                                object,
-                              );
-                              final offsetToReveal = viewport
-                                  .getOffsetToReveal(object, 0.0)
-                                  .offset;
-                              final targetOffset = (offsetToReveal - 120).clamp(
-                                0.0,
-                                _scrollController.position.maxScrollExtent,
-                              );
-
-                              if ((_scrollController.offset - targetOffset)
-                                      .abs() >
-                                  50) {
-                                _scrollController.animateTo(
-                                  targetOffset,
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.easeOutCubic,
-                                );
-                              }
-                            }
-                          },
-                        );
-                      }
-
-                      return Builder(builder: buildCard);
-                    }, childCount: _videos.length),
+                    return Builder(builder: buildCard);
+                  }, childCount: _videos.length),
+                ),
+              ),
+              if (_reachedLimit)
+                SliverToBoxAdapter(child: _buildLoadMoreTile())
+              else if (_isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                 ),
-                if (_reachedLimit)
-                  SliverToBoxAdapter(
-                    child: _buildLoadMoreTile(),
-                  )
-                else if (_isLoadingMore)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-              ],
-            ),
+            ],
+          ),
         ),
         // 固定标题 — 与其他 tab 页保持一致的 tab 样式
         Positioned(
@@ -480,7 +455,9 @@ class HistoryTabState extends State<HistoryTab> {
                         width: TabStyle.tabUnderlineWidth,
                         decoration: BoxDecoration(
                           color: SettingsService.themeColor,
-                          borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                          borderRadius: BorderRadius.circular(
+                            TabStyle.tabUnderlineRadius,
+                          ),
                         ),
                       ),
                     ],
@@ -491,7 +468,11 @@ class HistoryTabState extends State<HistoryTab> {
           ),
         ),
         // 右上角时间
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
+        const Positioned(
+          top: TabStyle.timeDisplayTop,
+          right: TabStyle.timeDisplayRight,
+          child: TimeDisplay(),
+        ),
       ],
     );
   }

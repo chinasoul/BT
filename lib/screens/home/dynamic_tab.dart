@@ -37,6 +37,9 @@ class DynamicTabState extends State<DynamicTab> {
   final Map<int, FocusNode> _videoFocusNodes = {};
   final FocusNode _loadMoreFocusNode = FocusNode();
 
+  /// 处理返回键：动态页没有顶部 Tab，直接返回 false 让上层处理
+  bool handleBack() => false;
+
   @override
   void initState() {
     super.initState();
@@ -247,7 +250,9 @@ class DynamicTabState extends State<DynamicTab> {
           // 返回最后一行最左侧卡片
           final gridColumns = SettingsService.videoGridColumns;
           final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _videos.length ? lastRowStart : _videos.length - 1;
+          final targetIndex = lastRowStart < _videos.length
+              ? lastRowStart
+              : _videos.length - 1;
           _getFocusNode(targetIndex).requestFocus();
           return KeyEventResult.handled;
         }
@@ -369,114 +374,75 @@ class DynamicTabState extends State<DynamicTab> {
             children: [
               Expanded(
                 child: CustomScrollView(
-                    controller: _scrollController,
-                    slivers: [
-                      SliverPadding(
-                        padding: TabStyle.contentPadding,
-                        sliver: SliverGrid(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: gridColumns,
-                                childAspectRatio: 320 / 280,
-                                crossAxisSpacing: 20,
-                                mainAxisSpacing: 10,
-                              ),
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final video = _videos[index];
-
-                            // 预取下一页：避免大列数时无法通过下移触发滚动加载
-                            if (_hasMore &&
-                                !_isLoadingMore &&
-                                !_reachedLimit &&
-                                index >= _videos.length - gridColumns) {
-                              _loadMore();
-                            }
-
-                            // 构建卡片的内容
-                            Widget buildCard(BuildContext ctx) {
-                              return TvVideoCard(
-                                video: video,
-                                focusNode: _getFocusNode(index),
-                                disableCache: false,
-                                onTap: () => _onVideoTap(video),
-                                // 最左列按左键跳到侧边栏
-                                onMoveLeft: (index % gridColumns == 0)
-                                    ? () => widget.sidebarFocusNode
-                                          ?.requestFocus()
-                                    : () => _getFocusNode(
-                                        index - 1,
-                                      ).requestFocus(),
-                                // 强制向右导航
-                                onMoveRight: (index + 1 < _videos.length)
-                                    ? () => _getFocusNode(
-                                        index + 1,
-                                      ).requestFocus()
-                                    : null,
-                                // 严格按列向上移动
-                                onMoveUp: index >= gridColumns
-                                    ? () => _getFocusNode(
-                                        index - gridColumns,
-                                      ).requestFocus()
-                                    : () {}, // 最顶行为无效输入
-                                // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
-                                onMoveDown: (index + gridColumns < _videos.length)
-                                    ? () => _getFocusNode(
-                                        index + gridColumns,
-                                      ).requestFocus()
-                                    : _reachedLimit
-                                        ? () => _loadMoreFocusNode.requestFocus()
-                                        : () {},
-                                onFocus: () {
-                                  if (!_scrollController.hasClients) return;
-
-                                  final RenderObject? object = ctx
-                                      .findRenderObject();
-                                  if (object != null && object is RenderBox) {
-                                    final viewport = RenderAbstractViewport.of(
-                                      object,
-                                    );
-                                    final offsetToReveal = viewport
-                                        .getOffsetToReveal(object, 0.0)
-                                        .offset;
-                                    final targetOffset = (offsetToReveal - 120)
-                                        .clamp(
-                                          0.0,
-                                          _scrollController
-                                              .position
-                                              .maxScrollExtent,
-                                        );
-
-                                    if ((_scrollController.offset -
-                                                targetOffset)
-                                            .abs() >
-                                        50) {
-                                      _scrollController.animateTo(
-                                        targetOffset,
-                                        duration: const Duration(
-                                          milliseconds: 500,
-                                        ),
-                                        curve: Curves.easeOutCubic,
-                                      );
-                                    }
-                                  }
-                                },
-                              );
-                            }
-
-                            return Builder(builder: buildCard);
-                          }, childCount: _videos.length),
+                  controller: _scrollController,
+                  slivers: [
+                    SliverPadding(
+                      padding: TabStyle.contentPadding,
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: gridColumns,
+                          childAspectRatio: 320 / 280,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 10,
                         ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final video = _videos[index];
+
+                          // 预取下一页：避免大列数时无法通过下移触发滚动加载
+                          if (_hasMore &&
+                              !_isLoadingMore &&
+                              !_reachedLimit &&
+                              index >= _videos.length - gridColumns) {
+                            _loadMore();
+                          }
+
+                          // 构建卡片的内容
+                          Widget buildCard(BuildContext ctx) {
+                            return TvVideoCard(
+                              video: video,
+                              focusNode: _getFocusNode(index),
+                              disableCache: false,
+                              index: index,
+                              gridColumns: gridColumns,
+                              onTap: () => _onVideoTap(video),
+                              // 最左列按左键跳到侧边栏
+                              onMoveLeft: (index % gridColumns == 0)
+                                  ? () =>
+                                        widget.sidebarFocusNode?.requestFocus()
+                                  : () =>
+                                        _getFocusNode(index - 1).requestFocus(),
+                              // 强制向右导航
+                              onMoveRight: (index + 1 < _videos.length)
+                                  ? () =>
+                                        _getFocusNode(index + 1).requestFocus()
+                                  : null,
+                              // 严格按列向上移动
+                              onMoveUp: index >= gridColumns
+                                  ? () => _getFocusNode(
+                                      index - gridColumns,
+                                    ).requestFocus()
+                                  : () {}, // 最顶行为无效输入
+                              // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
+                              onMoveDown: (index + gridColumns < _videos.length)
+                                  ? () => _getFocusNode(
+                                      index + gridColumns,
+                                    ).requestFocus()
+                                  : _reachedLimit
+                                  ? () => _loadMoreFocusNode.requestFocus()
+                                  : () {},
+                              onFocus: () {},
+                            );
+                          }
+
+                          return Builder(builder: buildCard);
+                        }, childCount: _videos.length),
                       ),
-                      // 到达上限后显示"加载更多"提示
-                      if (_reachedLimit)
-                        SliverToBoxAdapter(
-                          child: _buildLoadMoreTile(),
-                        ),
-                    ],
-                  ),
+                    ),
+                    // 到达上限后显示"加载更多"提示
+                    if (_reachedLimit)
+                      SliverToBoxAdapter(child: _buildLoadMoreTile()),
+                  ],
+                ),
               ),
               if (_isLoadingMore)
                 const Padding(
@@ -517,7 +483,9 @@ class DynamicTabState extends State<DynamicTab> {
                         width: TabStyle.tabUnderlineWidth,
                         decoration: BoxDecoration(
                           color: SettingsService.themeColor,
-                          borderRadius: BorderRadius.circular(TabStyle.tabUnderlineRadius),
+                          borderRadius: BorderRadius.circular(
+                            TabStyle.tabUnderlineRadius,
+                          ),
                         ),
                       ),
                     ],
@@ -528,7 +496,11 @@ class DynamicTabState extends State<DynamicTab> {
           ),
         ),
         // 右上角时间
-        const Positioned(top: TabStyle.timeDisplayTop, right: TabStyle.timeDisplayRight, child: TimeDisplay()),
+        const Positioned(
+          top: TabStyle.timeDisplayTop,
+          right: TabStyle.timeDisplayRight,
+          child: TimeDisplay(),
+        ),
       ],
     );
   }

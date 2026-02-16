@@ -16,6 +16,12 @@ class TvLiveCard extends StatelessWidget {
   final bool autofocus;
   final FocusNode? focusNode;
 
+  /// 当前卡片在列表中的索引
+  final int index;
+
+  /// 网格列数
+  final int gridColumns;
+
   const TvLiveCard({
     super.key,
     required this.room,
@@ -27,6 +33,8 @@ class TvLiveCard extends StatelessWidget {
     this.onMoveDown,
     this.autofocus = false,
     this.focusNode,
+    this.index = 0,
+    this.gridColumns = 4,
   });
 
   @override
@@ -57,6 +65,8 @@ class TvLiveCard extends StatelessWidget {
       onMoveRight: onMoveRight,
       onMoveUp: onMoveUp,
       onMoveDown: onMoveDown,
+      index: index,
+      gridColumns: gridColumns,
       imageContent: Stack(
         fit: StackFit.expand,
         children: [

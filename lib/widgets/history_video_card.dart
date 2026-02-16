@@ -24,6 +24,12 @@ class HistoryVideoCard extends StatelessWidget {
   final bool autofocus;
   final FocusNode? focusNode;
 
+  /// 当前卡片在列表中的索引
+  final int index;
+
+  /// 网格列数
+  final int gridColumns;
+
   const HistoryVideoCard({
     super.key,
     required this.video,
@@ -36,6 +42,8 @@ class HistoryVideoCard extends StatelessWidget {
     this.onBack,
     this.autofocus = false,
     this.focusNode,
+    this.index = 0,
+    this.gridColumns = 4,
   });
 
   /// 是否已播完（B站API返回 progress == -1 表示已看完）
@@ -69,6 +77,8 @@ class HistoryVideoCard extends StatelessWidget {
     return BaseTvCard(
       focusNode: focusNode,
       autofocus: autofocus,
+      index: index,
+      gridColumns: gridColumns,
       onTap: () {
         // 只有当是直播且没有 BVID 时（表示是直播间而非回放视频）才跳转直播播放器
         // "直播回放"通常有 BVID，应作为普通视频播放
@@ -263,7 +273,11 @@ class HistoryVideoCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     video.ownerName,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -272,7 +286,11 @@ class HistoryVideoCard extends StatelessWidget {
                 if (video.viewAtFormatted.isNotEmpty)
                   Text(
                     video.viewAtFormatted,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
               ],
             ),

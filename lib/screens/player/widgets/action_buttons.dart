@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../models/video.dart';
@@ -93,11 +93,11 @@ class _ActionButtonsState extends State<ActionButtons> {
 
     if (success) {
       setState(() => _isLiked = !_isLiked);
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: _isLiked ? '已点赞' : '已取消点赞');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, _isLiked ? '已点赞' : '已取消点赞');
     } else {
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: '操作失败');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, '操作失败');
     }
     setState(() => _isLoading = false);
   }
@@ -105,8 +105,8 @@ class _ActionButtonsState extends State<ActionButtons> {
   Future<void> _onCoin() async {
     if (_isLoading || _coinCount >= 2) {
       if (_coinCount >= 2) {
-        Fluttertoast.cancel();
-        Fluttertoast.showToast(msg: '已投满2个硬币');
+        ToastUtils.dismiss();
+        ToastUtils.show(context, '已投满2个硬币');
       }
       return;
     }
@@ -116,14 +116,14 @@ class _ActionButtonsState extends State<ActionButtons> {
 
     if (error == null) {
       setState(() => _coinCount = _coinCount + 1);
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: '投币成功 ($_coinCount/2)');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, '投币成功 ($_coinCount/2)');
 
       // 触发交互回调，重置隐藏定时器
       widget.onUserInteraction?.call();
     } else {
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: error);
+      ToastUtils.dismiss();
+      ToastUtils.show(context, error);
     }
     setState(() => _isLoading = false);
   }
@@ -139,11 +139,11 @@ class _ActionButtonsState extends State<ActionButtons> {
 
     if (success) {
       setState(() => _isFavorited = !_isFavorited);
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: _isFavorited ? '已收藏' : '已取消收藏');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, _isFavorited ? '已收藏' : '已取消收藏');
     } else {
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: '操作失败');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, '操作失败');
     }
     setState(() => _isLoading = false);
   }

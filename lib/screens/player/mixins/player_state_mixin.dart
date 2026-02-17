@@ -135,6 +135,9 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   int precachedSpriteIndex = -1; // 已预缓存的雪碧图最大索引 (滑动窗口)
   bool hasShownVideoshotFailToast = false; // 是否已显示过预览图失败提示
   bool hasHandledVideoComplete = false; // 防止重复触发视频完成回调
+  Timer? completionFallbackTimer; // 末尾播完兜底检测防抖定时器
+  bool isUserInitiatedPause = false; // 用户主动暂停标志，区分播放器异常停止
+  Timer? progressBarSeekTimer; // 进度条模式延迟跳转定时器
 
   // 循环播放模式
   bool isLoopMode = false;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../../../services/settings_service.dart';
 import '../../../../config/app_style.dart';
 import '../widgets/setting_toggle_row.dart';
@@ -62,12 +63,12 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
         const SizedBox(height: AppSpacing.settingItemGap),
         SettingToggleRow(
           label: '快进预览模式',
-          subtitle: '快进快退时显示预览缩略图，按确定跳转',
+          subtitle: '快进快退时显示预览缩略图，按确定跳转（暂不可用）',
           value: SettingsService.seekPreviewMode,
+          enabled: false,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
-            await SettingsService.setSeekPreviewMode(value);
-            setState(() {});
+            ToastUtils.show(context, '该功能暂不可用');
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),

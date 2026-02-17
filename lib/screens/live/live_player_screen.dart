@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api/live_api.dart';
 import '../../services/live_socket_service.dart';
@@ -453,7 +453,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         } else if (msg['type'] == 'error') {
           debugPrint('LiveSocket Error: ${msg['msg']}');
           if (mounted) {
-            Fluttertoast.showToast(msg: "弹幕连接: ${msg['msg']}");
+            ToastUtils.show(context, "弹幕连接: ${msg['msg']}");
           }
         }
       },
@@ -569,7 +569,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     if (_focusedControlIndex == 0) {
       // Refresh
       debugPrint('Refresh clicked');
-      Fluttertoast.showToast(msg: "正在刷新直播流...");
+      ToastUtils.show(context, "正在刷新直播流...");
       _initializePlayer();
     } else if (_focusedControlIndex == 1) {
       // Quality (Was 2)
@@ -589,7 +589,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
           _hideTimer?.cancel();
         });
       } else {
-        Fluttertoast.showToast(msg: "当前只有默认线路");
+        ToastUtils.show(context, "当前只有默认线路");
       }
     } else if (_focusedControlIndex == 3) {
       // Settings (Was 4)
@@ -602,8 +602,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     } else if (_focusedControlIndex == 4) {
       // Follow (Was 1) -> Moved to last
       if (_anchorUid == 0) {
-        Fluttertoast.cancel();
-        Fluttertoast.showToast(msg: "无法获取主播信息");
+        ToastUtils.dismiss();
+        ToastUtils.show(context, "无法获取主播信息");
         return;
       }
       final act = _isFollowed ? 2 : 1; // 1=Follow, 2=Unfollow
@@ -612,11 +612,11 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         setState(() {
           _isFollowed = !_isFollowed;
         });
-        Fluttertoast.cancel();
-        Fluttertoast.showToast(msg: _isFollowed ? "已关注" : "已取消关注");
+        ToastUtils.dismiss();
+        ToastUtils.show(context, _isFollowed ? "已关注" : "已取消关注");
       } else {
-        Fluttertoast.cancel();
-        Fluttertoast.showToast(msg: "操作失败");
+        ToastUtils.dismiss();
+        ToastUtils.show(context, "操作失败");
       }
     }
   }
@@ -821,7 +821,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         if (_lastBackPressed == null ||
             now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
           _lastBackPressed = now;
-          Fluttertoast.showToast(msg: "再按一次退出直播");
+          ToastUtils.show(context, "再按一次退出直播");
           return;
         }
 

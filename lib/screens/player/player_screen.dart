@@ -132,8 +132,12 @@ class _PlayerScreenState extends State<PlayerScreen>
                       : videoController!.value.buffered,
                 ),
 
-              // 快进快退指示器 (含预览缩略图)
-              if (showSeekIndicator && videoController != null)
+              // 快进快退指示器 (含预览缩略图) - 仅快进预览模式显示
+              if (showSeekIndicator &&
+                  videoController != null &&
+                  isSeekPreviewMode &&
+                  previewPosition != null &&
+                  videoshotData != null)
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -144,23 +148,18 @@ class _PlayerScreenState extends State<PlayerScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // 预览模式: 显示缩略图
-                        if (isSeekPreviewMode &&
-                            previewPosition != null &&
-                            videoshotData != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: SeekPreviewThumbnail(
-                              videoshotData: videoshotData!,
-                              previewPosition: previewPosition!,
-                              scale: 0.6,
-                            ),
+                        // 显示缩略图
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: SeekPreviewThumbnail(
+                            videoshotData: videoshotData!,
+                            previewPosition: previewPosition!,
+                            scale: 0.6,
                           ),
-                        // 时间指示器（预览模式或批量快进都使用 previewPosition）
+                        ),
+                        // 时间指示器
                         Text(
-                          previewPosition != null
-                              ? '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}'
-                              : '${_formatSeekTime(videoController!.value.position)} / ${_formatSeekTime(videoController!.value.duration)}',
+                          '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -174,18 +173,17 @@ class _PlayerScreenState extends State<PlayerScreen>
                             ],
                           ),
                         ),
-                        // 预览模式提示
-                        if (isSeekPreviewMode)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8),
-                            child: Text(
-                              '按确定跳转',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
+                        // 操作提示
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            '按确定跳转',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -262,12 +260,6 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
                 ),
-
-              // 进度条拖动预览
-              if (isProgressBarFocused &&
-                  previewPosition != null &&
-                  videoController != null)
-                _buildProgressPreview(),
 
               // 视频数据实时监测（类似 YouTube Stats for Nerds）
               if (!isLoading &&
@@ -419,65 +411,6 @@ class _PlayerScreenState extends State<PlayerScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProgressPreview() {
-    final total = videoController!.value.duration;
-    final preview = previewPosition!;
-    final progress = total.inMilliseconds > 0
-        ? preview.inMilliseconds / total.inMilliseconds
-        : 0.0;
-
-    String formatDuration(Duration d) {
-      final h = d.inHours;
-      final m = d.inMinutes % 60;
-      final s = d.inSeconds % 60;
-      if (h > 0) {
-        return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-      }
-      return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    }
-
-    return Positioned(
-      bottom: 60,
-      left: 40,
-      right: 40,
-      child: Column(
-        children: [
-          Text(
-            '${formatDuration(preview)} / ${formatDuration(total)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress.clamp(0.0, 1.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: SettingsService.themeColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '← → 拖动  ↑ 取消  确定 跳转',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
-          ),
-        ],
       ),
     );
   }

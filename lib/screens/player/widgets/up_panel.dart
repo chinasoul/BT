@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../models/video.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
@@ -32,13 +32,16 @@ class _UpPanelState extends State<UpPanel> {
   bool _isFollowing = false;
   bool _isLoading = true;
   String _order = 'pubdate'; // 'pubdate' = time, 'click' = popularity
-  // Focus index: 0+ = video list, -1 = sort button, -2 = follow button
+  // Focus index: 0+ = video list, -1 = sort最新, -2 = sort最热, -3 = follow button
   int _focusedIndex = 0;
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
   // 用于获取列表项的 GlobalKey
   final Map<int, GlobalKey> _itemKeys = {};
+
+  // 排序缓存：order → videos
+  final Map<String, List<Video>> _cachedVideos = {};
 
   @override
   void initState() {
@@ -77,10 +80,30 @@ class _UpPanelState extends State<UpPanel> {
 
   Future<void> _toggleSort() async {
     final newOrder = _order == 'pubdate' ? 'click' : 'pubdate';
+    // 保存当前焦点位置
+    final currentFocusIndex = _focusedIndex;
+
+    // 保存当前排序的数据到缓存
+    if (_videos.isNotEmpty) {
+      _cachedVideos[_order] = List.from(_videos);
+    }
+
     setState(() {
       _order = newOrder;
-      _isLoading = true;
     });
+
+    // 尝试从缓存恢复
+    if (_cachedVideos.containsKey(newOrder)) {
+      setState(() {
+        _videos = _cachedVideos[newOrder]!;
+        // 保持焦点不变
+        _focusedIndex = currentFocusIndex;
+      });
+      return;
+    }
+
+    // 缓存中没有，需要加载
+    setState(() => _isLoading = true);
 
     final videos = await BilibiliApi.getSpaceVideos(
       mid: widget.upMid,
@@ -89,8 +112,14 @@ class _UpPanelState extends State<UpPanel> {
     if (mounted) {
       setState(() {
         _videos = videos;
+        _cachedVideos[newOrder] = List.from(videos);
         _isLoading = false;
-        _focusedIndex = _videos.isNotEmpty ? 0 : -1;
+        // 保持焦点不变，除非视频列表为空
+        if (currentFocusIndex >= 0 && _videos.isEmpty) {
+          _focusedIndex = _order == 'pubdate' ? -1 : -2;
+        } else {
+          _focusedIndex = currentFocusIndex;
+        }
       });
     }
   }
@@ -103,11 +132,11 @@ class _UpPanelState extends State<UpPanel> {
 
     if (success) {
       setState(() => _isFollowing = !_isFollowing);
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: _isFollowing ? '已关注' : '已取消关注');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, _isFollowing ? '已关注' : '已取消关注');
     } else {
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: '操作失败');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, '操作失败');
     }
   }
 
@@ -178,7 +207,7 @@ class _UpPanelState extends State<UpPanel> {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      if (_focusedIndex > -2) {
+      if (_focusedIndex > -3) {
         setState(() => _focusedIndex--);
         if (_focusedIndex >= 0) _scrollToFocused();
       }
@@ -192,26 +221,43 @@ class _UpPanelState extends State<UpPanel> {
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      // Left on video list closes panel, ignored on header buttons
-      if (_focusedIndex >= 0) {
+      // 排序按钮区域：左右切换
+      if (_focusedIndex == -2) {
+        setState(() => _focusedIndex = -1);
+        // 聚焦即切换模式
+        if (SettingsService.focusSwitchTab) {
+          _switchOrder('pubdate');
+        }
+      } else if (_focusedIndex == -3) {
+        setState(() => _focusedIndex = -2);
+      } else if (_focusedIndex >= 0) {
+        // 视频列表：左键关闭面板
+        widget.onClose();
+      } else if (_focusedIndex == -1) {
         widget.onClose();
       }
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      // Right on header buttons toggles buttons
+      // 排序按钮区域：左右切换
       if (_focusedIndex == -1) {
         setState(() => _focusedIndex = -2);
+        // 聚焦即切换模式
+        if (SettingsService.focusSwitchTab) {
+          _switchOrder('click');
+        }
       } else if (_focusedIndex == -2) {
-        setState(() => _focusedIndex = -1);
+        setState(() => _focusedIndex = -3);
       }
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.select ||
         event.logicalKey == LogicalKeyboardKey.enter) {
       if (_focusedIndex == -1) {
-        _toggleSort();
+        _switchOrder('pubdate');
       } else if (_focusedIndex == -2) {
+        _switchOrder('click');
+      } else if (_focusedIndex == -3) {
         _toggleFollow();
       } else if (_videos.isNotEmpty && _focusedIndex >= 0) {
         widget.onVideoSelect(_videos[_focusedIndex]);
@@ -223,11 +269,18 @@ class _UpPanelState extends State<UpPanel> {
     return KeyEventResult.ignored;
   }
 
+  void _switchOrder(String newOrder) {
+    if (_order == newOrder) return;
+    _toggleSort();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isSortButtonFocused = _focusedIndex == -1;
-    final isFollowButtonFocused = _focusedIndex == -2;
+    final isNewSortFocused = _focusedIndex == -1;
+    final isHotSortFocused = _focusedIndex == -2;
+    final isFollowButtonFocused = _focusedIndex == -3;
     final panelWidth = SettingsService.getSidePanelWidth(context);
+    final themeColor = SettingsService.themeColor;
 
     return Focus(
       focusNode: _focusNode,
@@ -243,113 +296,61 @@ class _UpPanelState extends State<UpPanel> {
               // Header: Uploader Info
               Container(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Column(
                   children: [
-                    // 头像
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundImage: widget.upFace.isNotEmpty
-                          ? NetworkImage(widget.upFace)
-                          : null,
-                      child: widget.upFace.isEmpty
-                          ? const Icon(Icons.person)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    // 名称
-                    Expanded(
-                      child: Text(
-                        widget.upName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                    // 第一行：头像 + 名字
+                    Row(
+                      children: [
+                        // 头像
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: widget.upFace.isNotEmpty
+                              ? NetworkImage(widget.upFace)
+                              : null,
+                          child: widget.upFace.isEmpty
+                              ? const Icon(Icons.person, size: 20)
+                              : null,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // 排序按钮 - 可聚焦
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: EdgeInsets.all(isSortButtonFocused ? 4 : 0),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: isSortButtonFocused
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _order == 'pubdate'
-                                  ? Icons.schedule
-                                  : Icons.whatshot,
+                        const SizedBox(width: 12),
+                        // 名称 - 可以占用更多空间
+                        Expanded(
+                          child: Text(
+                            widget.upName,
+                            style: const TextStyle(
                               color: Colors.white,
-                              size: 16,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _order == 'pubdate' ? '最新' : '最热',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // 关注按钮 - 可聚焦
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: EdgeInsets.all(isFollowButtonFocused ? 4 : 0),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: isFollowButtonFocused
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                    const SizedBox(height: 12),
+                    // 第二行：排序按钮 + 关注按钮
+                    Row(
+                      children: [
+                        // 排序按钮组
+                        _buildSortChip(
+                          '最新',
+                          -1,
+                          _order == 'pubdate',
+                          isNewSortFocused,
+                          themeColor,
                         ),
-                        decoration: BoxDecoration(
-                          color: _isFollowing
-                              ? Colors.grey[700]
-                              : SettingsService.themeColor,
-                          borderRadius: BorderRadius.circular(20),
+                        const SizedBox(width: 8),
+                        _buildSortChip(
+                          '最热',
+                          -2,
+                          _order == 'click',
+                          isHotSortFocused,
+                          themeColor,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _isFollowing ? Icons.check : Icons.add,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _isFollowing ? '已关注' : '关注',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        const Spacer(),
+                        // 关注按钮
+                        _buildFollowButton(isFollowButtonFocused, themeColor),
+                      ],
                     ),
                   ],
                 ),
@@ -386,6 +387,75 @@ class _UpPanelState extends State<UpPanel> {
     );
   }
 
+  Widget _buildSortChip(
+    String label,
+    int focusIndex,
+    bool isActive,
+    bool isFocused,
+    Color themeColor,
+  ) {
+    return GestureDetector(
+      onTap: () => _switchOrder(focusIndex == -1 ? 'pubdate' : 'click'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isFocused
+              ? themeColor.withValues(alpha: 0.6)
+              : isActive
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: isActive && !isFocused
+              ? Border.all(color: Colors.white24, width: 0.5)
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isFocused
+                ? Colors.white
+                : isActive
+                ? Colors.white
+                : Colors.white54,
+            fontSize: 13,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFollowButton(bool isFocused, Color themeColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isFocused
+            ? themeColor.withValues(alpha: 0.8)
+            : Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isFocused ? Colors.white : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _isFollowing ? Icons.check : Icons.add,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _isFollowing ? '已关注' : '关注',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVideoItem(Video video, bool isFocused, int index) {
     return Container(
       key: _itemKeys[index],
@@ -396,7 +466,10 @@ class _UpPanelState extends State<UpPanel> {
             ? Colors.white.withValues(alpha: 0.15)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: isFocused ? Border.all(color: Colors.white, width: 2) : null,
+        border: Border.all(
+          color: isFocused ? Colors.white : Colors.transparent,
+          width: 2,
+        ),
       ),
       child: Row(
         children: [

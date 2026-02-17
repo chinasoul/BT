@@ -5,7 +5,7 @@ import '../../../services/api/videoshot_api.dart';
 
 /// 快进预览缩略图 Widget
 /// 从雪碧图中裁剪并显示指定帧
-class SeekPreviewThumbnail extends StatelessWidget {
+class SeekPreviewThumbnail extends StatefulWidget {
   /// 快照数据
   final VideoshotData videoshotData;
 
@@ -23,14 +23,23 @@ class SeekPreviewThumbnail extends StatelessWidget {
   });
 
   @override
+  State<SeekPreviewThumbnail> createState() => _SeekPreviewThumbnailState();
+}
+
+class _SeekPreviewThumbnailState extends State<SeekPreviewThumbnail> {
+  // 缓存上一次成功加载的帧信息
+  FrameInfo? _lastLoadedFrame;
+  String? _lastLoadedUrl;
+
+  @override
   Widget build(BuildContext context) {
-    final frameInfo = videoshotData.getFrameAt(previewPosition);
+    final frameInfo = widget.videoshotData.getFrameAt(widget.previewPosition);
     if (frameInfo == null) {
       return const SizedBox.shrink();
     }
 
-    final displayWidth = frameInfo.width * scale;
-    final displayHeight = frameInfo.height * scale;
+    final displayWidth = frameInfo.width * widget.scale;
+    final displayHeight = frameInfo.height * widget.scale;
 
     return Container(
       decoration: BoxDecoration(
@@ -60,22 +69,43 @@ class SeekPreviewThumbnail extends StatelessWidget {
     double displayHeight,
   ) {
     // 计算雪碧图总尺寸
-    final spriteWidth = (videoshotData.imgXLen * videoshotData.imgXSize)
-        .toDouble();
-    final spriteHeight = (videoshotData.imgYLen * videoshotData.imgYSize)
-        .toDouble();
+    final spriteWidth =
+        (widget.videoshotData.imgXLen * widget.videoshotData.imgXSize)
+            .toDouble();
+    final spriteHeight =
+        (widget.videoshotData.imgYLen * widget.videoshotData.imgYSize)
+            .toDouble();
 
     // 缩放后的雪碧图尺寸
-    final scaledSpriteWidth = spriteWidth * scale;
-    final scaledSpriteHeight = spriteHeight * scale;
+    final scaledSpriteWidth = spriteWidth * widget.scale;
+    final scaledSpriteHeight = spriteHeight * widget.scale;
 
     // 缩放后的偏移
-    final offsetX = frameInfo.x * scale;
-    final offsetY = frameInfo.y * scale;
+    final offsetX = frameInfo.x * widget.scale;
+    final offsetY = frameInfo.y * widget.scale;
 
     return Stack(
       clipBehavior: Clip.hardEdge,
       children: [
+        // 显示上一张成功加载的图片作为底层（防止闪烁）
+        if (_lastLoadedFrame != null && _lastLoadedUrl != null)
+          Positioned(
+            left: -(_lastLoadedFrame!.x * widget.scale),
+            top: -(_lastLoadedFrame!.y * widget.scale),
+            child: CachedNetworkImage(
+              imageUrl: _lastLoadedUrl!,
+              cacheManager: VideoshotApi.cacheManager,
+              width: scaledSpriteWidth,
+              height: scaledSpriteHeight,
+              fit: BoxFit.fill,
+              httpHeaders: const {
+                'Referer': 'https://www.bilibili.com',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              },
+            ),
+          ),
+        // 当前帧
         Positioned(
           left: -offsetX,
           top: -offsetY,
@@ -90,10 +120,20 @@ class SeekPreviewThumbnail extends StatelessWidget {
               'User-Agent':
                   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             },
+            imageBuilder: (context, imageProvider) {
+              // 图片加载成功，更新缓存
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _lastLoadedFrame = frameInfo;
+                    _lastLoadedUrl = frameInfo.imageUrl;
+                  });
+                }
+              });
+              return Image(image: imageProvider, fit: BoxFit.fill);
+            },
             placeholder: (context, url) => Container(
-              width: displayWidth,
-              height: displayHeight,
-              color: Colors.grey[800],
+              color: Colors.grey[900],
               child: const Center(
                 child: SizedBox(
                   width: 24,

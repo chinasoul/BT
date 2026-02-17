@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../../../services/settings_service.dart';
 import '../../../../config/app_style.dart';
 import '../widgets/setting_action_row.dart';
@@ -51,11 +51,7 @@ class _StorageSettingsState extends State<StorageSettings> {
     await _loadCacheSize();
     if (mounted) {
       setState(() => _isClearing = false);
-      Fluttertoast.showToast(
-        msg: '缓存已清除',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-      );
+      ToastUtils.show(context, '缓存已清除');
     }
   }
 

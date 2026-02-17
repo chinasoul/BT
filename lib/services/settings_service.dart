@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 
 /// 视频编解码器枚举
 enum VideoCodec {
@@ -22,21 +22,15 @@ enum VideoCodec {
 class BiliCacheManager {
   static const key = 'biliTvCache';
   static CacheManager? _instance;
-  static int _cachedMaxObjects = 0;
 
   static CacheManager get instance {
-    final maxObjects = SettingsService.diskCacheMaxObjects;
-    // 性能模式切换时重建 CacheManager
-    if (_instance == null || _cachedMaxObjects != maxObjects) {
-      _cachedMaxObjects = maxObjects;
-      _instance = CacheManager(
-        Config(
-          key,
-          stalePeriod: const Duration(days: 3),
-          maxNrOfCacheObjects: maxObjects,
-        ),
-      );
-    }
+    _instance ??= CacheManager(
+      Config(
+        key,
+        stalePeriod: const Duration(days: 3),
+        maxNrOfCacheObjects: 200,
+      ),
+    );
     return _instance!;
   }
 }
@@ -55,15 +49,9 @@ class SettingsService {
 
   /// 显示 Toast 提示
   static void toast(BuildContext? context, String msg) {
-    Fluttertoast.showToast(
-      msg: msg,
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.CENTER,
-      timeInSecForIosWeb: 2,
-      backgroundColor: const Color(0xFF333333),
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
+    if (context != null) {
+      ToastUtils.show(context, msg);
+    }
   }
 
   /// 获取图片缓存大小 (MB)
@@ -560,8 +548,10 @@ class SettingsService {
 
   // 首页上次刷新时间戳 (毫秒)
   static const String _lastHomeRefreshTimeKey = 'last_home_refresh_time';
+  static const String _lastCategoryRefreshTimePrefix =
+      'last_category_refresh_time_';
 
-  /// 获取首页上次刷新时间戳 (毫秒)
+  /// 获取首页上次刷新时间戳 (毫秒) - 兼容旧版，默认返回推荐分类
   static int get lastHomeRefreshTime {
     return _prefs?.getInt(_lastHomeRefreshTimeKey) ?? 0;
   }
@@ -572,15 +562,39 @@ class SettingsService {
     await _prefs!.setInt(_lastHomeRefreshTimeKey, timestamp);
   }
 
+  /// 获取指定分类的上次刷新时间戳
+  static int getLastCategoryRefreshTime(String categoryName) {
+    // 推荐分类使用旧 key 保持兼容
+    if (categoryName == 'recommend') {
+      return lastHomeRefreshTime;
+    }
+    return _prefs?.getInt('$_lastCategoryRefreshTimePrefix$categoryName') ?? 0;
+  }
+
+  /// 设置指定分类的上次刷新时间戳
+  static Future<void> setLastCategoryRefreshTime(String categoryName) async {
+    await init();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    if (categoryName == 'recommend') {
+      await _prefs!.setInt(_lastHomeRefreshTimeKey, timestamp);
+    } else {
+      await _prefs!.setInt(
+        '$_lastCategoryRefreshTimePrefix$categoryName',
+        timestamp,
+      );
+    }
+  }
+
   // 首页推荐视频缓存 (JSON)
   static const String _cachedHomeVideosKey = 'cached_home_videos';
+  static const String _cachedCategoryVideosPrefix = 'cached_category_videos_';
 
-  /// 获取缓存的首页视频 JSON
+  /// 获取缓存的首页视频 JSON（兼容旧版，推荐分类专用）
   static String? get cachedHomeVideosJson {
     return _prefs?.getString(_cachedHomeVideosKey);
   }
 
-  /// 保存首页视频缓存 JSON，同时更新刷新时间戳
+  /// 保存首页视频缓存 JSON，同时更新刷新时间戳（兼容旧版，推荐分类专用）
   static Future<void> setCachedHomeVideosJson(String json) async {
     await init();
     await _prefs!.setString(_cachedHomeVideosKey, json);
@@ -588,6 +602,32 @@ class SettingsService {
       _lastHomeRefreshTimeKey,
       DateTime.now().millisecondsSinceEpoch,
     );
+  }
+
+  /// 获取指定分类的缓存视频 JSON
+  static String? getCachedCategoryVideosJson(String categoryName) {
+    // 推荐分类使用旧 key 保持兼容
+    if (categoryName == 'recommend') {
+      return cachedHomeVideosJson;
+    }
+    return _prefs?.getString('$_cachedCategoryVideosPrefix$categoryName');
+  }
+
+  /// 保存指定分类的缓存视频 JSON，同时更新刷新时间戳
+  static Future<void> setCachedCategoryVideosJson(
+    String categoryName,
+    String json,
+  ) async {
+    await init();
+    if (categoryName == 'recommend') {
+      await setCachedHomeVideosJson(json);
+    } else {
+      await _prefs!.setString(
+        '$_cachedCategoryVideosPrefix$categoryName',
+        json,
+      );
+      await setLastCategoryRefreshTime(categoryName);
+    }
   }
 
   /// 格式化上次刷新时间为可读字符串（首页专用）
@@ -750,36 +790,14 @@ class SettingsService {
     await _prefs!.setBool(_focusSwitchTabKey, value);
   }
 
-  // ==================== 高性能模式 ====================
-  static const String _highPerformanceModeKey = 'high_performance_mode';
-
-  /// 高性能模式变更回调（需要重新配置图片缓存等）
-  static VoidCallback? onHighPerformanceModeChanged;
-
-  /// 是否开启高性能模式（默认开启；关闭 = 省内存）
-  static bool get highPerformanceMode {
-    return _prefs?.getBool(_highPerformanceModeKey) ?? true;
-  }
-
-  /// 设置高性能模式
-  static Future<void> setHighPerformanceMode(bool value) async {
-    await init();
-    await _prefs!.setBool(_highPerformanceModeKey, value);
-    onHighPerformanceModeChanged?.call();
-  }
-
   /// 图片解码缓存：最大张数
-  static int get imageCacheMaxSize => highPerformanceMode ? 60 : 30;
+  static const int imageCacheMaxSize = 60;
 
   /// 图片解码缓存：最大字节数
-  static int get imageCacheMaxBytes =>
-      highPerformanceMode ? 30 * 1024 * 1024 : 15 * 1024 * 1024;
+  static const int imageCacheMaxBytes = 30 * 1024 * 1024;
 
   /// 列表加载上限
-  static int get listMaxItems => highPerformanceMode ? 200 : 60;
-
-  /// 磁盘缓存最大对象数
-  static int get diskCacheMaxObjects => highPerformanceMode ? 200 : 100;
+  static const int listMaxItems = 200;
 
   // ==================== 侧边栏内存显示 ====================
   static const String _showMemoryInfoKey = 'show_memory_info';

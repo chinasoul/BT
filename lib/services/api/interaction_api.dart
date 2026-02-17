@@ -286,9 +286,7 @@ class InteractionApi {
         return {'list': <FollowingUser>[], 'hasMore': false};
       }
 
-      final uri = Uri.parse(
-        '${BaseApi.apiBase}/x/relation/followings',
-      ).replace(
+      final uri = Uri.parse('${BaseApi.apiBase}/x/relation/followings').replace(
         queryParameters: {
           'vmid': mid.toString(),
           'pn': page.toString(),
@@ -327,5 +325,54 @@ class InteractionApi {
   static int _toInt(dynamic value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  /// 获取UP主详细信息（用户卡片信息）
+  /// 包含：性别、等级、关注数、粉丝数、获赞数、是否已关注等
+  static Future<Map<String, dynamic>?> getUserCardInfo(int mid) async {
+    try {
+      final uri = Uri.parse(
+        '${BaseApi.apiBase}/x/web-interface/card',
+      ).replace(queryParameters: {'mid': mid.toString(), 'photo': 'true'});
+      final response = await http.get(
+        uri,
+        headers: BaseApi.getHeaders(withCookie: true),
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        if (json['code'] == 0 && json['data'] != null) {
+          final data = json['data'] as Map<String, dynamic>;
+          final card = data['card'] as Map<String, dynamic>? ?? {};
+          final space = data['space'] as Map<String, dynamic>? ?? {};
+          final following = data['following'] as bool? ?? false;
+          final archiveCount = _toInt(data['archive_count']);
+          final likeNum = _toInt(data['like_num']);
+
+          return {
+            'mid': _toInt(card['mid']),
+            'name': card['name'] ?? '',
+            'face': _fixUrl(card['face'] ?? ''),
+            'sign': card['sign'] ?? '',
+            'sex': card['sex'] ?? '保密', // 男/女/保密
+            'level': _toInt(card['level_info']?['current_level']),
+            'fans': _toInt(card['fans']),
+            'attention': _toInt(card['attention']), // 关注数
+            'following': following, // 是否已关注该UP主
+            'archiveCount': archiveCount, // 投稿数
+            'likeNum': likeNum, // 获赞数
+            'spaceBg': _fixUrl(space['s_img'] ?? ''), // 空间背景图
+          };
+        }
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+    return null;
+  }
+
+  static String _fixUrl(String url) {
+    if (url.startsWith('//')) return 'https:$url';
+    return url;
   }
 }

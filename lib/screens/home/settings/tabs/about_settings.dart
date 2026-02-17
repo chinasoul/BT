@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../../../services/update_service.dart';
 import '../../../../services/settings_service.dart';
 import '../../../../config/app_style.dart';
@@ -64,13 +64,15 @@ class _AboutSettingsState extends State<AboutSettings> {
     final result = await UpdateService.checkForUpdate();
 
     if (!mounted) return;
-    setState(() => _isCheckingUpdate = false); // checkForUpdate 内部已记录时间，刷新 UI 即显示
+    setState(
+      () => _isCheckingUpdate = false,
+    ); // checkForUpdate 内部已记录时间，刷新 UI 即显示
 
     if (result.error != null) {
-      Fluttertoast.showToast(
-        msg: result.error!,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.CENTER,
+      ToastUtils.show(
+        context,
+        result.error!,
+        duration: const Duration(seconds: 2),
       );
       return;
     }
@@ -84,11 +86,7 @@ class _AboutSettingsState extends State<AboutSettings> {
         },
       );
     } else {
-      Fluttertoast.showToast(
-        msg: '已是最新版本',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-      );
+      ToastUtils.show(context, '已是最新版本');
     }
   }
 

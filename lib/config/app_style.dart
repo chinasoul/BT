@@ -249,3 +249,18 @@ abstract final class SidePanelStyle {
   static Color get background =>
       backgroundColor.withValues(alpha: backgroundAlpha);
 }
+
+/// 播放器控制栏样式
+abstract final class PlayerControlsStyle {
+  /// 按钮区域占屏幕宽度的比例
+  static const double buttonAreaRatio = 0.5;
+
+  /// 按钮间距占按钮大小的比例
+  static const double spacingRatio = 0.4;
+
+  /// 信息文字字体占按钮大小的比例
+  static const double infoFontRatio = 0.35;
+
+  /// 信息区间距占按钮大小的比例
+  static const double infoSpacingRatio = 0.4;
+}

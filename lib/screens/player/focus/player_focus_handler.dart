@@ -12,7 +12,8 @@ class PlayerFocusHandler {
   /// [maxIndex] - 最大按钮索引
   /// [onIndexChange] - 索引变化回调
   /// [onSelect] - 确认键回调
-  /// [onHide] - 隐藏控制栏回调（上下键触发）
+  /// [onProgressBar] - 进入进度条模式回调（上键触发）
+  /// [onHide] - 隐藏控制栏回调（下键触发）
   ///
   /// 返回事件处理结果和新的索引
   static ({KeyEventResult result, int newIndex}) handleControlsNavigation(
@@ -20,6 +21,7 @@ class PlayerFocusHandler {
     required int currentIndex,
     required int maxIndex,
     required Function(int) onSelect,
+    VoidCallback? onProgressBar,
     VoidCallback? onHide,
   }) {
     if (event is! KeyDownEvent) {
@@ -36,6 +38,9 @@ class PlayerFocusHandler {
         return (result: KeyEventResult.handled, newIndex: newIndex);
 
       case LogicalKeyboardKey.arrowUp:
+        onProgressBar?.call();
+        return (result: KeyEventResult.handled, newIndex: currentIndex);
+
       case LogicalKeyboardKey.arrowDown:
         onHide?.call();
         return (result: KeyEventResult.handled, newIndex: currentIndex);

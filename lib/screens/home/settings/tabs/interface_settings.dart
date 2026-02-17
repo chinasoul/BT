@@ -152,40 +152,6 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
-        // 高性能模式
-        SettingToggleRow(
-          label: '高性能模式',
-          subtitleWidget: Text.rich(
-            TextSpan(
-              children: [
-                const TextSpan(
-                  text: '增加缓存和列表容量，',
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-                TextSpan(
-                  text: '低内存设备建议关闭',
-                  style: TextStyle(
-                    color: Colors.amber.shade300,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          value: SettingsService.highPerformanceMode,
-          autofocus: false,
-          isFirst: false,
-          onMoveUp: null,
-          sidebarFocusNode: widget.sidebarFocusNode,
-          onChanged: (value) async {
-            await SettingsService.setHighPerformanceMode(value);
-            setState(() {});
-          },
-        ),
-        const SizedBox(height: AppSpacing.settingItemGap),
         // 启动时自动刷新首页
         SettingToggleRow(
           label: '启动时自动刷新首页',

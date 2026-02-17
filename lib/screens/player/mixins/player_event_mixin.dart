@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
+import '../../../services/settings_service.dart';
 import '../widgets/settings_panel.dart';
 import '../focus/player_focus_handler.dart';
 import 'player_action_mixin.dart';
@@ -93,13 +95,7 @@ mixin PlayerEventMixin on PlayerActionMixin {
     if (lastBackPressed == null ||
         now.difference(lastBackPressed!) > const Duration(seconds: 2)) {
       lastBackPressed = now;
-      Fluttertoast.showToast(
-        msg: '再按一次返回键退出播放',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.black.withValues(alpha: 0.7),
-        textColor: Colors.white,
-      );
+      ToastUtils.show(context, '再按一次返回键退出播放');
     } else {
       // 先移除监听再暂停，避免 pause 触发 UI 闪现暂停指示
       cancelPlayerListeners();
@@ -233,8 +229,103 @@ mixin PlayerEventMixin on PlayerActionMixin {
     }
   }
 
+  /// 进度条模式的按键处理
+  KeyEventResult _handleProgressBarKeyEvent(KeyEvent event) {
+    final isPreviewMode =
+        SettingsService.seekPreviewMode && videoshotData != null;
+
+    // 普通模式：松开左右键时启动延迟跳转
+    if (!isPreviewMode && event is KeyUpEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        if (previewPosition != null && videoController != null) {
+          // 取消之前的定时器，重新计时（500ms 让用户看清预览图）
+          progressBarSeekTimer?.cancel();
+          progressBarSeekTimer = Timer(const Duration(milliseconds: 500), () {
+            if (mounted &&
+                previewPosition != null &&
+                videoController != null &&
+                isProgressBarFocused) {
+              videoController!.seekTo(previewPosition!);
+              resetDanmakuIndex(previewPosition!);
+              // 跳转后保持预览图显示一小段时间再消失
+              Timer(const Duration(milliseconds: 200), () {
+                if (mounted && isProgressBarFocused) {
+                  setState(() => previewPosition = null);
+                }
+              });
+            }
+          });
+        }
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowLeft:
+        // 左键快退 - 取消延迟跳转定时器
+        progressBarSeekTimer?.cancel();
+        startAdjustProgress(-5);
+        return KeyEventResult.handled;
+
+      case LogicalKeyboardKey.arrowRight:
+        // 右键快进 - 取消延迟跳转定时器
+        progressBarSeekTimer?.cancel();
+        startAdjustProgress(5);
+        return KeyEventResult.handled;
+
+      case LogicalKeyboardKey.arrowDown:
+        // 下键退出进度条模式，回到控制按钮
+        progressBarSeekTimer?.cancel();
+        _exitProgressBarModeNoSeek();
+        return KeyEventResult.handled;
+
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.select:
+        // 确认键：立即跳转并退出
+        progressBarSeekTimer?.cancel();
+        exitProgressBarMode(commit: true);
+        return KeyEventResult.handled;
+
+      case LogicalKeyboardKey.goBack:
+      case LogicalKeyboardKey.browserBack:
+      case LogicalKeyboardKey.escape:
+        // 返回键退出进度条模式并收起控制面板
+        progressBarSeekTimer?.cancel();
+        backKeyJustHandled = true;
+        setState(() {
+          isProgressBarFocused = false;
+          previewPosition = null;
+          showControls = false;
+        });
+        return KeyEventResult.handled;
+
+      default:
+        return KeyEventResult.ignored;
+    }
+  }
+
+  /// 退出进度条模式但不跳转（下键用）
+  void _exitProgressBarModeNoSeek() {
+    setState(() {
+      isProgressBarFocused = false;
+      previewPosition = null;
+    });
+    startHideTimer();
+  }
+
   /// 控制栏显示时的按键处理
   KeyEventResult _handleControlsVisibleKeyEvent(KeyEvent event) {
+    // 进度条模式下的按键处理
+    if (isProgressBarFocused) {
+      return _handleProgressBarKeyEvent(event);
+    }
+
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     // 使用 PlayerFocusHandler 处理控制栏导航
@@ -243,6 +334,7 @@ mixin PlayerEventMixin on PlayerActionMixin {
       currentIndex: focusedButtonIndex,
       maxIndex: 9,
       onSelect: _activateControlButton,
+      onProgressBar: enterProgressBarMode,
       onHide: () => setState(() => showControls = false),
     );
 

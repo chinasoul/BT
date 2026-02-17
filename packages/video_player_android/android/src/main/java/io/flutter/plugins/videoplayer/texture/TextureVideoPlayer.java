@@ -65,7 +65,9 @@ public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProd
                   .setTunnelingEnabled(true)
                   .build());
 
-          // 自定义缓冲策略：更大缓冲减少卡顿（借鉴 BBLL 策略）
+          // 自定义缓冲策略：更大缓冲减少卡顿
+          // - 增大 back buffer 保留已播放内容，防止回退时重新加载
+          // - 保持 back buffer 可用于回退操作
           DefaultLoadControl loadControl =
               new DefaultLoadControl.Builder()
                   .setBufferDurationsMs(
@@ -73,6 +75,9 @@ public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProd
                       50000,  // maxBufferMs：最多缓冲 50 秒
                       2000,   // bufferForPlaybackMs：起播前缓冲 2 秒
                       4000)   // bufferForPlaybackAfterRebufferMs：重缓冲后 4 秒再播
+                  .setBackBuffer(
+                      30000,  // backBufferDurationMs：保留 30 秒已播放内容
+                      true)   // retainBackBufferFromKeyframe：从关键帧保留
                   .setPrioritizeTimeOverSizeThresholds(true)
                   .build();
 

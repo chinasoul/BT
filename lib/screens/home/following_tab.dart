@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../models/favorite_folder.dart';
 import '../../models/following_user.dart';
 import '../../models/video.dart';
@@ -14,7 +14,7 @@ import '../../config/app_style.dart';
 import '../../utils/image_url_utils.dart';
 import '../../widgets/tv_video_card.dart';
 import '../player/player_screen.dart';
-import 'up_space_screen.dart';
+import 'up_space_popup.dart';
 
 /// 我的内容 Tab（关注列表 / 收藏夹 / 稍后再看）
 class FollowingTab extends StatefulWidget {
@@ -56,6 +56,11 @@ class FollowingTabState extends State<FollowingTab> {
 
   /// 处理返回键：如果焦点在内容卡片上，先回到顶部 Tab；否则返回 false 让上层处理
   bool handleBack() {
+    // 如果 UP主弹窗正在显示，先关闭弹窗
+    if (_selectedUpUser != null) {
+      _closeUpSpacePopup();
+      return true;
+    }
     // 检查焦点是否在顶部 Tab 上
     for (final node in _tabFocusNodes) {
       if (node.hasFocus) {
@@ -103,6 +108,9 @@ class FollowingTabState extends State<FollowingTab> {
   // 稍后再看
   List<Video> _watchLaterVideos = [];
   bool _watchLaterLoading = false;
+
+  // UP主空间弹窗
+  FollowingUser? _selectedUpUser;
 
   @override
   void initState() {
@@ -624,11 +632,7 @@ class FollowingTabState extends State<FollowingTab> {
 
   void _openVideo(Video video) {
     if (video.bvid.isEmpty) {
-      Fluttertoast.showToast(
-        msg: '该视频不可播放',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-      );
+      ToastUtils.show(context, '该视频不可播放');
       return;
     }
     Navigator.of(
@@ -637,15 +641,29 @@ class FollowingTabState extends State<FollowingTab> {
   }
 
   void _openUserSpace(FollowingUser user) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => UpSpaceScreen(
-          upMid: user.mid,
-          upName: user.uname,
-          upFace: user.face,
-        ),
-      ),
-    );
+    setState(() {
+      _selectedUpUser = user;
+    });
+  }
+
+  void _closeUpSpacePopup() {
+    // 先保存用户信息用于恢复焦点
+    final closingUser = _selectedUpUser;
+    setState(() {
+      _selectedUpUser = null;
+    });
+    // 恢复焦点到之前的UP主卡片
+    if (closingUser != null) {
+      final index = _users.indexWhere((u) => u.mid == closingUser.mid);
+      if (index >= 0 && _followingFocusNodes.containsKey(index)) {
+        // 延迟执行焦点恢复，等待 popup 完全关闭
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _followingFocusNodes.containsKey(index)) {
+            _followingFocusNodes[index]!.requestFocus();
+          }
+        });
+      }
+    }
   }
 
   Widget _buildTopTabs() {
@@ -1022,6 +1040,14 @@ class FollowingTabState extends State<FollowingTab> {
             ),
           ),
         ),
+        // UP主空间弹窗
+        if (_selectedUpUser != null)
+          Positioned.fill(
+            child: UpSpacePopup(
+              user: _selectedUpUser!,
+              onClose: _closeUpSpacePopup,
+            ),
+          ),
       ],
     );
   }

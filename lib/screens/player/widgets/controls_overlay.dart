@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../../models/video.dart';
 import '../../../widgets/conditional_marquee.dart';
+import '../../../config/app_style.dart';
 import 'tv_progress_bar.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 
@@ -148,11 +149,6 @@ class ControlsOverlay extends StatelessWidget {
           ),
         ),
 
-        // 顶部时间显示 (仅当全局开启且非常驻时显示)
-        // 位置与 PlayerScreen 的常驻时间保持一致 (top: 10, right: 14)
-        // 注意：当全局开启时，常驻时间在 PlayerScreen 中处理，这里不显示
-        // 当全局关闭时，控制栏也不显示时间
-
         // 底部控制区
         Positioned(
           bottom: 0,
@@ -183,7 +179,6 @@ class ControlsOverlay extends StatelessWidget {
                         duration: controller.value.duration,
                         buffered: buffered,
                         isFocused: isProgressBarFocused,
-                        previewPosition: previewPosition,
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -199,23 +194,30 @@ class ControlsOverlay extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    // 根据可用宽度计算按钮尺寸和间距
-                    // 10个按钮 + 9个间距
-                    final availableWidth = constraints.maxWidth;
-
-                    // 基准值（1920px宽度时）
-                    const baseWidth = 1920.0;
-                    const baseIconSize = 36.0;
-                    const basePadding = 12.0;
-                    const baseSpacing = 24.0;
-
-                    // 根据屏幕宽度缩放
-                    final scale = (availableWidth / baseWidth).clamp(0.5, 1.0);
-                    final iconSize = baseIconSize * scale;
-                    final buttonPadding = basePadding * scale;
-                    final spacing = baseSpacing * scale;
+                Builder(
+                  builder: (context) {
+                    // 根据屏幕宽度计算按钮尺寸
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final buttonAreaWidth =
+                        screenWidth * PlayerControlsStyle.buttonAreaRatio;
+                    const buttonCount = 10;
+                    // 按钮区域 = buttonCount * buttonSize + (buttonCount - 1) * spacing
+                    // spacing = buttonSize * spacingRatio
+                    // buttonAreaWidth = buttonCount * buttonSize + (buttonCount - 1) * buttonSize * spacingRatio
+                    // buttonAreaWidth = buttonSize * (buttonCount + (buttonCount - 1) * spacingRatio)
+                    final buttonSize =
+                        buttonAreaWidth /
+                        (buttonCount +
+                            (buttonCount - 1) *
+                                PlayerControlsStyle.spacingRatio);
+                    final spacing =
+                        buttonSize * PlayerControlsStyle.spacingRatio;
+                    final iconSize = buttonSize * 0.6; // 图标占按钮60%
+                    final padding = buttonSize * 0.2; // 内边距占按钮20%
+                    final infoFontSize =
+                        buttonSize * PlayerControlsStyle.infoFontRatio;
+                    final infoSpacing =
+                        buttonSize * PlayerControlsStyle.infoSpacingRatio;
 
                     return Row(
                       children: [
@@ -225,54 +227,48 @@ class ControlsOverlay extends StatelessWidget {
                           icon: controller.value.isPlaying
                               ? Icons.pause
                               : Icons.play_arrow,
-                          onTap: onPlayPause,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 评论 (index 1)
                         _buildControlButton(
                           index: 1,
                           icon: Icons.comment_outlined,
-                          onTap: () {},
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 选集 (index 2)
                         _buildControlButton(
                           index: 2,
                           icon: Icons.playlist_play,
-                          onTap: onEpisodes,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // UP主 (index 3)
                         _buildControlButton(
                           index: 3,
                           icon: Icons.person,
-                          onTap: () {},
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 更多视频 (index 4)
                         _buildControlButton(
                           index: 4,
                           icon: Icons.expand_more,
-                          onTap: () {},
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 设置 (index 5)
                         _buildControlButton(
                           index: 5,
                           icon: Icons.tune,
-                          onTap: onSettings,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 视频数据实时监测开关 (index 6)
@@ -281,40 +277,36 @@ class ControlsOverlay extends StatelessWidget {
                           icon: showStatsForNerds
                               ? Icons.monitor_heart
                               : Icons.monitor_heart_outlined,
-                          onTap: onToggleStatsForNerds,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 点赞/投币/收藏 (index 7)
                         _buildControlButton(
                           index: 7,
                           icon: Icons.thumb_up_outlined,
-                          onTap: () {},
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 循环播放 (index 8)
                         _buildControlButton(
                           index: 8,
                           icon: isLoopMode ? Icons.repeat_one : Icons.repeat,
-                          onTap: onToggleLoop,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         SizedBox(width: spacing),
                         // 关闭视频 (index 9)
                         _buildControlButton(
                           index: 9,
                           icon: Icons.close,
-                          onTap: onClose,
-                          buttonPadding: buttonPadding,
                           iconSize: iconSize,
+                          padding: padding,
                         ),
                         const Spacer(),
-                        // 右侧信息区：在看人数、弹幕数、画质
-                        _buildInfoText(scale),
+                        // 右侧信息区
+                        _buildInfoText(infoFontSize, infoSpacing),
                       ],
                     );
                   },
@@ -330,29 +322,28 @@ class ControlsOverlay extends StatelessWidget {
   Widget _buildControlButton({
     required int index,
     required IconData icon,
-    required VoidCallback onTap,
-    required double buttonPadding,
     required double iconSize,
+    required double padding,
   }) {
     final isFocused =
         !isProgressBarFocused && focusedIndex == index && showControls;
     return Container(
-      padding: EdgeInsets.all(buttonPadding),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: isFocused
             ? SettingsService.themeColor.withValues(alpha: 0.8)
             : Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: isFocused ? Border.all(color: Colors.white, width: 3) : null,
+        border: Border.all(
+          color: isFocused ? Colors.white : Colors.transparent,
+          width: 3,
+        ),
       ),
       child: Icon(icon, color: Colors.white, size: iconSize),
     );
   }
 
-  Widget _buildInfoText(double scale) {
-    final fontSize = 14.0 * scale;
-    final spacing = 16.0 * scale;
-
+  Widget _buildInfoText(double fontSize, double spacing) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

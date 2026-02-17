@@ -23,7 +23,6 @@ import '../models/comment.dart';
 import 'settings_service.dart' show VideoCodec;
 import '../models/favorite_folder.dart';
 import '../models/video.dart';
-import '../models/following_user.dart';
 import '../models/videoshot.dart';
 
 /// Bilibili API 服务 (门面模式)
@@ -83,7 +82,8 @@ class BilibiliApi {
   );
 
   /// 获取稍后再看列表
-  static Future<List<Video>> getWatchLaterVideos() => VideoApi.getWatchLaterVideos();
+  static Future<List<Video>> getWatchLaterVideos() =>
+      VideoApi.getWatchLaterVideos();
 
   // ========== 搜索相关 ==========
 
@@ -208,6 +208,11 @@ class BilibiliApi {
     int page = 1,
     int pageSize = 30,
   }) => InteractionApi.getFollowingUsers(page: page, pageSize: pageSize);
+
+  /// 获取UP主详细信息（用户卡片）
+  /// 返回: mid, name, face, sign, sex, level, fans, attention, following, archiveCount, likeNum
+  static Future<Map<String, dynamic>?> getUserCardInfo(int mid) =>
+      InteractionApi.getUserCardInfo(mid);
 
   // ========== 评论相关 ==========
 

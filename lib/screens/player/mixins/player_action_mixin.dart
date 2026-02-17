@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/video.dart' as models;
 import '../../../services/bilibili_api.dart';
@@ -49,6 +49,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       isLoading = true;
       errorMessage = null;
       hasHandledVideoComplete = false; // 重置播放完成标志
+      isUserInitiatedPause = false;
     });
 
     try {
@@ -423,10 +424,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
               final min = historyProgress ~/ 60;
               final sec = historyProgress % 60;
-              Fluttertoast.showToast(
-                msg:
-                    '从${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}继续播放',
-                toastLength: Toast.LENGTH_SHORT,
+              ToastUtils.show(
+                context,
+                '从${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}继续播放',
               );
             }
           }
@@ -550,23 +550,13 @@ mixin PlayerActionMixin on PlayerStateMixin {
     videoController!.addListener(_onPlayerStateChange);
   }
 
-  int _stateChangeCount = 0; // 调试用：跟踪状态变化次数
-
   void _onPlayerStateChange() {
     if (videoController == null || !mounted) return;
 
-    final value = videoController!.value;
+    // 如果视频已完成，忽略后续状态变化（防止末尾卡顿循环）
+    if (hasHandledVideoComplete) return;
 
-    // 前几次状态变化时记录详细日志，帮助定位白屏问题
-    _stateChangeCount++;
-    if (_stateChangeCount <= 5) {
-      debugPrint(
-        '🎬 [State#$_stateChangeCount] pos=${value.position.inMilliseconds}ms, '
-        'dur=${value.duration.inMilliseconds}ms, playing=${value.isPlaying}, '
-        'init=${value.isInitialized}, size=${value.size}, '
-        'hasError=${value.hasError}',
-      );
-    }
+    final value = videoController!.value;
 
     // 同步弹幕
     if (danmakuEnabled && danmakuController != null) {
@@ -579,18 +569,87 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 下一集预览倒计时（多集/合集 + 自动连播开启时）
     _updateNextEpisodePreview(value);
 
-    // 检查播放完成：position 接近 duration 即视为播完
-    // Android TV 上 position 可能永远无法精确到达 duration，需要微小容差
-    // 200ms ≈ 5帧(24fps)，肉眼不可感知
-    // 安全阀：要求 duration >= 1s 且 position >= 1s，防止 ExoPlayer 初始化时
-    // duration 短暂报告为极小值导致误触发 onVideoComplete
-    if (value.duration.inSeconds >= 1 &&
-        value.position.inSeconds >= 1 &&
-        value.position.inMilliseconds >= value.duration.inMilliseconds - 200) {
-      debugPrint(
-        '🎬 [Complete] Triggered: pos=${value.position.inMilliseconds}ms, dur=${value.duration.inMilliseconds}ms, playing=${value.isPlaying}',
-      );
+    // ── 播放完成检测 (三级策略) ──
+    final int posMs = value.position.inMilliseconds;
+    final int durMs = value.duration.inMilliseconds;
+    final bool isSeeking =
+        pendingSeekTarget != null ||
+        isSeekPreviewMode ||
+        isProgressBarFocused;
+
+    // 策略1 - 软着陆: 正常播放接近末尾时主动暂停(500ms)
+    //   解决: TV 解码器 EOS 帧闪烁
+    final bool isSoftEnd =
+        !isLoopMode &&
+        durMs >= 1000 &&
+        value.isPlaying &&
+        posMs >= durMs - 500;
+
+    // 策略2 - 末尾停转: 最后 5 秒内 isPlaying 意外变 false
+    //   解决: DASH 分段边界导致的末尾卡顿(position停滞→跳到末尾)
+    //   排除: 用户主动暂停、缓冲中、快进中
+    final bool isEndZoneStall =
+        !isLoopMode &&
+        durMs >= 1000 &&
+        !value.isPlaying &&
+        !value.isBuffering &&
+        !value.isCompleted &&
+        !value.hasError &&
+        value.isInitialized &&
+        !isUserInitiatedPause &&
+        !isSeeking &&
+        posMs >= durMs - 5000;
+
+    if (isSoftEnd) {
+      completionFallbackTimer?.cancel();
+      completionFallbackTimer = null;
       onVideoComplete();
+    } else if (value.isCompleted && !isLoopMode) {
+      completionFallbackTimer?.cancel();
+      completionFallbackTimer = null;
+      onVideoComplete();
+    } else if (isEndZoneStall) {
+      // 短防抖(200ms): 确认不是瞬间状态抖动
+      completionFallbackTimer ??= Timer(
+        const Duration(milliseconds: 200),
+        () {
+          completionFallbackTimer = null;
+          if (!mounted ||
+              videoController == null ||
+              hasHandledVideoComplete) return;
+          final v = videoController!.value;
+          if (!v.isPlaying && v.isInitialized &&
+              v.position.inMilliseconds >= v.duration.inMilliseconds - 5000) {
+            onVideoComplete();
+          }
+        },
+      );
+    } else if (!isLoopMode) {
+      // 策略4 - 兜底: position 接近 duration 且停止播放(800ms 防抖)
+      final bool isNearEnd =
+          durMs >= 1000 && posMs >= durMs - 1000;
+
+      if (!value.isPlaying && value.isInitialized && isNearEnd) {
+        completionFallbackTimer ??= Timer(
+          const Duration(milliseconds: 800),
+          () {
+            completionFallbackTimer = null;
+            if (!mounted ||
+                videoController == null ||
+                hasHandledVideoComplete) return;
+            final v = videoController!.value;
+            final stillNearEnd = v.duration.inSeconds >= 1 &&
+                v.position.inMilliseconds >=
+                    v.duration.inMilliseconds - 1000;
+            if (!v.isPlaying && v.isInitialized && stillNearEnd) {
+              onVideoComplete();
+            }
+          },
+        );
+      } else {
+        completionFallbackTimer?.cancel();
+        completionFallbackTimer = null;
+      }
     }
 
     // 触发重绘以更新 UI (进度条等)
@@ -662,7 +721,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
         if (!mounted) return;
         videoController?.seekTo(Duration(milliseconds: action.positionMs));
         resetDanmakuIndex(Duration(milliseconds: action.positionMs));
-        Fluttertoast.showToast(msg: action.reason);
+        ToastUtils.show(context, action.reason);
         // 跳过也可能需要清除之前的按钮
         newAction = null;
         break; // 优先处理跳过
@@ -693,6 +752,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
   /// 清理播放器监听器
   void cancelPlayerListeners() {
     videoController?.removeListener(_onPlayerStateChange);
+    completionFallbackTimer?.cancel();
+    completionFallbackTimer = null;
   }
 
   Future<void> disposePlayer() async {
@@ -948,18 +1009,18 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 防止重复触发
     if (hasHandledVideoComplete) return;
     hasHandledVideoComplete = true;
-    debugPrint(
-      '🎬 [Complete] onVideoComplete fired. episodes=${episodes.length}, isUgcSeason=$isUgcSeason, autoPlay=${SettingsService.autoPlay}',
-    );
 
     // 隐藏下一集预览
     showNextEpisodePreview = false;
     nextEpisodeInfo = null;
 
-    // 无论是否自动连播，都立即暂停视频，防止末尾卡顿循环
-    if (videoController != null && videoController!.value.isPlaying) {
-      videoController!.pause();
-    }
+    // 取消防抖定时器
+    completionFallbackTimer?.cancel();
+    completionFallbackTimer = null;
+
+    // 暂停播放器即可，不做 seekTo 回退
+    // (回退到 duration-100ms 会导致 ExoPlayer 重播最后片段，产生末尾帧闪烁)
+    videoController?.pause();
 
     hideTimer?.cancel();
     setState(() => showControls = true);
@@ -971,11 +1032,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (precomputedNextEpisode != null) {
       final nextEp = precomputedNextEpisode!;
       final nextTitle = nextEp['title'] ?? '下一集';
-      Fluttertoast.showToast(
-        msg: '自动播放下一集: $nextTitle',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.TOP,
-      );
+      ToastUtils.show(context, '自动播放下一集: $nextTitle');
 
       if (isUgcSeason) {
         // 合集：直接导航到新播放器（不依赖 episodes 列表）
@@ -1008,11 +1065,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 2. 所有集数播完，检查相关视频
     if (relatedVideos.isNotEmpty) {
       final nextVideo = relatedVideos.first;
-      Fluttertoast.showToast(
-        msg: '自动播放推荐视频',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.TOP,
-      );
+      ToastUtils.show(context, '自动播放推荐视频');
       // 导航到新视频
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -1129,9 +1182,14 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   /// 获取进度条显示位置
-  /// 优先级：pendingSeekTarget > lastCommittedSeekTarget（2秒内）> 播放器实际位置
+  /// 优先级：播放完成 > pendingSeekTarget > lastCommittedSeekTarget（2秒内）> 播放器实际位置
   Duration getDisplayPosition() {
     if (videoController == null) return Duration.zero;
+
+    // 播放完成（含软着陆），显示为总时长，避免停留在 duration-500ms
+    if (hasHandledVideoComplete) {
+      return videoController!.value.duration;
+    }
 
     // 正在快进中，使用累积目标位置
     if (pendingSeekTarget != null) {
@@ -1177,12 +1235,20 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (videoController == null) return;
 
     if (videoController!.value.isPlaying) {
+      isUserInitiatedPause = true;
       videoController!.pause();
       hideTimer?.cancel();
       // 暂停时上报进度
       reportPlaybackProgress();
       // 暂停时只显示暂停符号，不显示控制栏
     } else {
+      isUserInitiatedPause = false;
+      // 播放完成后按播放键：从头开始重播
+      if (hasHandledVideoComplete) {
+        hasHandledVideoComplete = false;
+        videoController!.seekTo(Duration.zero);
+        resetDanmakuIndex(Duration.zero);
+      }
       videoController!.play();
       startHideTimer();
     }
@@ -1200,6 +1266,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   void seekForward() {
     if (videoController == null) return;
+    if (hasHandledVideoComplete) return; // 已播完，快进无意义
     final total = videoController!.value.duration;
 
     // 检查是否开启预览模式且有快照数据
@@ -1209,7 +1276,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
       final current = previewPosition ?? videoController!.value.position;
       final newPos = current + const Duration(seconds: 10);
       final target = newPos < total ? newPos : total;
-      final alignedTarget = videoshotData!.getClosestTimestamp(target);
+      // 只在非末尾时对齐到雪碧图时间戳
+      final alignedTarget = target < total
+          ? videoshotData!.getClosestTimestamp(target)
+          : target;
       setState(() {
         isSeekPreviewMode = true;
         previewPosition = alignedTarget;
@@ -1219,10 +1289,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 直接跳转模式（带暂停+加速+批量提交）
       if (SettingsService.seekPreviewMode && !hasShownVideoshotFailToast) {
         hasShownVideoshotFailToast = true;
-        Fluttertoast.showToast(
-          msg: '预览图加载失败，已切换到默认快进模式',
-          toastLength: Toast.LENGTH_SHORT,
-        );
+        ToastUtils.show(context, '预览图加载失败，已切换到默认快进模式');
       }
       _batchSeek(forward: true);
     }
@@ -1248,10 +1315,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 直接跳转模式（带暂停+加速+批量提交）
       if (SettingsService.seekPreviewMode && !hasShownVideoshotFailToast) {
         hasShownVideoshotFailToast = true;
-        Fluttertoast.showToast(
-          msg: '预览图加载失败，已切换到默认快进模式',
-          toastLength: Toast.LENGTH_SHORT,
-        );
+        ToastUtils.show(context, '预览图加载失败，已切换到默认快进模式');
       }
       _batchSeek(forward: false);
     }
@@ -1317,6 +1381,12 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     final target = pendingSeekTarget!;
 
+    // 如果 seek 到非末尾位置，重置播放完成标志
+    final duration = videoController!.value.duration;
+    if (target.inMilliseconds < duration.inMilliseconds - 1000) {
+      hasHandledVideoComplete = false;
+    }
+
     // 记录提交的位置和时间，用于连续快进时避免回退
     lastCommittedSeekTarget = target;
     lastSeekCommitTime = DateTime.now();
@@ -1351,6 +1421,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
   /// 预览模式下继续快进/快退
   void seekPreviewForward() {
     if (videoController == null || previewPosition == null) return;
+    if (hasHandledVideoComplete) return;
     final total = videoController!.value.duration;
 
     // 基于当前预览位置增加
@@ -1512,6 +1583,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   void exitProgressBarMode({bool commit = false}) {
     if (commit && previewPosition != null && videoController != null) {
+      // 如果 seek 到非末尾位置，重置播放完成标志
+      final duration = videoController!.value.duration;
+      if (previewPosition!.inMilliseconds < duration.inMilliseconds - 1000) {
+        hasHandledVideoComplete = false;
+      }
       videoController!.seekTo(previewPosition!);
       resetDanmakuIndex(previewPosition!);
     }
@@ -1525,7 +1601,17 @@ mixin PlayerActionMixin on PlayerStateMixin {
   /// 开始调整进度 - 设置初始预览位置
   void startAdjustProgress(int seconds) {
     if (videoController == null) return;
-    previewPosition ??= videoController!.value.position;
+    final isPreviewMode =
+        SettingsService.seekPreviewMode && videoshotData != null;
+
+    // 首次调整时暂停视频（预览模式）或记录当前位置
+    if (previewPosition == null) {
+      if (isPreviewMode) {
+        videoController!.pause();
+      }
+      previewPosition = videoController!.value.position;
+    }
+
     adjustProgress(seconds);
   }
 
@@ -1542,23 +1628,32 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (videoController == null || previewPosition == null) return;
     final total = videoController!.value.duration;
     final newPos = previewPosition! + Duration(seconds: seconds);
+
+    Duration target;
+    if (newPos < Duration.zero) {
+      target = Duration.zero;
+    } else if (newPos > total) {
+      target = total;
+    } else {
+      target = newPos;
+    }
+
+    // 如果有雪碧图且不是末尾，对齐到最近的帧时间戳
+    if (videoshotData != null && target < total) {
+      target = videoshotData!.getClosestTimestamp(target);
+    }
+
     setState(() {
-      if (newPos < Duration.zero) {
-        previewPosition = Duration.zero;
-      } else if (newPos > total) {
-        previewPosition = total;
-      } else {
-        previewPosition = newPos;
-      }
+      previewPosition = target;
     });
   }
 
-  void toggleDanmaku() {
+  void toggleDanmaku() async {
     setState(() {
       danmakuEnabled = !danmakuEnabled;
     });
-    Fluttertoast.cancel();
-    Fluttertoast.showToast(msg: danmakuEnabled ? '弹幕已开启' : '弹幕已关闭');
+    ToastUtils.dismiss();
+    ToastUtils.show(context, danmakuEnabled ? '弹幕已开启' : '弹幕已关闭');
     toggleControls();
   }
 
@@ -1576,7 +1671,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     );
   }
 
-  void toggleStatsForNerds() {
+  void toggleStatsForNerds() async {
     setState(() {
       showStatsForNerds = !showStatsForNerds;
       if (showStatsForNerds) {
@@ -1587,19 +1682,17 @@ mixin PlayerActionMixin on PlayerStateMixin {
         lastStatsTime = null;
       }
     });
-    Fluttertoast.cancel();
-    Fluttertoast.showToast(
-      msg: showStatsForNerds ? '视频数据实时监测已开启' : '视频数据实时监测已关闭',
-    );
+    ToastUtils.dismiss();
+    ToastUtils.show(context, showStatsForNerds ? '视频数据实时监测已开启' : '视频数据实时监测已关闭');
   }
 
-  void toggleLoopMode() {
+  void toggleLoopMode() async {
     setState(() {
       isLoopMode = !isLoopMode;
       videoController?.setLooping(isLoopMode);
     });
-    Fluttertoast.cancel();
-    Fluttertoast.showToast(msg: isLoopMode ? '循环播放已开启' : '循环播放已关闭');
+    ToastUtils.dismiss();
+    ToastUtils.show(context, isLoopMode ? '循环播放已开启' : '循环播放已关闭');
   }
 
   void _startStatsTimer() {
@@ -1852,8 +1945,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
       final speed = availableSpeeds[focusedSettingIndex];
       setState(() => playbackSpeed = speed);
       videoController?.setPlaybackSpeed(speed);
-      Fluttertoast.cancel();
-      Fluttertoast.showToast(msg: '倍速已设置为 ${speed}x');
+      ToastUtils.dismiss();
+      ToastUtils.show(context, '倍速已设置为 ${speed}x');
     }
   }
 
@@ -1870,7 +1963,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       );
 
       if (playInfo == null) {
-        Fluttertoast.showToast(msg: '切换画质失败');
+        ToastUtils.show(context, '切换画质失败');
         setState(() => isLoading = false);
         return;
       }
@@ -1904,7 +1997,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       }
 
       if (playUrl == null || playUrl.isEmpty) {
-        Fluttertoast.showToast(msg: '当前清晰度暂无可播放地址，请切换清晰度');
+        ToastUtils.show(context, '当前清晰度暂无可播放地址，请切换清晰度');
         setState(() => isLoading = false);
         return;
       }
@@ -1936,7 +2029,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       setState(() => isLoading = false);
 
-      Fluttertoast.showToast(msg: '已切换到 $currentQualityDesc');
+      ToastUtils.show(context, '已切换到 $currentQualityDesc');
     } catch (e) {
       setState(() {
         errorMessage = '切换失败: $e';

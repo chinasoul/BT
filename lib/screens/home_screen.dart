@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:bili_tv_app/models/video.dart';
 import 'home/home_tab.dart';
 import 'home/history_tab.dart';
@@ -70,10 +70,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _sideBarFocusNodes = List.generate(_totalTabs, (index) => FocusNode());
 
-    // 根据低内存模式配置图片缓存
-    _applyImageCacheConfig();
-    SettingsService.onHighPerformanceModeChanged = _applyImageCacheConfig;
-
     // 时间显示设置变更时刷新界面
     SettingsService.onShowTimeDisplayChanged = () {
       if (mounted) setState(() {});
@@ -100,19 +96,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _applyImageCacheConfig() {
-    PaintingBinding.instance.imageCache.maximumSize =
-        SettingsService.imageCacheMaxSize;
-    PaintingBinding.instance.imageCache.maximumSizeBytes =
-        SettingsService.imageCacheMaxBytes;
-    // 切换模式时清理超出限制的缓存
-    PaintingBinding.instance.imageCache.clear();
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    SettingsService.onHighPerformanceModeChanged = null;
     for (var node in _sideBarFocusNodes) {
       node.dispose();
     }
@@ -127,13 +113,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     PaintingBinding.instance.imageCache.clearLiveImages();
     debugPrint('⚠️ [Memory] System memory pressure — image cache cleared');
     if (mounted) {
-      Fluttertoast.showToast(
-        msg: '系统内存不足，已释放图片缓存',
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.TOP,
-        backgroundColor: Colors.orange.shade800,
-        textColor: Colors.white,
-        fontSize: 14,
+      ToastUtils.show(
+        context,
+        '系统内存不足，已释放图片缓存',
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -246,14 +229,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_lastBackPressed == null ||
               now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
             _lastBackPressed = now;
-            Fluttertoast.showToast(
-              msg: '再按一次返回键退出应用',
-              toastLength: Toast.LENGTH_SHORT,
-              gravity: ToastGravity.CENTER,
-              backgroundColor: Colors.black.withValues(alpha: 0.7),
-              textColor: Colors.white,
-              fontSize: 18.0,
-            );
+            ToastUtils.show(context, '再按一次返回键退出应用');
           } else {
             SystemNavigator.pop();
           }

@@ -15,9 +15,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // TV 设备内存有限（通常 1~2 GB），严格控制图片解码缓存
-  // 初始默认值；SettingsService 初始化后会根据低内存模式重新配置
-  PaintingBinding.instance.imageCache.maximumSize = 60;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 30 << 20;
+  PaintingBinding.instance.imageCache.maximumSize =
+      SettingsService.imageCacheMaxSize;
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      SettingsService.imageCacheMaxBytes;
 
   if (BuildFlags.pluginsEnabled) {
     // 初始化插件管理器并注册插件

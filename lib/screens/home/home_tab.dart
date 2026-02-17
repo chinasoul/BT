@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../config/build_flags.dart';
 import '../../config/app_style.dart';
 import '../../widgets/tv_video_card.dart';
+import '../../widgets/update_time_banner.dart';
 import '../../core/plugin/plugin_manager.dart';
 import '../../core/plugin/plugin_types.dart';
 import '../player/player_screen.dart';
@@ -45,6 +46,10 @@ class HomeTabState extends State<HomeTab> {
   final FocusNode _loadMoreFocusNode = FocusNode();
   bool _firstLoadDone = false;
   bool _usedPreloadedData = false; // 标记是否使用了预加载数据
+  String _updateTimeText = ''; // 用于显示更新时间的 Banner
+  int _bannerKey = 0; // 用于强制重建 Banner，实现覆盖效果
+  final Set<int> _shownBannerCategories = {}; // 本次会话已显示过 Banner 的分类
+  final Set<int> _freshCategories = {}; // 本次会话已请求过新数据的分类（不需要显示 Banner）
   // 每个分类独立的视频 FocusNode 表，避免跨分类污染
   final Map<int, Map<int, FocusNode>> _categoryFocusNodeMaps = {};
   bool _isSwitchingCategory = false; // 防止 FocusNode dispose 引发的递归切换
@@ -85,9 +90,10 @@ class HomeTabState extends State<HomeTab> {
       _categoryLoading[0] = false; // 关键：明确标记不加载
       _usedPreloadedData = true; // 标记使用了预加载数据
       _firstLoadDone = true;
+      _freshCategories.add(0); // 预加载数据是本次会话请求的新数据
 
       // 保存到缓存
-      _saveCacheForCategory0(widget.preloadedVideos!);
+      _saveCacheForCategory(_categories[0].name, widget.preloadedVideos!);
 
       // 通知父组件（用于 Sidebar 焦点处理等）
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -95,27 +101,17 @@ class HomeTabState extends State<HomeTab> {
       });
     } else if (!SettingsService.autoRefreshOnLaunch) {
       // 【关闭自动刷新】尝试从本地缓存加载
-      final cached = _loadCachedVideos();
+      final cached = _loadCachedVideosForCategory(_categories[0].name);
       if (cached != null && cached.isNotEmpty) {
         _categoryVideos[0] = cached;
         _categoryRefreshIdx[0] = 1;
         _categoryLoading[0] = false;
         _usedPreloadedData = true;
         _firstLoadDone = true;
+        // 从缓存加载，显示更新时间 Banner
 
-        // 显示上次更新时间 toast
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final timeStr = SettingsService.formatLastRefreshTime();
-          if (timeStr.isNotEmpty) {
-            Fluttertoast.showToast(
-              msg: timeStr,
-              toastLength: Toast.LENGTH_SHORT,
-              gravity: ToastGravity.CENTER,
-              backgroundColor: Colors.black.withValues(alpha: 0.7),
-              textColor: Colors.white,
-              fontSize: 16.0,
-            );
-          }
+          _showUpdateTimeForCurrentCategory();
           widget.onFirstLoadComplete?.call();
         });
       } else {
@@ -179,9 +175,39 @@ class HomeTabState extends State<HomeTab> {
       _categoryLimit[_selectedCategoryIndex] ?? SettingsService.listMaxItems;
   bool get _reachedLimit => _currentVideos.length >= _currentLimit;
 
-  /// 从本地缓存加载推荐视频
-  List<Video>? _loadCachedVideos() {
-    final jsonStr = SettingsService.cachedHomeVideosJson;
+  /// 获取当前分类名称
+  String get _currentCategoryName => _categories[_selectedCategoryIndex].name;
+
+  /// 显示当前分类的更新时间 Banner
+  /// 仅当该分类使用的是缓存数据（非本次会话请求）时才显示
+  void _showUpdateTimeForCurrentCategory() {
+    if (!mounted) return;
+
+    // 本次会话已显示过该分类的 Banner，跳过
+    if (_shownBannerCategories.contains(_selectedCategoryIndex)) return;
+
+    // 该分类本次会话已请求过新数据，不需要显示
+    if (_freshCategories.contains(_selectedCategoryIndex)) return;
+
+    final timestamp = SettingsService.getLastCategoryRefreshTime(
+      _currentCategoryName,
+    );
+    // 该分类从未有过数据，不显示
+    if (timestamp == 0) return;
+
+    final timeStr = SettingsService.formatTimestamp(timestamp);
+    if (timeStr.isNotEmpty) {
+      setState(() {
+        _updateTimeText = timeStr;
+        _bannerKey++; // 递增 key 强制重建 Banner，覆盖旧的
+      });
+      _shownBannerCategories.add(_selectedCategoryIndex);
+    }
+  }
+
+  /// 从本地缓存加载指定分类的视频
+  List<Video>? _loadCachedVideosForCategory(String categoryName) {
+    final jsonStr = SettingsService.getCachedCategoryVideosJson(categoryName);
     if (jsonStr == null) return null;
     try {
       final list = jsonDecode(jsonStr) as List;
@@ -193,11 +219,11 @@ class HomeTabState extends State<HomeTab> {
     }
   }
 
-  /// 保存推荐视频到本地缓存 (仅分类 0 / 推荐)
-  void _saveCacheForCategory0(List<Video> videos) {
+  /// 保存指定分类的视频到本地缓存
+  void _saveCacheForCategory(String categoryName, List<Video> videos) {
     try {
       final jsonStr = jsonEncode(videos.map((v) => v.toMap()).toList());
-      SettingsService.setCachedHomeVideosJson(jsonStr);
+      SettingsService.setCachedCategoryVideosJson(categoryName, jsonStr);
     } catch (e) {
       // 忽略缓存保存失败
     }
@@ -285,9 +311,15 @@ class HomeTabState extends State<HomeTab> {
       }
       _categoryLoading[categoryIndex] = false;
 
-      // 保存推荐视频缓存 (仅分类 0)
-      if (categoryIndex == 0 && (refresh || page == 1)) {
-        _saveCacheForCategory0(_categoryVideos[0] ?? []);
+      // 首次加载或刷新成功后保存缓存并记录刷新时间
+      if ((refresh || page == 1) &&
+          !requestFailed &&
+          filteredVideos.isNotEmpty) {
+        _saveCacheForCategory(
+          category.name,
+          _categoryVideos[categoryIndex] ?? [],
+        );
+        _freshCategories.add(categoryIndex); // 标记本次会话已请求新数据
       }
 
       if (!_firstLoadDone) {
@@ -299,14 +331,7 @@ class HomeTabState extends State<HomeTab> {
     });
 
     if (refresh) {
-      Fluttertoast.showToast(
-        msg: requestFailed ? '刷新失败' : '已刷新',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.black.withValues(alpha: 0.7),
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
+      ToastUtils.show(context, requestFailed ? '刷新失败' : '已刷新');
     }
   }
 
@@ -355,7 +380,21 @@ class HomeTabState extends State<HomeTab> {
     _usedPreloadedData = false;
     setState(() => _selectedCategoryIndex = index);
 
-    if ((_categoryVideos[index] ?? []).isEmpty) _loadVideosForCategory(index);
+    // 判断是否需要网络请求：内存无数据时，先尝试本地缓存
+    bool usedLocalCache = false;
+
+    if ((_categoryVideos[index] ?? []).isEmpty) {
+      // 内存无数据，尝试从本地缓存加载
+      final cached = _loadCachedVideosForCategory(_categories[index].name);
+      if (cached != null && cached.isNotEmpty) {
+        // 有本地缓存，使用缓存数据
+        _categoryVideos[index] = cached;
+        usedLocalCache = true;
+      } else {
+        // 无本地缓存，需要网络请求
+        _loadVideosForCategory(index);
+      }
+    }
 
     _isSwitchingCategory = false;
 
@@ -367,6 +406,10 @@ class HomeTabState extends State<HomeTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _disposeFocusNodesForCategory(prevIndex);
       PaintingBinding.instance.imageCache.clear();
+      // 使用本地缓存数据时显示更新时间 Banner
+      if (usedLocalCache) {
+        _showUpdateTimeForCurrentCategory();
+      }
     });
   }
 
@@ -391,25 +434,11 @@ class HomeTabState extends State<HomeTab> {
 
   void refreshCurrentCategory() {
     if (_isLoading) {
-      Fluttertoast.showToast(
-        msg: '正在刷新中，请稍候',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.black.withValues(alpha: 0.7),
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
+      ToastUtils.show(context, '正在刷新中，请稍候');
       return;
     }
 
-    Fluttertoast.showToast(
-      msg: '正在刷新',
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.CENTER,
-      backgroundColor: Colors.black.withValues(alpha: 0.7),
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
+    ToastUtils.show(context, '正在刷新');
 
     // 刷新后不再是初始预加载状态
     _usedPreloadedData = false;
@@ -630,6 +659,18 @@ class HomeTabState extends State<HomeTab> {
             ),
           ),
         ),
+
+        // 更新时间 Banner (显示在顶部，3秒后自动淡出)
+        if (_updateTimeText.isNotEmpty)
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: UpdateTimeBanner(
+              key: ValueKey(_bannerKey),
+              timeText: _updateTimeText,
+            ),
+          ),
       ],
     );
   }

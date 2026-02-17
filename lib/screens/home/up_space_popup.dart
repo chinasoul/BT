@@ -2,32 +2,26 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
+import '../../models/following_user.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../utils/image_url_utils.dart';
-import '../../widgets/time_display.dart';
 import '../player/player_screen.dart';
 
-/// UP主空间页面（独立页面方式）
-/// 包含：UP主详细信息、投稿视频列表、关注/充电按钮
-class UpSpaceScreen extends StatefulWidget {
-  final int upMid;
-  final String upName;
-  final String upFace;
+/// UP主空间弹窗（Popup方式，半透明遮罩+居中弹窗）
+/// 相比新窗口方式，内存开销更低，同时保持上下文感
+class UpSpacePopup extends StatefulWidget {
+  final FollowingUser user;
+  final VoidCallback onClose;
 
-  const UpSpaceScreen({
-    super.key,
-    required this.upMid,
-    required this.upName,
-    required this.upFace,
-  });
+  const UpSpacePopup({super.key, required this.user, required this.onClose});
 
   @override
-  State<UpSpaceScreen> createState() => _UpSpaceScreenState();
+  State<UpSpacePopup> createState() => _UpSpacePopupState();
 }
 
-class _UpSpaceScreenState extends State<UpSpaceScreen> {
+class _UpSpacePopupState extends State<UpSpacePopup> {
   final ScrollController _scrollController = ScrollController();
   final Map<int, FocusNode> _videoFocusNodes = {};
   final FocusNode _mainFocusNode = FocusNode();
@@ -52,6 +46,10 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
   // 固定高度常量
   static const double _headerHeight = 130.0;
+
+  // 快速导航节流：记录上次焦点时间，短间隔内用 jumpTo 而非 animateTo
+  DateTime _lastFocusTime = DateTime(0);
+  static const _rapidThreshold = Duration(milliseconds: 150);
 
   @override
   void initState() {
@@ -95,7 +93,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
   Future<void> _loadUserInfo() async {
     setState(() => _isLoadingUserInfo = true);
-    final info = await BilibiliApi.getUserCardInfo(widget.upMid);
+    final info = await BilibiliApi.getUserCardInfo(widget.user.mid);
     if (!mounted) return;
     setState(() {
       _userInfo = info;
@@ -117,7 +115,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     }
 
     final list = await BilibiliApi.getSpaceVideos(
-      mid: widget.upMid,
+      mid: widget.user.mid,
       page: reset ? 1 : _page,
       order: _order,
     );
@@ -159,63 +157,95 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
       final videoIndex = _focusedIndex - 4;
       if (_videoFocusNodes.containsKey(videoIndex)) {
         _videoFocusNodes[videoIndex]!.requestFocus();
-        _scrollToIndex(videoIndex);
+        // 记录当前时间，判断是否快速导航
+        final now = DateTime.now();
+        final isRapid = now.difference(_lastFocusTime) < _rapidThreshold;
+        _lastFocusTime = now;
+        // 延迟滚动，等待焦点切换完成后获取正确的 RenderObject 位置
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToFocusedCard(videoIndex, animate: !isRapid);
+        });
       }
     }
   }
 
-  /// 滚动到指定索引的视频卡片
-  void _scrollToIndex(int videoIndex) {
-    if (!_scrollController.hasClients) return;
+  /// 滚动到指定索引的视频卡片（使用实际 RenderObject 位置，与主页一致）
+  void _scrollToFocusedCard(int videoIndex, {required bool animate}) {
+    if (!mounted || !_scrollController.hasClients) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
+    final focusNode = _videoFocusNodes[videoIndex];
+    if (focusNode == null || focusNode.context == null) return;
 
-      final gridColumns = SettingsService.videoGridColumns;
-      final position = _scrollController.position;
-      final viewportHeight = position.viewportDimension;
+    final ro = focusNode.context!.findRenderObject() as RenderBox?;
+    if (ro == null || !ro.hasSize) return;
 
-      // 估算行高
-      final estimatedRowHeight = viewportHeight * 0.35;
-      final row = videoIndex ~/ gridColumns;
+    final scrollableState = Scrollable.maybeOf(focusNode.context!);
+    if (scrollableState == null) return;
 
-      // 当前行的顶部位置
-      final rowTop = row * estimatedRowHeight;
+    final position = scrollableState.position;
+    final scrollableRO =
+        scrollableState.context.findRenderObject() as RenderBox?;
+    if (scrollableRO == null || !scrollableRO.hasSize) return;
 
-      // 可见区域（考虑 header）
-      final visibleTop = position.pixels;
-      final visibleBottom =
-          position.pixels + viewportHeight - _headerHeight - 20;
+    // 获取卡片在滚动视口中的位置
+    final cardInViewport = ro.localToGlobal(
+      Offset.zero,
+      ancestor: scrollableRO,
+    );
+    final viewportHeight = scrollableRO.size.height;
+    final cardHeight = ro.size.height;
+    final cardTop = cardInViewport.dy;
+    final cardBottom = cardTop + cardHeight;
 
-      double? targetOffset;
+    // 顶部安全边界：header 高度 + 露出上一行的比例
+    final revealHeight = cardHeight * 0.25; // TabStyle.scrollRevealRatio
+    final topBoundary = _headerHeight + revealHeight;
 
-      if (row == 0) {
-        // 第一行：滚动到顶部
-        targetOffset = 0;
-      } else if (rowTop < visibleTop) {
-        // 行在可见区域上方：向上滚动
-        targetOffset = rowTop - 20;
-      } else if (rowTop + estimatedRowHeight > visibleBottom) {
-        // 行在可见区域下方：向下滚动，让当前行显示在底部
-        targetOffset =
-            rowTop - viewportHeight + _headerHeight + estimatedRowHeight + 40;
+    // 底部安全边界：屏幕底部留出空间，用于显示下一行
+    final bottomBoundary = viewportHeight - revealHeight;
+
+    // 判断是否是第一行
+    final gridColumns = SettingsService.videoGridColumns;
+    final isFirstRow = videoIndex < gridColumns;
+
+    double? targetScrollOffset;
+
+    if (isFirstRow) {
+      // 第一行：确保卡片顶部在顶部边界位置
+      if ((cardTop - topBoundary).abs() > 50) {
+        final delta = cardTop - topBoundary;
+        targetScrollOffset = position.pixels + delta;
       }
+    } else if (cardBottom > bottomBoundary) {
+      // 卡片底部超出底部边界：向上滚动
+      final delta = cardBottom - bottomBoundary;
+      targetScrollOffset = position.pixels + delta;
+    } else if (cardTop < topBoundary) {
+      // 卡片顶部超出顶部边界：向下滚动
+      final delta = cardTop - topBoundary;
+      targetScrollOffset = position.pixels + delta;
+    }
+    // 卡片在安全区域内：不滚动
 
-      if (targetOffset == null) return;
+    if (targetScrollOffset == null) return;
 
-      final target = targetOffset.clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
+    final target = targetScrollOffset.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
 
-      if ((position.pixels - target).abs() < 10) return;
+    // 只有滚动距离超过阈值才执行
+    if ((position.pixels - target).abs() < 4.0) return;
 
+    if (animate) {
       _scrollController.animateTo(
         target,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
-    });
+    } else {
+      _scrollController.jumpTo(target);
+    }
   }
 
   /// 切换排序（左右键）- 使用缓存，瞬间切换
@@ -259,7 +289,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
   Future<void> _toggleFollow() async {
     final success = await BilibiliApi.followUser(
-      mid: widget.upMid,
+      mid: widget.user.mid,
       follow: !_isFollowing,
     );
     if (!mounted) return;
@@ -291,16 +321,15 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
     final gridColumns = SettingsService.videoGridColumns;
 
-    // 返回键关闭页面
-    if (event.logicalKey == LogicalKeyboardKey.escape ||
-        event.logicalKey == LogicalKeyboardKey.goBack) {
-      Navigator.of(context).pop();
+    // 返回键由 FollowingTab 的 handleBack 统一处理，这里只处理 ESC 键
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      widget.onClose();
       return KeyEventResult.handled;
     }
 
     if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
       if (_focusedIndex == 0) {
-        Navigator.of(context).pop();
+        widget.onClose();
       } else if (_focusedIndex <= 3) {
         final oldIndex = _focusedIndex;
         setState(() => _focusedIndex--);
@@ -311,7 +340,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
       } else {
         final videoIndex = _focusedIndex - 4;
         if (videoIndex % gridColumns == 0) {
-          Navigator.of(context).pop();
+          widget.onClose();
         } else {
           setState(() => _focusedIndex--);
           _focusCurrentItem();
@@ -400,80 +429,146 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final popupWidth = screenSize.width * 0.88;
+    final popupHeight = screenSize.height * 0.90;
     final gridColumns = SettingsService.videoGridColumns;
     final themeColor = SettingsService.themeColor;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      body: Focus(
+    return FocusScope(
+      // 使用 FocusScope 限制焦点范围，防止焦点逃逸到 popup 外部
+      autofocus: true,
+      // 在 FocusScope 层级捕获所有键盘事件，优先于子组件处理
+      onKeyEvent: (node, event) {
+        final result = _handleKeyEvent(node, event);
+        // 如果我们处理了事件，阻止它继续传播
+        if (result == KeyEventResult.handled) {
+          return KeyEventResult.handled;
+        }
+        // 对于方向键，即使我们没有处理，也要阻止默认行为防止焦点逃逸
+        if (event is KeyDownEvent || event is KeyRepeatEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowUp ||
+              event.logicalKey == LogicalKeyboardKey.arrowDown ||
+              event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+              event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Focus(
         focusNode: _mainFocusNode,
-        onKeyEvent: _handleKeyEvent,
         child: Stack(
           children: [
-            // 视频列表
+            // 半透明遮罩背景
             Positioned.fill(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _videos.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '该 UP 暂无投稿视频',
-                        style: TextStyle(color: Colors.white70, fontSize: 20),
-                      ),
-                    )
-                  : CustomScrollView(
-                      controller: _scrollController,
-                      slivers: [
-                        SliverPadding(
-                          padding: EdgeInsets.fromLTRB(
-                            30,
-                            _headerHeight + 10,
-                            30,
-                            80,
-                          ),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: gridColumns,
-                                  childAspectRatio: 320 / 280,
-                                  crossAxisSpacing: 20,
-                                  mainAxisSpacing: 10,
-                                ),
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              final video = _videos[index];
-                              final isFocused = _focusedIndex == index + 4;
-                              return _buildVideoCard(video, index, isFocused);
-                            }, childCount: _videos.length),
-                          ),
-                        ),
-                        if (_isLoadingMore)
-                          const SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.all(20),
-                              child: Center(child: CircularProgressIndicator()),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-            // 顶部信息栏（固定高度）
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: _headerHeight,
-              child: Container(
-                color: const Color(0xFF121212),
-                padding: const EdgeInsets.fromLTRB(30, 20, 30, 12),
-                child: _buildHeader(themeColor),
+              child: GestureDetector(
+                onTap: widget.onClose,
+                child: Container(color: Colors.black.withValues(alpha: 0.7)),
               ),
             ),
-            // 时间显示
-            if (SettingsService.showTimeDisplay)
-              const Positioned(top: 10, right: 14, child: TimeDisplay()),
+            // 居中弹窗
+            Center(
+              child: Container(
+                width: popupWidth,
+                height: popupHeight,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      // 视频列表
+                      Positioned.fill(
+                        child: _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : _videos.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  '该 UP 暂无投稿视频',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              )
+                            : CustomScrollView(
+                                controller: _scrollController,
+                                slivers: [
+                                  SliverPadding(
+                                    padding: EdgeInsets.fromLTRB(
+                                      24,
+                                      _headerHeight + 10,
+                                      24,
+                                      40,
+                                    ),
+                                    sliver: SliverGrid(
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: gridColumns,
+                                            childAspectRatio: 320 / 280,
+                                            crossAxisSpacing: 16,
+                                            mainAxisSpacing: 8,
+                                          ),
+                                      delegate: SliverChildBuilderDelegate((
+                                        context,
+                                        index,
+                                      ) {
+                                        final video = _videos[index];
+                                        final isFocused =
+                                            _focusedIndex == index + 4;
+                                        return _buildVideoCard(
+                                          video,
+                                          index,
+                                          isFocused,
+                                        );
+                                      }, childCount: _videos.length),
+                                    ),
+                                  ),
+                                  if (_isLoadingMore)
+                                    const SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(20),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                      ),
+                      // 顶部信息栏（固定高度）
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: _headerHeight,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1A1A1A),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                          child: _buildHeader(themeColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -498,7 +593,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
               // 头像
               ClipOval(
                 child: CachedNetworkImage(
-                  imageUrl: widget.upFace,
+                  imageUrl: widget.user.face,
                   cacheManager: BiliCacheManager.instance,
                   width: 48,
                   height: 48,
@@ -529,7 +624,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              widget.upName,
+                              widget.user.uname,
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -742,10 +837,12 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     );
   }
 
-  /// 视频卡片 - 只负责显示和焦点效果，导航由页面控制
+  /// 视频卡片 - 只负责显示和焦点效果，导航由 popup 控制
   Widget _buildVideoCard(Video video, int index, bool isFocused) {
+    final gridColumns = SettingsService.videoGridColumns;
     final themeColor = SettingsService.themeColor;
 
+    // 使用简单的 Focus 包装，不使用 TvVideoCard 的内置导航
     return Focus(
       focusNode: _getFocusNode(index),
       onFocusChange: (hasFocus) {

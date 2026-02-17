@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 import '../../config/app_style.dart';
 import '../../widgets/history_video_card.dart';
+import '../../widgets/update_time_banner.dart';
 import '../player/player_screen.dart';
 
 /// 观看历史 Tab
@@ -33,6 +33,7 @@ class HistoryTabState extends State<HistoryTab> {
   final ScrollController _scrollController = ScrollController();
   bool _hasLoaded = false;
   int _currentLimit = SettingsService.listMaxItems;
+  String _updateTimeText = ''; // 用于显示更新时间的 Banner
   // 每个视频卡片的 FocusNode
   final Map<int, FocusNode> _videoFocusNodes = {};
   final FocusNode _loadMoreFocusNode = FocusNode();
@@ -206,20 +207,13 @@ class HistoryTabState extends State<HistoryTab> {
         _isLoading = false;
         _hasMore = false; // 缓存不支持加载更多
       });
-      // 显示上次更新时间
+      // 显示上次更新时间 Banner
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final timeStr = SettingsService.formatTimestamp(
           SettingsService.lastHistoryRefreshTime,
         );
-        if (timeStr.isNotEmpty) {
-          Fluttertoast.showToast(
-            msg: timeStr,
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.CENTER,
-            backgroundColor: Colors.black.withValues(alpha: 0.7),
-            textColor: Colors.white,
-            fontSize: 16.0,
-          );
+        if (timeStr.isNotEmpty && mounted) {
+          setState(() => _updateTimeText = timeStr);
         }
       });
       return true;
@@ -466,6 +460,18 @@ class HistoryTabState extends State<HistoryTab> {
             ),
           ),
         ),
+
+        // 更新时间 Banner (显示在顶部，3秒后自动收起)
+        if (_updateTimeText.isNotEmpty)
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: UpdateTimeBanner(
+              key: ValueKey(_updateTimeText),
+              timeText: _updateTimeText,
+            ),
+          ),
       ],
     );
   }

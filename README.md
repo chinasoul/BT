@@ -1,6 +1,7 @@
 ## 1) 截图预览
 
-![设置页](assets/screenshots/Screenshot_1771143841.png)
+![设置页](assets/screenshots/Screenshot_1771513851.png)
+![播放页](assets/screenshots/Screenshot_1771513689.png)
 ![我的内容页](assets/screenshots/Screenshot_1771144188.png)
 
 ## 2) 更新 / 修改说明

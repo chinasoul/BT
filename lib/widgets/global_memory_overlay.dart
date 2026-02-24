@@ -20,6 +20,8 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
   String _availMem = '';
   String _totalMem = '';
   String _cpuUsage = '';
+  String _appCpuStr = '';
+  String _coreFreqStr = '';
   int _prevProcessJiffies = 0;
   DateTime? _prevCpuSampleTime;
 
@@ -27,7 +29,6 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
   void initState() {
     super.initState();
     SettingsService.onShowMemoryInfoChanged = _syncSetting;
-    // 尝试初始化（如果 SettingsService 已就绪）
     _syncSetting();
   }
 
@@ -64,6 +65,8 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
         _availMem = '';
         _totalMem = '';
         _cpuUsage = '';
+        _appCpuStr = '';
+        _coreFreqStr = '';
       });
     }
     _prevProcessJiffies = 0;
@@ -88,6 +91,7 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
 
       // CPU 占用: 从 /proc/self/stat 读取 utime + stime（单位为 jiffies）
       String cpuStr = _cpuUsage;
+      String appCpuStr = '';
       try {
         final stat = File('/proc/self/stat').readAsStringSync();
         // comm 字段可能含空格，安全解析：找到最后一个 ')' 后再 split
@@ -108,11 +112,40 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
             final elapsedSeconds = elapsedMs / 1000;
             final cpuPercent = (cpuSeconds / elapsedSeconds * 100);
             cpuStr = '${cpuPercent.toStringAsFixed(0)}%';
+
+            // APP 整机占用率（除以核心数）
+            if (SettingsService.showAppCpu) {
+              final cores = Platform.numberOfProcessors;
+              final appPercent = cpuPercent / cores;
+              appCpuStr = 'APP ${appPercent.toStringAsFixed(0)}%/$cores核';
+            }
           }
         }
         _prevProcessJiffies = currentJiffies;
         _prevCpuSampleTime = now;
       } catch (_) {}
+
+      // 核心频率
+      String coreFreqStr = '';
+      if (SettingsService.showCoreFreq) {
+        try {
+          final cores = Platform.numberOfProcessors;
+          final freqStrs = <String>[];
+          for (int i = 0; i < cores; i++) {
+            final freqFile = File(
+              '/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq',
+            );
+            if (freqFile.existsSync()) {
+              final khz = int.tryParse(freqFile.readAsStringSync().trim()) ?? 0;
+              final mhz = (khz / 1000).round();
+              freqStrs.add('C$i:${mhz}M');
+            } else {
+              freqStrs.add('C$i:--');
+            }
+          }
+          coreFreqStr = freqStrs.join('\n');
+        } catch (_) {}
+      }
 
       if (mounted) {
         setState(() {
@@ -120,6 +153,8 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
           _availMem = '余${availMb}M';
           _totalMem = '共${totalMb}M';
           _cpuUsage = cpuStr;
+          _appCpuStr = appCpuStr;
+          _coreFreqStr = coreFreqStr;
         });
       }
     } catch (_) {
@@ -152,6 +187,8 @@ class _GlobalMemoryOverlayState extends State<GlobalMemoryOverlay> {
                     child: Text(
                       [
                         if (_cpuUsage.isNotEmpty) 'CPU$_cpuUsage',
+                        if (_appCpuStr.isNotEmpty) _appCpuStr,
+                        if (_coreFreqStr.isNotEmpty) _coreFreqStr,
                         _appMem,
                         _availMem,
                         _totalMem,

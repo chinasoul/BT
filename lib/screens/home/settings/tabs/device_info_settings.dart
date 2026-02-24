@@ -5,6 +5,7 @@ import '../../../../services/device_info_service.dart';
 import '../../../../config/app_style.dart';
 import '../widgets/setting_action_row.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
+import 'package:bili_tv_app/utils/toast_utils.dart';
 
 class DeviceInfoSettings extends StatefulWidget {
   final VoidCallback onMoveUp;
@@ -26,6 +27,12 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
   bool _isLoading = true;
   Map<String, dynamic> _info = {};
   String _publicIp = '获取中...';
+
+  // 彩蛋：连续点击系统版本行 7 次开启开发者选项
+  int _tapCount = 0;
+  DateTime _lastTapTime = DateTime(0);
+  static const _tapThreshold = Duration(seconds: 2);
+  static const _tapTarget = 7;
 
   @override
   void initState() {
@@ -96,7 +103,37 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
     return s.isEmpty ? fallback : s;
   }
 
-  Widget _buildInfoItem(int index, String label, String value) {
+  void _onVersionTap() {
+    final now = DateTime.now();
+    if (now.difference(_lastTapTime) > _tapThreshold) {
+      _tapCount = 0;
+    }
+    _lastTapTime = now;
+    _tapCount++;
+
+    if (SettingsService.developerMode) {
+      if (_tapCount == 1) {
+        ToastUtils.show(context, '已处于开发者模式');
+      }
+      return;
+    }
+
+    final remaining = _tapTarget - _tapCount;
+    if (remaining <= 0) {
+      SettingsService.setDeveloperMode(true);
+      ToastUtils.show(context, '已开启开发者选项');
+      _tapCount = 0;
+    } else if (remaining <= 3) {
+      ToastUtils.show(context, '再点 $remaining 次开启开发者选项');
+    }
+  }
+
+  Widget _buildInfoItem(
+    int index,
+    String label,
+    String value, {
+    VoidCallback? onSelect,
+  }) {
     return Focus(
       focusNode: _infoFocusNodes[index],
       onFocusChange: (focused) {
@@ -130,6 +167,12 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
         if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
             widget.sidebarFocusNode != null) {
           widget.sidebarFocusNode!.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (onSelect != null &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          onSelect();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -207,6 +250,7 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
           0,
           '系统版本',
           'Android ${_valueOf('androidVersion')} (SDK ${_valueOf('sdkInt')})',
+          onSelect: _onVersionTap,
         ),
         // 设备名
         _buildInfoItem(1, '设备名', _valueOf('model')),

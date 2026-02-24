@@ -817,6 +817,50 @@ class SettingsService {
     onShowMemoryInfoChanged?.call();
   }
 
+  // ==================== 开发者选项 ====================
+  static const String _developerModeKey = 'developer_mode';
+  static const String _showAppCpuKey = 'show_app_cpu';
+  static const String _showCoreFreqKey = 'show_core_freq';
+  static const String _marqueeFpsKey = 'marquee_fps';
+
+  /// 开发者选项变更回调（用于刷新设置标签页列表）
+  static VoidCallback? onDeveloperModeChanged;
+
+  /// 是否已开启开发者模式
+  static bool get developerMode => _prefs?.getBool(_developerModeKey) ?? false;
+
+  static Future<void> setDeveloperMode(bool value) async {
+    await init();
+    await _prefs!.setBool(_developerModeKey, value);
+    onDeveloperModeChanged?.call();
+  }
+
+  /// 是否在 overlay 上显示 APP 进程占用率
+  static bool get showAppCpu => _prefs?.getBool(_showAppCpuKey) ?? false;
+
+  static Future<void> setShowAppCpu(bool value) async {
+    await init();
+    await _prefs!.setBool(_showAppCpuKey, value);
+    onShowMemoryInfoChanged?.call();
+  }
+
+  /// 是否在 overlay 上显示各核心频率
+  static bool get showCoreFreq => _prefs?.getBool(_showCoreFreqKey) ?? false;
+
+  static Future<void> setShowCoreFreq(bool value) async {
+    await init();
+    await _prefs!.setBool(_showCoreFreqKey, value);
+    onShowMemoryInfoChanged?.call();
+  }
+
+  /// 滚动文字帧率（30 或 60）
+  static int get marqueeFps => _prefs?.getInt(_marqueeFpsKey) ?? 60;
+
+  static Future<void> setMarqueeFps(int value) async {
+    await init();
+    await _prefs!.setInt(_marqueeFpsKey, value);
+  }
+
   // ==================== 主题色 ====================
   static const String _themeColorKey = 'theme_color';
 
@@ -836,8 +880,7 @@ class SettingsService {
 
   /// 当前主题色
   static Color get themeColor {
-    final value = _prefs?.getInt(_themeColorKey) ?? 0xFF81C784;
-    return Color(value);
+    return Color(_prefs?.getInt(_themeColorKey) ?? 0xFF81C784);
   }
 
   /// 当前主题色的 int 值

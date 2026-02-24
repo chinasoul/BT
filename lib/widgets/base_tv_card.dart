@@ -185,6 +185,7 @@ class _BaseTvCardState extends State<BaseTvCard> {
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: ClipRRect(
+                  clipBehavior: Clip.hardEdge,
                   borderRadius: BorderRadius.circular(8),
                   child: widget.imageContent,
                 ),

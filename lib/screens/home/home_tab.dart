@@ -574,63 +574,67 @@ class HomeTabState extends State<HomeTab> {
                                 crossAxisSpacing: 20,
                                 mainAxisSpacing: 10,
                               ),
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final video = _currentVideos[index];
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final video = _currentVideos[index];
 
-                            if (!_reachedLimit &&
-                                index == _currentVideos.length - gridColumns) {
-                              _loadMore();
-                            }
+                              if (!_reachedLimit &&
+                                  index ==
+                                      _currentVideos.length - gridColumns) {
+                                _loadMore();
+                              }
 
-                            // 构建卡片内容
-                            Widget buildCard(BuildContext ctx) {
-                              return TvVideoCard(
-                                video: video,
-                                focusNode: _getFocusNode(index),
-                                autofocus: isInitialLoad && index == 0,
-                                disableCache: false,
-                                index: index,
-                                gridColumns: gridColumns,
-                                onTap: () => _onVideoTap(video),
-                                onMoveLeft: (index % gridColumns == 0)
-                                    ? () => widget.sidebarFocusNode
-                                          ?.requestFocus()
-                                    : () => _getFocusNode(
-                                        index - 1,
-                                      ).requestFocus(),
-                                // 强制向右导航，避免 ScaleTransition 导致的误判
-                                onMoveRight: (index + 1 < _currentVideos.length)
-                                    ? () => _getFocusNode(
-                                        index + 1,
-                                      ).requestFocus()
-                                    : null,
-                                // 严格按列向上移动，最顶行跳到分类标签
-                                onMoveUp: index >= gridColumns
-                                    ? () => _getFocusNode(
-                                        index - gridColumns,
-                                      ).requestFocus()
-                                    : () =>
-                                          _categoryFocusNodes[_selectedCategoryIndex]
-                                              .requestFocus(),
-                                // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
-                                onMoveDown:
-                                    (index + gridColumns <
-                                        _currentVideos.length)
-                                    ? () => _getFocusNode(
-                                        index + gridColumns,
-                                      ).requestFocus()
-                                    : _reachedLimit
-                                    ? () => _loadMoreFocusNode.requestFocus()
-                                    : () {},
-                                onFocus: () {},
-                              );
-                            }
+                              // 构建卡片内容
+                              Widget buildCard(BuildContext ctx) {
+                                return TvVideoCard(
+                                  video: video,
+                                  focusNode: _getFocusNode(index),
+                                  autofocus: isInitialLoad && index == 0,
+                                  disableCache: false,
+                                  index: index,
+                                  gridColumns: gridColumns,
+                                  onTap: () => _onVideoTap(video),
+                                  onMoveLeft: (index % gridColumns == 0)
+                                      ? () => widget.sidebarFocusNode
+                                            ?.requestFocus()
+                                      : () => _getFocusNode(
+                                          index - 1,
+                                        ).requestFocus(),
+                                  // 强制向右导航，避免 ScaleTransition 导致的误判
+                                  onMoveRight:
+                                      (index + 1 < _currentVideos.length)
+                                      ? () => _getFocusNode(
+                                          index + 1,
+                                        ).requestFocus()
+                                      : null,
+                                  // 严格按列向上移动，最顶行跳到分类标签
+                                  onMoveUp: index >= gridColumns
+                                      ? () => _getFocusNode(
+                                          index - gridColumns,
+                                        ).requestFocus()
+                                      : () =>
+                                            _categoryFocusNodes[_selectedCategoryIndex]
+                                                .requestFocus(),
+                                  // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
+                                  onMoveDown:
+                                      (index + gridColumns <
+                                          _currentVideos.length)
+                                      ? () => _getFocusNode(
+                                          index + gridColumns,
+                                        ).requestFocus()
+                                      : _reachedLimit
+                                      ? () => _loadMoreFocusNode.requestFocus()
+                                      : () {},
+                                  onFocus: () {},
+                                );
+                              }
 
-                            return Builder(builder: buildCard);
-                          }, childCount: _currentVideos.length),
+                              return Builder(builder: buildCard);
+                            },
+                            childCount: _currentVideos.length,
+                            addAutomaticKeepAlives: false,
+                            addRepaintBoundaries: false,
+                          ),
                         ),
                       ),
                       // 到达上限后显示"加载更多"提示

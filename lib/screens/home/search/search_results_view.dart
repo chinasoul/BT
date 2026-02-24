@@ -223,52 +223,59 @@ class _SearchResultsViewState extends State<SearchResultsView> {
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 10,
               ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final video = _searchResults[index];
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final video = _searchResults[index];
 
-                Widget buildCard(BuildContext cardContext) {
-                  return TvVideoCard(
-                    video: video,
-                    // Use index 0 special focus node logic if needed, but handled globally
-                    focusNode: _getFocusNode(index),
-                    autofocus: index == 0,
-                    disableCache: false,
-                    index: index,
-                    gridColumns: gridColumns,
-                    onTap: () => _onVideoTap(video),
-                    // 最左列按左键跳到侧边栏
-                    onMoveLeft: (index % gridColumns == 0)
-                        ? () => widget.sidebarFocusNode?.requestFocus()
-                        : () => _getFocusNode(index - 1).requestFocus(),
-                    // 强制向右导航
-                    onMoveRight: (index + 1 < _searchResults.length)
-                        ? () => _getFocusNode(index + 1).requestFocus()
-                        : null,
-                    // 严格按列向上移动，最顶行跳到排序按钮
-                    onMoveUp: index >= gridColumns
-                        ? () =>
-                              _getFocusNode(index - gridColumns).requestFocus()
-                        : () {
-                            final sortIdx = _sortOptions.keys.toList().indexOf(
-                              _currentOrder,
-                            );
-                            if (sortIdx >= 0 &&
-                                sortIdx < _sortFocusNodes.length) {
-                              _sortFocusNodes[sortIdx].requestFocus();
-                            }
-                          },
-                    // 严格按列向下移动
-                    onMoveDown: (index + gridColumns < _searchResults.length)
-                        ? () =>
-                              _getFocusNode(index + gridColumns).requestFocus()
-                        : null,
-                    onBack: widget.onBackToKeyboard,
-                    onFocus: () {},
-                  );
-                }
+                  Widget buildCard(BuildContext cardContext) {
+                    return TvVideoCard(
+                      video: video,
+                      // Use index 0 special focus node logic if needed, but handled globally
+                      focusNode: _getFocusNode(index),
+                      autofocus: index == 0,
+                      disableCache: false,
+                      index: index,
+                      gridColumns: gridColumns,
+                      onTap: () => _onVideoTap(video),
+                      // 最左列按左键跳到侧边栏
+                      onMoveLeft: (index % gridColumns == 0)
+                          ? () => widget.sidebarFocusNode?.requestFocus()
+                          : () => _getFocusNode(index - 1).requestFocus(),
+                      // 强制向右导航
+                      onMoveRight: (index + 1 < _searchResults.length)
+                          ? () => _getFocusNode(index + 1).requestFocus()
+                          : null,
+                      // 严格按列向上移动，最顶行跳到排序按钮
+                      onMoveUp: index >= gridColumns
+                          ? () => _getFocusNode(
+                              index - gridColumns,
+                            ).requestFocus()
+                          : () {
+                              final sortIdx = _sortOptions.keys
+                                  .toList()
+                                  .indexOf(_currentOrder);
+                              if (sortIdx >= 0 &&
+                                  sortIdx < _sortFocusNodes.length) {
+                                _sortFocusNodes[sortIdx].requestFocus();
+                              }
+                            },
+                      // 严格按列向下移动
+                      onMoveDown: (index + gridColumns < _searchResults.length)
+                          ? () => _getFocusNode(
+                              index + gridColumns,
+                            ).requestFocus()
+                          : null,
+                      onBack: widget.onBackToKeyboard,
+                      onFocus: () {},
+                    );
+                  }
 
-                return Builder(builder: (ctx) => buildCard(ctx));
-              }, childCount: _searchResults.length),
+                  return Builder(builder: (ctx) => buildCard(ctx));
+                },
+                childCount: _searchResults.length,
+                addAutomaticKeepAlives: false,
+                addRepaintBoundaries: false,
+              ),
             ),
           ),
           if (_isLoadingMore)

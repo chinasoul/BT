@@ -823,35 +823,42 @@ class FollowingTabState extends State<FollowingTab> {
               crossAxisSpacing: 20,
               mainAxisSpacing: 10,
             ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final user = _users[index];
-              if (_followingHasMore &&
-                  !_followingLoading &&
-                  !_followingLoadingMore &&
-                  index >= _users.length - 4) {
-                _loadFollowingUsers(reset: false);
-              }
-              return Builder(
-                builder: (ctx) => _FollowingUserCard(
-                  user: user,
-                  focusNode: _getFollowingFocusNode(index),
-                  onTap: () => _openUserSpace(user),
-                  onMoveLeft: (index % 4 == 0)
-                      ? () => widget.sidebarFocusNode?.requestFocus()
-                      : () => _getFollowingFocusNode(index - 1).requestFocus(),
-                  onMoveRight: (index + 1 < _users.length)
-                      ? () => _getFollowingFocusNode(index + 1).requestFocus()
-                      : null,
-                  onMoveUp: index >= 4
-                      ? () => _getFollowingFocusNode(index - 4).requestFocus()
-                      : () => _tabFocusNodes[_selectedTabIndex].requestFocus(),
-                  onMoveDown: (index + 4 < _users.length)
-                      ? () => _getFollowingFocusNode(index + 4).requestFocus()
-                      : null,
-                  onFocus: () => _scrollToCard(ctx),
-                ),
-              );
-            }, childCount: _users.length),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final user = _users[index];
+                if (_followingHasMore &&
+                    !_followingLoading &&
+                    !_followingLoadingMore &&
+                    index >= _users.length - 4) {
+                  _loadFollowingUsers(reset: false);
+                }
+                return Builder(
+                  builder: (ctx) => _FollowingUserCard(
+                    user: user,
+                    focusNode: _getFollowingFocusNode(index),
+                    onTap: () => _openUserSpace(user),
+                    onMoveLeft: (index % 4 == 0)
+                        ? () => widget.sidebarFocusNode?.requestFocus()
+                        : () =>
+                              _getFollowingFocusNode(index - 1).requestFocus(),
+                    onMoveRight: (index + 1 < _users.length)
+                        ? () => _getFollowingFocusNode(index + 1).requestFocus()
+                        : null,
+                    onMoveUp: index >= 4
+                        ? () => _getFollowingFocusNode(index - 4).requestFocus()
+                        : () =>
+                              _tabFocusNodes[_selectedTabIndex].requestFocus(),
+                    onMoveDown: (index + 4 < _users.length)
+                        ? () => _getFollowingFocusNode(index + 4).requestFocus()
+                        : null,
+                    onFocus: () => _scrollToCard(ctx),
+                  ),
+                );
+              },
+              childCount: _users.length,
+              addAutomaticKeepAlives: false,
+              addRepaintBoundaries: false,
+            ),
           ),
         ),
         if (_followingLoadingMore)
@@ -887,48 +894,53 @@ class FollowingTabState extends State<FollowingTab> {
               crossAxisSpacing: 20,
               mainAxisSpacing: 10,
             ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final video = videos[index];
-              if (_selectedTabIndex == 1 &&
-                  _favoritesHasMore &&
-                  !_favoritesLoading &&
-                  !_favoritesLoadingMore &&
-                  index >= videos.length - gridColumns) {
-                _loadFavoriteVideos(reset: false);
-              }
-              return Builder(
-                builder: (ctx) => TvVideoCard(
-                  video: video,
-                  focusNode: focusNodeAt(index),
-                  disableCache: false,
-                  index: index,
-                  gridColumns: gridColumns,
-                  topOffset: topPadding,
-                  onTap: () => _openVideo(video),
-                  onMoveLeft: (index % gridColumns == 0)
-                      ? () => widget.sidebarFocusNode?.requestFocus()
-                      : () => focusNodeAt(index - 1).requestFocus(),
-                  onMoveRight: (index + 1 < videos.length)
-                      ? () => focusNodeAt(index + 1).requestFocus()
-                      : null,
-                  onMoveUp: index >= gridColumns
-                      ? () => focusNodeAt(index - gridColumns).requestFocus()
-                      : () {
-                          if (_selectedTabIndex == 1 &&
-                              _folderFocusNodes.isNotEmpty) {
-                            _folderFocusNodes[_selectedFolderIndex]
-                                .requestFocus();
-                          } else {
-                            _tabFocusNodes[_selectedTabIndex].requestFocus();
-                          }
-                        },
-                  onMoveDown: (index + gridColumns < videos.length)
-                      ? () => focusNodeAt(index + gridColumns).requestFocus()
-                      : null,
-                  onFocus: () {},
-                ),
-              );
-            }, childCount: videos.length),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final video = videos[index];
+                if (_selectedTabIndex == 1 &&
+                    _favoritesHasMore &&
+                    !_favoritesLoading &&
+                    !_favoritesLoadingMore &&
+                    index >= videos.length - gridColumns) {
+                  _loadFavoriteVideos(reset: false);
+                }
+                return Builder(
+                  builder: (ctx) => TvVideoCard(
+                    video: video,
+                    focusNode: focusNodeAt(index),
+                    disableCache: false,
+                    index: index,
+                    gridColumns: gridColumns,
+                    topOffset: topPadding,
+                    onTap: () => _openVideo(video),
+                    onMoveLeft: (index % gridColumns == 0)
+                        ? () => widget.sidebarFocusNode?.requestFocus()
+                        : () => focusNodeAt(index - 1).requestFocus(),
+                    onMoveRight: (index + 1 < videos.length)
+                        ? () => focusNodeAt(index + 1).requestFocus()
+                        : null,
+                    onMoveUp: index >= gridColumns
+                        ? () => focusNodeAt(index - gridColumns).requestFocus()
+                        : () {
+                            if (_selectedTabIndex == 1 &&
+                                _folderFocusNodes.isNotEmpty) {
+                              _folderFocusNodes[_selectedFolderIndex]
+                                  .requestFocus();
+                            } else {
+                              _tabFocusNodes[_selectedTabIndex].requestFocus();
+                            }
+                          },
+                    onMoveDown: (index + gridColumns < videos.length)
+                        ? () => focusNodeAt(index + gridColumns).requestFocus()
+                        : null,
+                    onFocus: () {},
+                  ),
+                );
+              },
+              childCount: videos.length,
+              addAutomaticKeepAlives: false,
+              addRepaintBoundaries: false,
+            ),
           ),
         ),
         if (_favoritesLoadingMore && _selectedTabIndex == 1)

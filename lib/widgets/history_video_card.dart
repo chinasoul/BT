@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:marquee/marquee.dart';
 import '../models/video.dart';
 import '../services/settings_service.dart';
 import 'base_tv_card.dart';
+import 'conditional_marquee.dart';
 import '../utils/image_url_utils.dart';
 import '../screens/live/live_player_screen.dart';
 
@@ -139,7 +139,7 @@ class HistoryVideoCard extends StatelessWidget {
               ),
             ),
           // 渐变遮罩
-          Positioned(
+          const Positioned(
             left: 0,
             right: 0,
             bottom: 0,
@@ -151,7 +151,7 @@ class HistoryVideoCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.9),
+                    Color(0xE6000000), // 0.9 alpha black
                   ],
                 ),
               ),
@@ -230,23 +230,15 @@ class HistoryVideoCard extends StatelessWidget {
             SizedBox(
               height: 20,
               child: isFocused
-                  ? Marquee(
+                  ? ConditionalMarquee(
                       text: video.title,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
-                      scrollAxis: Axis.horizontal,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       blankSpace: 30.0,
-                      velocity: 50.0,
-                      pauseAfterRound: const Duration(seconds: 1),
-                      startPadding: 0.0,
-                      accelerationDuration: const Duration(milliseconds: 500),
-                      accelerationCurve: Curves.linear,
-                      decelerationDuration: const Duration(milliseconds: 300),
-                      decelerationCurve: Curves.easeOut,
+                      velocity: 30.0,
                     )
                   : Text(
                       video.title,

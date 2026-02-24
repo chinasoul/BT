@@ -394,57 +394,59 @@ class LiveTabState extends State<LiveTab> {
                                 crossAxisSpacing: 20,
                                 mainAxisSpacing: 10,
                               ),
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (!_reachedLimit &&
-                                index == currentRooms.length - 4) {
-                              _loadMore();
-                            }
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (!_reachedLimit &&
+                                  index == currentRooms.length - 4) {
+                                _loadMore();
+                              }
 
-                            final room = currentRooms[index];
+                              final room = currentRooms[index];
 
-                            // 构建卡片
-                            Widget buildCard(BuildContext ctx) {
-                              return TvLiveCard(
-                                room: room,
-                                autofocus: isInitialLoad && index == 0,
-                                focusNode: _getFocusNode(index),
-                                index: index,
-                                gridColumns: 4,
-                                onTap: () => _navigateToRoom(room),
-                                onFocus: () {},
-                                onMoveLeft: (index % 4 == 0)
-                                    ? () =>
-                                          widget.sidebarFocusNode.requestFocus()
-                                    : () => _getFocusNode(
-                                        index - 1,
-                                      ).requestFocus(),
-                                onMoveRight: (index + 1 < currentRooms.length)
-                                    ? () => _getFocusNode(
-                                        index + 1,
-                                      ).requestFocus()
-                                    : null,
-                                onMoveUp: index >= 4
-                                    ? () => _getFocusNode(
-                                        index - 4,
-                                      ).requestFocus()
-                                    : () =>
-                                          _categoryFocusNodes[_selectedCategoryIndex]
-                                              .requestFocus(),
-                                onMoveDown: (index + 4 < currentRooms.length)
-                                    ? () => _getFocusNode(
-                                        index + 4,
-                                      ).requestFocus()
-                                    : _reachedLimit
-                                    ? () => _loadMoreFocusNode.requestFocus()
-                                    : () {},
-                              );
-                            }
+                              // 构建卡片
+                              Widget buildCard(BuildContext ctx) {
+                                return TvLiveCard(
+                                  room: room,
+                                  autofocus: isInitialLoad && index == 0,
+                                  focusNode: _getFocusNode(index),
+                                  index: index,
+                                  gridColumns: 4,
+                                  onTap: () => _navigateToRoom(room),
+                                  onFocus: () {},
+                                  onMoveLeft: (index % 4 == 0)
+                                      ? () => widget.sidebarFocusNode
+                                            .requestFocus()
+                                      : () => _getFocusNode(
+                                          index - 1,
+                                        ).requestFocus(),
+                                  onMoveRight: (index + 1 < currentRooms.length)
+                                      ? () => _getFocusNode(
+                                          index + 1,
+                                        ).requestFocus()
+                                      : null,
+                                  onMoveUp: index >= 4
+                                      ? () => _getFocusNode(
+                                          index - 4,
+                                        ).requestFocus()
+                                      : () =>
+                                            _categoryFocusNodes[_selectedCategoryIndex]
+                                                .requestFocus(),
+                                  onMoveDown: (index + 4 < currentRooms.length)
+                                      ? () => _getFocusNode(
+                                          index + 4,
+                                        ).requestFocus()
+                                      : _reachedLimit
+                                      ? () => _loadMoreFocusNode.requestFocus()
+                                      : () {},
+                                );
+                              }
 
-                            return Builder(builder: buildCard);
-                          }, childCount: currentRooms.length),
+                              return Builder(builder: buildCard);
+                            },
+                            childCount: currentRooms.length,
+                            addAutomaticKeepAlives: false,
+                            addRepaintBoundaries: false,
+                          ),
                         ),
                       ),
                       if (_reachedLimit)

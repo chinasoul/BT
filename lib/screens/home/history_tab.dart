@@ -412,45 +412,50 @@ class HistoryTabState extends State<HistoryTab> {
                     crossAxisSpacing: 20,
                     mainAxisSpacing: 10,
                   ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final video = _videos[index];
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final video = _videos[index];
 
-                    // 构建卡片内容
-                    Widget buildCard(BuildContext ctx) {
-                      return HistoryVideoCard(
-                        video: video,
-                        focusNode: _getFocusNode(index),
-                        index: index,
-                        gridColumns: gridColumns,
-                        onTap: () => _onVideoTap(video),
-                        // 最左列按左键跳到侧边栏
-                        onMoveLeft: (index % gridColumns == 0)
-                            ? () => widget.sidebarFocusNode?.requestFocus()
-                            : () => _getFocusNode(index - 1).requestFocus(),
-                        // 强制向右导航
-                        onMoveRight: (index + 1 < _videos.length)
-                            ? () => _getFocusNode(index + 1).requestFocus()
-                            : null,
-                        // 严格按列向上移动
-                        onMoveUp: index >= gridColumns
-                            ? () => _getFocusNode(
-                                index - gridColumns,
-                              ).requestFocus()
-                            : () {}, // 最顶行为无效输入
-                        // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
-                        onMoveDown: (index + gridColumns < _videos.length)
-                            ? () => _getFocusNode(
-                                index + gridColumns,
-                              ).requestFocus()
-                            : _reachedLimit
-                            ? () => _loadMoreFocusNode.requestFocus()
-                            : () {},
-                        onFocus: () {},
-                      );
-                    }
+                      // 构建卡片内容
+                      Widget buildCard(BuildContext ctx) {
+                        return HistoryVideoCard(
+                          video: video,
+                          focusNode: _getFocusNode(index),
+                          index: index,
+                          gridColumns: gridColumns,
+                          onTap: () => _onVideoTap(video),
+                          // 最左列按左键跳到侧边栏
+                          onMoveLeft: (index % gridColumns == 0)
+                              ? () => widget.sidebarFocusNode?.requestFocus()
+                              : () => _getFocusNode(index - 1).requestFocus(),
+                          // 强制向右导航
+                          onMoveRight: (index + 1 < _videos.length)
+                              ? () => _getFocusNode(index + 1).requestFocus()
+                              : null,
+                          // 严格按列向上移动
+                          onMoveUp: index >= gridColumns
+                              ? () => _getFocusNode(
+                                  index - gridColumns,
+                                ).requestFocus()
+                              : () {}, // 最顶行为无效输入
+                          // 严格按列向下移动；最后一行：有"加载更多"时跳转到它，否则阻止
+                          onMoveDown: (index + gridColumns < _videos.length)
+                              ? () => _getFocusNode(
+                                  index + gridColumns,
+                                ).requestFocus()
+                              : _reachedLimit
+                              ? () => _loadMoreFocusNode.requestFocus()
+                              : () {},
+                          onFocus: () {},
+                        );
+                      }
 
-                    return Builder(builder: buildCard);
-                  }, childCount: _videos.length),
+                      return Builder(builder: buildCard);
+                    },
+                    childCount: _videos.length,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: false,
+                  ),
                 ),
               ),
               if (_reachedLimit)

@@ -98,7 +98,7 @@ class TvLiveCard extends StatelessWidget {
             ),
           ),
           // 底部阴影
-          Positioned(
+          const Positioned(
             left: 0,
             right: 0,
             bottom: 0,
@@ -110,7 +110,7 @@ class TvLiveCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.9),
+                    Color(0xE6000000), // 0.9 alpha black
                   ],
                 ),
               ),

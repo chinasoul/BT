@@ -519,19 +519,21 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
                                             crossAxisSpacing: 16,
                                             mainAxisSpacing: 8,
                                           ),
-                                      delegate: SliverChildBuilderDelegate((
-                                        context,
-                                        index,
-                                      ) {
-                                        final video = _videos[index];
-                                        final isFocused =
-                                            _focusedIndex == index + 4;
-                                        return _buildVideoCard(
-                                          video,
-                                          index,
-                                          isFocused,
-                                        );
-                                      }, childCount: _videos.length),
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                          final video = _videos[index];
+                                          final isFocused =
+                                              _focusedIndex == index + 4;
+                                          return _buildVideoCard(
+                                            video,
+                                            index,
+                                            isFocused,
+                                          );
+                                        },
+                                        childCount: _videos.length,
+                                        addAutomaticKeepAlives: false,
+                                        addRepaintBoundaries: false,
+                                      ),
                                     ),
                                   ),
                                   if (_isLoadingMore)

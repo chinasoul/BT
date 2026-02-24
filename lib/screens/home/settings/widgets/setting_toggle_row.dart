@@ -56,6 +56,7 @@ class SettingToggleRow extends StatelessWidget {
           return Opacity(
             opacity: enabled ? 1.0 : 0.5,
             child: Container(
+              width: double.infinity,
               constraints: const BoxConstraints(
                 minHeight: AppSpacing.settingItemMinHeight,
               ),

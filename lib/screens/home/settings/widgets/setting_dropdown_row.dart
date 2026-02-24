@@ -91,6 +91,7 @@ class SettingDropdownRow<T> extends StatelessWidget {
           return GestureDetector(
             onTap: () => _showPicker(context),
             child: Container(
+              width: double.infinity,
               constraints: const BoxConstraints(
                 minHeight: AppSpacing.settingItemMinHeight,
               ),

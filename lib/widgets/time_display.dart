@@ -33,9 +33,10 @@ class _TimeDisplayState extends State<TimeDisplay> {
     final now = DateTime.now();
     final h = now.hour.toString().padLeft(2, '0');
     final m = now.minute.toString().padLeft(2, '0');
-    if (mounted) {
+    final newTime = '$h:$m';
+    if (mounted && newTime != _timeString) {
       setState(() {
-        _timeString = '$h:$m';
+        _timeString = newTime;
       });
     }
   }

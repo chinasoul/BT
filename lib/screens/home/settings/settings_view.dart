@@ -8,6 +8,7 @@ import 'tabs/plugins_settings.dart';
 import 'tabs/storage_settings.dart';
 import 'tabs/about_settings.dart';
 import 'tabs/device_info_settings.dart';
+import 'tabs/developer_settings.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 import 'package:bili_tv_app/config/app_style.dart';
 
@@ -19,7 +20,8 @@ enum SettingsCategory {
   plugins('插件中心'),
   storage('其他设置'),
   about('关于软件'),
-  deviceInfo('本机信息');
+  deviceInfo('本机信息'),
+  developerOptions('开发者选项');
 
   const SettingsCategory(this.label);
   final String label;
@@ -45,6 +47,7 @@ class SettingsViewState extends State<SettingsView> {
     SettingsCategory.storage,
     SettingsCategory.about,
     SettingsCategory.deviceInfo,
+    if (SettingsService.developerMode) SettingsCategory.developerOptions,
   ];
 
   @override
@@ -54,14 +57,34 @@ class SettingsViewState extends State<SettingsView> {
       _visibleCategories.length,
       (_) => FocusNode(),
     );
+    SettingsService.onDeveloperModeChanged = _onDeveloperModeChanged;
   }
 
   @override
   void dispose() {
+    SettingsService.onDeveloperModeChanged = null;
     for (var node in _categoryFocusNodes) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  void _onDeveloperModeChanged() {
+    if (!mounted) return;
+    setState(() {
+      // 重建 FocusNode 列表以匹配新的 tab 数量
+      for (var node in _categoryFocusNodes) {
+        node.dispose();
+      }
+      _categoryFocusNodes = List.generate(
+        _visibleCategories.length,
+        (_) => FocusNode(),
+      );
+      // 如果当前选中的 index 超出范围（关闭开发者模式时可能发生），回退
+      if (_selectedCategoryIndex >= _visibleCategories.length) {
+        _selectedCategoryIndex = _visibleCategories.length - 1;
+      }
+    });
   }
 
   /// 请求第一个分类标签的焦点（用于从侧边栏导航）
@@ -271,6 +294,11 @@ class SettingsViewState extends State<SettingsView> {
         );
       case SettingsCategory.deviceInfo:
         return DeviceInfoSettings(
+          onMoveUp: moveToCurrentTab,
+          sidebarFocusNode: widget.sidebarFocusNode,
+        );
+      case SettingsCategory.developerOptions:
+        return DeveloperSettings(
           onMoveUp: moveToCurrentTab,
           sidebarFocusNode: widget.sidebarFocusNode,
         );

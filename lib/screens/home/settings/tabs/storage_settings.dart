@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../../../services/settings_service.dart';
-import '../../../../config/app_style.dart';
 import '../widgets/setting_action_row.dart';
-import '../widgets/setting_toggle_row.dart';
 
 class StorageSettings extends StatefulWidget {
   final VoidCallback onMoveUp;
@@ -22,21 +20,17 @@ class StorageSettings extends StatefulWidget {
 class _StorageSettingsState extends State<StorageSettings> {
   double _cacheSizeMB = 0;
   bool _isClearing = false;
-  bool _showMemoryInfo = false;
   final FocusNode _buttonFocusNode = FocusNode();
-  final FocusNode _memoryToggleFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _showMemoryInfo = SettingsService.showMemoryInfo;
     _loadCacheSize();
   }
 
   @override
   void dispose() {
     _buttonFocusNode.dispose();
-    _memoryToggleFocusNode.dispose();
     super.dispose();
   }
 
@@ -67,25 +61,10 @@ class _StorageSettingsState extends State<StorageSettings> {
           autofocus: true,
           focusNode: _buttonFocusNode,
           isFirst: true,
-          isLast: false,
+          isLast: true,
           onMoveUp: widget.onMoveUp,
-          onMoveDown: () => _memoryToggleFocusNode.requestFocus(),
           sidebarFocusNode: widget.sidebarFocusNode,
           onTap: _isClearing ? null : _clearCache,
-        ),
-        const SizedBox(height: AppSpacing.settingItemGap),
-        SettingToggleRow(
-          label: '显示CPU/内存信息(调试用)',
-          subtitle: '左下角始终显示',
-          value: _showMemoryInfo,
-          focusNode: _memoryToggleFocusNode,
-          isLast: true,
-          onMoveUp: () => _buttonFocusNode.requestFocus(),
-          sidebarFocusNode: widget.sidebarFocusNode,
-          onChanged: (v) {
-            setState(() => _showMemoryInfo = v);
-            SettingsService.setShowMemoryInfo(v);
-          },
         ),
       ],
     );

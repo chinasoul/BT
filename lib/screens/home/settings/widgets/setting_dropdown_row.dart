@@ -128,6 +128,8 @@ class SettingDropdownRow<T> extends StatelessWidget {
                                 color: Colors.white.withValues(alpha: 0.5),
                                 fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],

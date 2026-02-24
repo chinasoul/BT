@@ -98,6 +98,8 @@ class SettingToggleRow extends StatelessWidget {
                                 color: Colors.white38,
                                 fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],

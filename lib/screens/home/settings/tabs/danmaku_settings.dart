@@ -64,14 +64,31 @@ class _DanmakuSettingsState extends State<DanmakuSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SettingToggleRow(
+          label: '原生弹幕渲染优化',
+          subtitleWidget: Text(
+            '若弹幕卡顿可尝试开启',
+            style: TextStyle(color: Colors.amber.shade300, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          value: SettingsService.preferNativeDanmaku,
+          autofocus: true,
+          isFirst: true,
+          onMoveUp: widget.onMoveUp,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (value) async {
+            await SettingsService.setPreferNativeDanmaku(value);
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+
         // 弹幕开关
         SettingToggleRow(
           label: '弹幕开关',
           subtitle: '全局默认值，视频内可单独调整',
           value: SettingsService.danmakuEnabled,
-          autofocus: true,
-          isFirst: true,
-          onMoveUp: widget.onMoveUp,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
             await SettingsService.setDanmakuEnabled(value);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
@@ -12,6 +13,7 @@ import '../../../services/mpd_generator.dart';
 import '../../../services/local_server.dart';
 import '../../../services/api/videoshot_api.dart';
 import '../../../config/build_flags.dart';
+import '../../../services/native_player_danmaku_service.dart';
 import '../widgets/settings_panel.dart';
 import '../player_screen.dart';
 import '../widgets/quality_picker_sheet.dart';
@@ -33,16 +35,21 @@ mixin PlayerActionMixin on PlayerStateMixin {
       danmakuSpeed = prefs.getDouble('danmaku_speed') ?? 10.0;
       hideTopDanmaku = prefs.getBool('hide_top_danmaku') ?? false;
       hideBottomDanmaku = prefs.getBool('hide_bottom_danmaku') ?? false;
+      preferNativeDanmaku =
+          prefs.getBool('prefer_native_danmaku') ?? false;
       // 根据设置决定是否显示控制栏
       showControls = !SettingsService.hideControlsOnStart;
-      updateDanmakuOption();
     });
+    updateDanmakuOption();
   }
 
   Future<void> saveSettings() async {
     // 视频内的弹幕调整仅对当前播放生效，不保存到全局设置。
     // 全局默认值通过 设置 → 弹幕设置 页面修改。
   }
+
+  bool get _useNativeDanmakuRender =>
+      defaultTargetPlatform == TargetPlatform.android && preferNativeDanmaku;
 
   Future<void> initializePlayer() async {
     setState(() {
@@ -548,6 +555,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (videoController == null) return;
 
     videoController!.addListener(_onPlayerStateChange);
+    _startDanmakuSyncTimer();
+    _applyDanmakuOptionWithRetry();
   }
 
   void _onPlayerStateChange() {
@@ -558,10 +567,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     final value = videoController!.value;
 
-    // 同步弹幕
-    if (danmakuEnabled && danmakuController != null) {
-      syncDanmaku(value.position.inSeconds.toDouble());
-    }
+    final now = DateTime.now();
 
     // 检查是否需要预加载下一张雪碧图
     _checkSpritePreload(value.position);
@@ -642,12 +648,41 @@ mixin PlayerActionMixin on PlayerStateMixin {
       }
     }
 
-    // 触发重绘以更新 UI (进度条等)
-    setState(() {});
-
+    // 插件链路节流，避免每帧触发异步任务
     if (BuildFlags.pluginsEnabled) {
-      // 插件处理 (Debounce logic internal to plugin, but we update UI here)
-      _handlePlugins(value.position);
+      final shouldHandlePlugin =
+          lastPluginHandleAt == null ||
+          now.difference(lastPluginHandleAt!) >=
+              const Duration(milliseconds: 250);
+      if (shouldHandlePlugin) {
+        lastPluginHandleAt = now;
+        _handlePlugins(value.position);
+      }
+    }
+
+    // 控制层隐藏时降低 UI 刷新频率，减少 Flutter 侧重建抖动
+    final isUiBusy =
+        showControls ||
+        showSettingsPanel ||
+        showEpisodePanel ||
+        showUpPanel ||
+        showRelatedPanel ||
+        showActionButtons ||
+        showCommentPanel ||
+        showSeekIndicator ||
+        isProgressBarFocused ||
+        showStatsForNerds ||
+        showNextEpisodePreview;
+    final uiInterval = isUiBusy
+        ? const Duration(milliseconds: 120)
+        : const Duration(milliseconds: 2000);
+    final shouldRebuildUi =
+        (nextEpisodeInfo != null && showNextEpisodePreview) ||
+        lastUiRebuildAt == null ||
+        now.difference(lastUiRebuildAt!) >= uiInterval;
+    if (shouldRebuildUi) {
+      lastUiRebuildAt = now;
+      setState(() {});
     }
   }
 
@@ -742,6 +777,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
   /// 清理播放器监听器
   void cancelPlayerListeners() {
     videoController?.removeListener(_onPlayerStateChange);
+    danmakuSyncTimer?.cancel();
+    danmakuSyncTimer = null;
+    danmakuOptionApplyTimer?.cancel();
+    danmakuOptionApplyTimer = null;
+    NativePlayerDanmakuService.clear(videoController);
     completionFallbackTimer?.cancel();
     completionFallbackTimer = null;
   }
@@ -786,6 +826,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     await videoController?.pause();
     await videoController?.dispose();
     videoController = null;
+    danmakuController = null;
     LocalServer.instance.clearMpdContent();
   }
 
@@ -1099,7 +1140,12 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   void syncDanmaku(double currentTime) {
-    if (danmakuController == null || !danmakuEnabled) return;
+    if (!danmakuEnabled) {
+      return;
+    }
+    final useNativeDanmaku = _useNativeDanmakuRender;
+    if (useNativeDanmaku && videoController == null) return;
+    if (!useNativeDanmaku && danmakuController == null) return;
 
     if (lastDanmakuIndex < danmakuList.length) {
       final nextDmTime = danmakuList[lastDanmakuIndex]['time'] as double;
@@ -1114,14 +1160,17 @@ mixin PlayerActionMixin on PlayerStateMixin {
         ? PluginManager().getEnabledPlugins<DanmakuPlugin>()
         : const <DanmakuPlugin>[];
 
+    List<DanmakuContentItem>? nativeBatch;
+    if (useNativeDanmaku) {
+      nativeBatch = <DanmakuContentItem>[];
+    }
+
     while (lastDanmakuIndex < danmakuList.length) {
       final dm = danmakuList[lastDanmakuIndex];
       final time = dm['time'] as double;
 
       if (time <= currentTime) {
         if (currentTime - time < 1.0) {
-          // 构造插件传递对象 (目前简单用 Map 传递)
-          // 真实项目中建议定义 DanmakuItem 模型
           Map<String, dynamic>? dmItem = {
             'content': dm['content'],
             'color': dm['color'],
@@ -1129,7 +1178,6 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
           DanmakuStyle? style;
 
-          // 插件过滤管道
           for (var plugin in plugins) {
             if (dmItem == null) break;
             dmItem = plugin.filterDanmaku(dmItem);
@@ -1142,14 +1190,18 @@ mixin PlayerActionMixin on PlayerStateMixin {
           if (dmItem != null) {
             Color color = Color(dmItem['color'] as int).withValues(alpha: 255);
             if (style != null && style.borderColor != null) {
-              // 高亮样式暂时用颜色替代，或如果库支持边框则设置
-              // 这里简单将文字变色，并加粗（如果库支持）
               color = style.borderColor!;
             }
 
-            danmakuController!.addDanmaku(
-              DanmakuContentItem(dmItem['content'] as String, color: color),
+            final item = DanmakuContentItem(
+              dmItem['content'] as String,
+              color: color,
             );
+            if (nativeBatch != null) {
+              nativeBatch.add(item);
+            } else if (danmakuController != null) {
+              danmakuController!.addDanmaku(item);
+            }
           }
         }
         lastDanmakuIndex++;
@@ -1157,6 +1209,27 @@ mixin PlayerActionMixin on PlayerStateMixin {
         break;
       }
     }
+
+    if (nativeBatch != null && nativeBatch.isNotEmpty) {
+      NativePlayerDanmakuService.addDanmakuBatch(videoController, nativeBatch);
+    }
+  }
+
+  void _startDanmakuSyncTimer() {
+    danmakuSyncTimer?.cancel();
+    danmakuSyncTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      if (!mounted ||
+          !danmakuEnabled ||
+          videoController == null ||
+          !videoController!.value.isInitialized ||
+          !videoController!.value.isPlaying ||
+          (_useNativeDanmakuRender
+              ? false
+              : danmakuController == null)) {
+        return;
+      }
+      syncDanmaku(videoController!.value.position.inMilliseconds / 1000.0);
+    });
   }
 
   void resetDanmakuIndex(Duration position) {
@@ -1227,6 +1300,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (videoController!.value.isPlaying) {
       isUserInitiatedPause = true;
       videoController!.pause();
+      NativePlayerDanmakuService.pause(videoController);
+      danmakuController?.pause();
       hideTimer?.cancel();
       // 暂停时上报进度
       reportPlaybackProgress();
@@ -1240,6 +1315,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
         resetDanmakuIndex(Duration.zero);
       }
       videoController!.play();
+      NativePlayerDanmakuService.resume(videoController);
+      danmakuController?.resume();
       startHideTimer();
     }
     setState(() {});
@@ -1642,23 +1719,60 @@ mixin PlayerActionMixin on PlayerStateMixin {
     setState(() {
       danmakuEnabled = !danmakuEnabled;
     });
+    if (!danmakuEnabled) {
+      NativePlayerDanmakuService.clear(videoController);
+      danmakuController?.clear();
+    } else {
+      if (_useNativeDanmakuRender) {
+        danmakuController?.clear();
+      }
+      _applyDanmakuOptionWithRetry();
+    }
     ToastUtils.dismiss();
     ToastUtils.show(context, danmakuEnabled ? '弹幕已开启' : '弹幕已关闭');
     toggleControls();
   }
 
   void updateDanmakuOption() {
-    danmakuController?.updateOption(
-      DanmakuOption(
-        opacity: danmakuOpacity,
-        fontSize: danmakuFontSize,
-        // 弹幕飞行速度随播放倍速同步调整
-        duration: danmakuSpeed / playbackSpeed,
-        area: danmakuArea,
-        hideTop: hideTopDanmaku,
-        hideBottom: hideBottomDanmaku,
-      ),
+    final option = _buildDanmakuOption();
+    danmakuController?.updateOption(option);
+    if (!_useNativeDanmakuRender) {
+      danmakuOptionApplyTimer?.cancel();
+      danmakuOptionApplyTimer = null;
+      NativePlayerDanmakuService.clear(videoController);
+      return;
+    }
+    _applyDanmakuOptionWithRetry(option: option);
+  }
+
+  DanmakuOption _buildDanmakuOption() {
+    return DanmakuOption(
+      opacity: danmakuOpacity,
+      fontSize: danmakuFontSize,
+      // 弹幕飞行速度随播放倍速同步调整
+      duration: danmakuSpeed / playbackSpeed,
+      area: danmakuArea,
+      hideTop: hideTopDanmaku,
+      hideBottom: hideBottomDanmaku,
     );
+  }
+
+  void _applyDanmakuOptionWithRetry({DanmakuOption? option}) {
+    if (!_useNativeDanmakuRender) return;
+    final currentOption = option ?? _buildDanmakuOption();
+    NativePlayerDanmakuService.updateOption(videoController, currentOption);
+    danmakuOptionApplyTimer?.cancel();
+    int retries = 0;
+    danmakuOptionApplyTimer = Timer.periodic(const Duration(milliseconds: 180), (timer) {
+      NativePlayerDanmakuService.updateOption(videoController, currentOption);
+      retries++;
+      if (retries >= 10 || !mounted || videoController == null) {
+        timer.cancel();
+        if (identical(danmakuOptionApplyTimer, timer)) {
+          danmakuOptionApplyTimer = null;
+        }
+      }
+    });
   }
 
   void toggleStatsForNerds() async {

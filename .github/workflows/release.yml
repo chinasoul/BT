@@ -163,6 +163,34 @@ jobs:
           set -euo pipefail
           API="https://gitee.com/api/v5/repos/${GITEE_REPO}/releases"
           RELEASE_ID=""
+          create_gitee_release() {
+            echo "Creating Gitee release for ${RELEASE_TAG}..."
+            payload_file="$(mktemp)"
+            create_resp="$(mktemp)"
+            create_err="$(mktemp)"
+
+            python3 -c 'import json,sys,pathlib; body=pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"); print(json.dumps({"tag_name":sys.argv[1],"name":sys.argv[1],"body":body,"target_commitish":"main"}, ensure_ascii=False))' "$RELEASE_TAG" "$RELEASE_NOTES_FILE" > "$payload_file"
+
+            create_http="$(curl -sS --connect-timeout 15 --max-time 60 \
+              --retry 2 --retry-delay 3 --retry-all-errors \
+              -o "$create_resp" -w "%{http_code}" \
+              -X POST "${API}?access_token=${GITEE_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data @"$payload_file" 2>"$create_err" || true)"
+
+            if [[ "$create_http" =~ ^2[0-9][0-9]$ ]]; then
+              RELEASE_ID=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' < "$create_resp" 2>/dev/null || true)
+              echo "Gitee release created: ID=$RELEASE_ID"
+            else
+              echo "::warning::Failed to create Gitee release (HTTP ${create_http})."
+              echo "Curl stderr:"
+              cat "$create_err"
+              echo "Response:"
+              cat "$create_resp"
+            fi
+
+            rm -f "$payload_file" "$create_resp" "$create_err"
+          }
 
           # 1) Prefer querying release by tag: exists -> reuse ID
           query_resp="$(mktemp)"
@@ -187,9 +215,10 @@ jobs:
                 if [[ -n "$RELEASE_ID" ]]; then
                   echo "Using existing Gitee release from list: ID=$RELEASE_ID"
                 else
-                  echo "::warning::Release list lookup still found no id for tag ${RELEASE_TAG}."
+                  echo "::warning::Release list lookup still found no id for tag ${RELEASE_TAG}. Will try create."
                   echo "Query-by-tag response:"
                   cat "$query_resp"
+                  create_gitee_release
                 fi
               else
                 echo "::warning::Failed to list releases for fallback (HTTP ${list_release_http})."
@@ -200,31 +229,7 @@ jobs:
             fi
           elif [[ "$query_http" == "404" ]]; then
             echo "No Gitee release for ${RELEASE_TAG}, creating..."
-            payload_file="$(mktemp)"
-            create_resp="$(mktemp)"
-            create_err="$(mktemp)"
-
-            python3 -c 'import json,sys,pathlib; body=pathlib.Path(sys.argv[3]).read_text(encoding="utf-8"); print(json.dumps({"tag_name":sys.argv[2],"name":sys.argv[2],"body":body,"target_commitish":"main"}, ensure_ascii=False))' "$GITEE_TOKEN" "$RELEASE_TAG" "$RELEASE_NOTES_FILE" > "$payload_file"
-
-            create_http="$(curl -sS --connect-timeout 15 --max-time 60 \
-              --retry 2 --retry-delay 3 --retry-all-errors \
-              -o "$create_resp" -w "%{http_code}" \
-              -X POST "${API}?access_token=${GITEE_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data @"$payload_file" 2>"$create_err" || true)"
-
-            if [[ "$create_http" =~ ^2[0-9][0-9]$ ]]; then
-              RELEASE_ID=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' < "$create_resp" 2>/dev/null || true)
-              echo "Gitee release created: ID=$RELEASE_ID"
-            else
-              echo "::warning::Failed to create Gitee release (HTTP ${create_http})."
-              echo "Curl stderr:"
-              cat "$create_err"
-              echo "Response:"
-              cat "$create_resp"
-            fi
-
-            rm -f "$payload_file" "$create_resp" "$create_err"
+            create_gitee_release
           else
             echo "::warning::Failed to query Gitee release by tag (HTTP ${query_http})."
             echo "Curl stderr:"

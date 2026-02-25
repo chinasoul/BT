@@ -67,8 +67,8 @@ class _DanmakuSettingsState extends State<DanmakuSettings> {
         SettingToggleRow(
           label: '原生弹幕渲染优化',
           subtitleWidget: Text(
-            '若弹幕卡顿可尝试开启',
-            style: TextStyle(color: Colors.amber.shade300, fontSize: 12),
+            '若弹幕卡顿可开启',
+            style: TextStyle(color: Colors.amber.shade300, fontSize: 12, fontWeight: FontWeight.bold),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

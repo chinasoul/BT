@@ -92,6 +92,7 @@ jobs:
               --build-name="${BUILD_NAME}" \
               --build-number="${BUILD_NUMBER}" \
               --dart-define=ENABLE_PLUGINS=true \
+              --android-skip-build-dependency-validation \
               --obfuscate \
               --split-debug-info="build/symbols/$symbol_dir"
 

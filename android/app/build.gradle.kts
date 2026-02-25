@@ -6,6 +6,9 @@ plugins {
 }
 
 android {
+    // Keep API 21 for legacy devices; build with --android-skip-build-dependency-validation.
+    val appMinSdk = 21
+
     namespace = "com.bili.tv.bili_tv_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -24,7 +27,7 @@ android {
         applicationId = "com.bili.tv.bili_tv_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = appMinSdk
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

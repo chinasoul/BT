@@ -172,8 +172,32 @@ jobs:
             "${API}/tags/${RELEASE_TAG}?access_token=${GITEE_TOKEN}" 2>"$query_err" || true)"
 
           if [[ "$query_http" == "200" ]]; then
-            RELEASE_ID=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' < "$query_resp" 2>/dev/null || true)
-            echo "Using existing Gitee release: ID=$RELEASE_ID"
+            RELEASE_ID=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id","") if isinstance(d,dict) else "")' < "$query_resp" 2>/dev/null || true)
+            if [[ -n "$RELEASE_ID" ]]; then
+              echo "Using existing Gitee release: ID=$RELEASE_ID"
+            else
+              echo "::warning::Query by tag returned HTTP 200 but no release id. Fallback to release list lookup."
+              list_release_resp="$(mktemp)"
+              list_release_err="$(mktemp)"
+              list_release_http="$(curl -sS --connect-timeout 15 --max-time 30 \
+                -o "$list_release_resp" -w "%{http_code}" \
+                "${API}?access_token=${GITEE_TOKEN}&page=1&per_page=100" 2>"$list_release_err" || true)"
+              if [[ "$list_release_http" == "200" ]]; then
+                RELEASE_ID=$(python3 -c 'import json,sys; tag=sys.argv[1]; data=json.load(sys.stdin); print(next((str(i.get("id","")) for i in data if isinstance(i,dict) and i.get("tag_name")==tag),"") if isinstance(data,list) else "")' "$RELEASE_TAG" < "$list_release_resp" 2>/dev/null || true)
+                if [[ -n "$RELEASE_ID" ]]; then
+                  echo "Using existing Gitee release from list: ID=$RELEASE_ID"
+                else
+                  echo "::warning::Release list lookup still found no id for tag ${RELEASE_TAG}."
+                  echo "Query-by-tag response:"
+                  cat "$query_resp"
+                fi
+              else
+                echo "::warning::Failed to list releases for fallback (HTTP ${list_release_http})."
+                echo "Curl stderr:"
+                cat "$list_release_err"
+              fi
+              rm -f "$list_release_resp" "$list_release_err"
+            fi
           elif [[ "$query_http" == "404" ]]; then
             echo "No Gitee release for ${RELEASE_TAG}, creating..."
             payload_file="$(mktemp)"

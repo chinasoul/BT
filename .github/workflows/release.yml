@@ -180,13 +180,38 @@ jobs:
           echo "Gitee release created: ID=$RELEASE_ID"
 
           for apk in release-assets/v7a.apk release-assets/v8a.apk; do
-            echo "Uploading $(basename $apk) to Gitee..."
-            UPLOAD_RESP=$(curl -sS --connect-timeout 15 --max-time 120 \
+            apk_name="$(basename "$apk")"
+            echo "Uploading ${apk_name} to Gitee..."
+
+            resp_file="$(mktemp)"
+            err_file="$(mktemp)"
+            http_code="$(curl -sS \
+              --connect-timeout 30 \
+              --max-time 600 \
+              --retry 3 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              -o "$resp_file" \
+              -w "%{http_code}" \
               -X POST "${API}/${RELEASE_ID}/attach_files" \
               -F "access_token=${GITEE_TOKEN}" \
-              -F "file=@${apk}") \
-              && echo "Upload OK: $(basename $apk)" \
-              || echo "::warning::Failed to upload $(basename $apk) to Gitee"
-            echo "Response: $UPLOAD_RESP"
+              -F "file=@${apk}" 2>"$err_file")"
+            curl_exit=$?
+
+            if [[ $curl_exit -ne 0 ]]; then
+              echo "::warning::Failed to upload ${apk_name} to Gitee (curl exit=${curl_exit})"
+              echo "Curl stderr:"
+              cat "$err_file"
+              echo "Response:"
+              cat "$resp_file"
+            elif [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+              echo "Upload OK: ${apk_name} (HTTP ${http_code})"
+            else
+              echo "::warning::Failed to upload ${apk_name} to Gitee (HTTP ${http_code})"
+              echo "Response:"
+              cat "$resp_file"
+            fi
+
+            rm -f "$resp_file" "$err_file"
           done
           echo "Gitee publish done."

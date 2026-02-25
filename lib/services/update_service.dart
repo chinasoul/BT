@@ -242,6 +242,41 @@ class UpdateService {
     return 0;
   }
 
+  /// 优先从 release body 中提取 APK 下载链接（如 R2 镜像链接）
+  static String? _pickApkUrlFromBody(String body, String arch) {
+    if (body.trim().isEmpty) return null;
+
+    final urlRegex = RegExp(
+      r'https?://[^\s\)\]\}<>"]+\.apk(?:\?[^\s\)\]\}<>"]*)?',
+      caseSensitive: false,
+    );
+    final matches = urlRegex.allMatches(body).map((m) => m.group(0)!).toList();
+    if (matches.isEmpty) return null;
+
+    final candidates = <String>{};
+    for (final url in matches) {
+      candidates.add(url);
+    }
+    final urls = candidates.toList();
+
+    final archPattern = arch == 'armeabi-v7a'
+        ? RegExp(r'v7|armeabi|arm.?32', caseSensitive: false)
+        : RegExp(r'v8|arm64|aarch64', caseSensitive: false);
+
+    for (final url in urls) {
+      final uri = Uri.tryParse(url);
+      final fileName = uri?.pathSegments.isNotEmpty == true
+          ? uri!.pathSegments.last
+          : '';
+      if (archPattern.hasMatch(url) || archPattern.hasMatch(fileName)) {
+        return url;
+      }
+    }
+
+    // 若 body 里只有单个 APK 链接，兜底返回第一个
+    return urls.first;
+  }
+
   static String? _pickApkAssetUrl(
     List<dynamic> assets,
     String arch,
@@ -306,8 +341,10 @@ class UpdateService {
       }
 
       final arch = await _getDeviceArch();
+      final body = (release['body'] ?? '').toString();
+      final bodyApkUrl = _pickApkUrlFromBody(body, arch);
       final assets = (release['assets'] as List?) ?? const [];
-      final apkUrl = _pickApkAssetUrl(assets, arch);
+      final apkUrl = bodyApkUrl ?? _pickApkAssetUrl(assets, arch);
       if (apkUrl == null || apkUrl.isEmpty) return null;
 
       return UpdateCheckResult(
@@ -316,7 +353,7 @@ class UpdateService {
           version: tagName,
           versionCode: 0,
           downloadUrl: apkUrl,
-          changelog: (release['body'] ?? '').toString(),
+          changelog: body,
           forceUpdate: false,
         ),
       );

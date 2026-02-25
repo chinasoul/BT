@@ -172,7 +172,6 @@ class _BaseTvCardState extends State<BaseTvCard> {
       child: Builder(
         builder: (ctx) => MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => Focus.of(ctx).requestFocus(),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,

@@ -83,13 +83,9 @@ class SettingActionRow extends StatelessWidget {
           final isFocused = Focus.of(context).hasFocus;
           return MouseRegion(
             cursor: SystemMouseCursors.click,
-            onEnter: (_) => Focus.of(context).requestFocus(),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () {
-                Focus.of(context).requestFocus();
-                _showPicker(context);
-              },
+              onTap: () => _showPicker(context),
               child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(

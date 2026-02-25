@@ -778,10 +778,12 @@ class _CategoryTab extends StatelessWidget {
             final f = Focus.of(ctx).hasFocus;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              onEnter: (_) => Focus.of(ctx).requestFocus(),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: onTap,
+                onTap: () {
+                  focusNode.requestFocus();
+                  onTap();
+                },
                 child: Container(
                   padding: TabStyle.tabPadding,
                   decoration: BoxDecoration(

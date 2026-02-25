@@ -317,17 +317,20 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
                                       child: Builder(
                                         builder: (_) => MouseRegion(
                                           cursor: SystemMouseCursors.click,
-                                          onEnter: (_) {
-                                            if (index != _focusedIndex) {
-                                              setState(
-                                                () => _focusedIndex = index,
-                                              );
-                                            }
-                                            _focusNodes[index].requestFocus();
-                                            _scrollToItem(index, animate: false);
-                                          },
                                           child: GestureDetector(
                                             behavior: HitTestBehavior.opaque,
+                                            onTapDown: (_) {
+                                              if (index != _focusedIndex) {
+                                                setState(
+                                                  () => _focusedIndex = index,
+                                                );
+                                              }
+                                              _focusNodes[index].requestFocus();
+                                              _scrollToItem(
+                                                index,
+                                                animate: false,
+                                              );
+                                            },
                                             onTap: () => widget.onSelected(item),
                                             child: Container(
                                           height: itemHeight,

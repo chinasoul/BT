@@ -58,7 +58,6 @@ class TvFocusableItem extends StatelessWidget {
         final f = Focus.of(c).hasFocus;
         return MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => Focus.of(c).requestFocus(),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {

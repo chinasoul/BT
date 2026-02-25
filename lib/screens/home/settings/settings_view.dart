@@ -265,11 +265,10 @@ class SettingsViewState extends State<SettingsView> {
           final isFocused = Focus.of(ctx).hasFocus;
           return MouseRegion(
             cursor: SystemMouseCursors.click,
-            onEnter: (_) => Focus.of(ctx).requestFocus(),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
-                Focus.of(ctx).requestFocus();
+                focusNode.requestFocus();
                 onTap();
               },
               child: Container(

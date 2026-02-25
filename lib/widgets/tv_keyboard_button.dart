@@ -69,7 +69,6 @@ class _TvKeyboardButtonState extends State<TvKeyboardButton> {
       child: Builder(
         builder: (ctx) => MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => Focus.of(ctx).requestFocus(),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
@@ -158,7 +157,6 @@ class _TvActionButtonState extends State<TvActionButton> {
       child: Builder(
         builder: (ctx) => MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => Focus.of(ctx).requestFocus(),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,

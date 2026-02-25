@@ -58,7 +58,6 @@ class SettingToggleRow extends StatelessWidget {
             cursor: enabled
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic,
-            onEnter: (_) => Focus.of(context).requestFocus(),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {

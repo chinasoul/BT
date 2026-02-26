@@ -13,6 +13,7 @@ import 'widgets/global_memory_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SettingsService.init();
 
   // TV 设备内存有限（通常 1~2 GB），严格控制图片解码缓存
   PaintingBinding.instance.imageCache.maximumSize =

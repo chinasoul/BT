@@ -16,6 +16,7 @@ class VideoshotApi {
   static Future<VideoshotData?> getVideoshot({
     required String bvid,
     int? cid,
+    bool preloadAllImages = true,
   }) async {
     try {
       final params = <String, String>{'bvid': bvid};
@@ -43,7 +44,9 @@ class VideoshotApi {
             if (videoshotData.pvdataUrl != null) {
               _loadPvdata(videoshotData);
             }
-            _preloadImages(videoshotData);
+            if (preloadAllImages) {
+              _preloadImages(videoshotData);
+            }
 
             return videoshotData;
           }

@@ -20,18 +20,84 @@ class PlaybackSettings extends StatefulWidget {
 }
 
 class _PlaybackSettingsState extends State<PlaybackSettings> {
+  Widget _buildPerformanceModeDescription(PlaybackPerformanceMode mode) {
+    final baseStyle = TextStyle(
+      color: Colors.white.withValues(alpha: 0.55),
+      fontSize: 12,
+      height: 1.45,
+    );
+    switch (mode) {
+      case PlaybackPerformanceMode.high:
+        return Text(
+          '流畅优先：缓冲 50s，回看 30s，图片缓存 60 张，内存占用最高',
+          style: baseStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case PlaybackPerformanceMode.medium:
+        return Text(
+          '均衡：缓冲 30s，回看 15s，图片缓存 40 张，流畅与内存平衡',
+          style: baseStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case PlaybackPerformanceMode.low:
+        return Text.rich(
+          TextSpan(
+            style: baseStyle,
+            children: [
+              const TextSpan(
+                text: '省内存：缓冲 15s，回看 0s，图片缓存 20 张，',
+              ),
+              TextSpan(
+                text: '低内存设备推荐',
+                style: TextStyle(
+                  color: Colors.amber.shade300,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final performanceMode = SettingsService.playbackPerformanceMode;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SettingDropdownRow<PlaybackPerformanceMode>(
+          label: '播放性能模式',
+          subtitleWidget: _buildPerformanceModeDescription(performanceMode),
+          value: performanceMode,
+          items: PlaybackPerformanceMode.values.toList(),
+          itemLabel: (mode) => mode.label,
+          autofocus: true,
+          isFirst: true,
+          onMoveUp: widget.onMoveUp,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (mode) async {
+            if (mode != null) {
+              await SettingsService.setPlaybackPerformanceMode(mode);
+              PaintingBinding.instance.imageCache.maximumSize =
+                  SettingsService.imageCacheMaxSize;
+              PaintingBinding.instance.imageCache.maximumSizeBytes =
+                  SettingsService.imageCacheMaxBytes;
+              setState(() {});
+            }
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
         SettingToggleRow(
           label: '自动连播',
           subtitle: '视频播完自动播放下一集或推荐视频',
           value: SettingsService.autoPlay,
-          autofocus: true,
-          isFirst: true, // 第一项，向上返回分类标签
-          onMoveUp: widget.onMoveUp,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
             await SettingsService.setAutoPlay(value);

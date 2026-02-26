@@ -24,6 +24,7 @@ import 'settings_service.dart' show VideoCodec;
 import '../models/favorite_folder.dart';
 import '../models/video.dart';
 import '../models/videoshot.dart';
+import '../models/danmaku_item.dart';
 
 /// Bilibili API 服务 (门面模式)
 /// 保持与原有接口完全兼容
@@ -149,7 +150,7 @@ class BilibiliApi {
   }) => PlaybackApi.getVideoPlayUrlCompat(bvid: bvid, cid: cid, qn: qn);
 
   /// 获取弹幕数据
-  static Future<List<Map<String, dynamic>>> getDanmaku(int cid) =>
+  static Future<List<BiliDanmakuItem>> getDanmaku(int cid) =>
       PlaybackApi.getDanmaku(cid);
 
   /// 上报播放进度
@@ -169,7 +170,12 @@ class BilibiliApi {
   static Future<VideoshotData?> getVideoshot({
     required String bvid,
     int? cid,
-  }) => VideoshotApi.getVideoshot(bvid: bvid, cid: cid);
+    bool preloadAllImages = true,
+  }) => VideoshotApi.getVideoshot(
+    bvid: bvid,
+    cid: cid,
+    preloadAllImages: preloadAllImages,
+  );
 
   // ========== 用户操作相关 ==========
 

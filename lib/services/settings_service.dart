@@ -18,6 +18,26 @@ enum VideoCodec {
   const VideoCodec(this.label, this.prefix);
 }
 
+/// 标签页切换策略
+enum TabSwitchPolicy {
+  smooth('流畅优先'),
+  balanced('平衡'),
+  memorySaver('省内存');
+
+  final String label;
+  const TabSwitchPolicy(this.label);
+}
+
+/// 播放性能模式
+enum PlaybackPerformanceMode {
+  high('高'),
+  medium('中'),
+  low('低');
+
+  final String label;
+  const PlaybackPerformanceMode(this.label);
+}
+
 /// 自定义缓存管理器
 class BiliCacheManager {
   static const key = 'biliTvCache';
@@ -28,7 +48,7 @@ class BiliCacheManager {
       Config(
         key,
         stalePeriod: const Duration(days: 3),
-        maxNrOfCacheObjects: 200,
+        maxNrOfCacheObjects: SettingsService.cacheMaxObjects,
       ),
     );
     return _instance!;
@@ -785,25 +805,148 @@ class SettingsService {
     return pct > 0 ? '+$pct%' : '$pct%';
   }
 
-  // ==================== 聚焦即切换 ====================
+  // ==================== 标签页切换策略 ====================
   static const String _focusSwitchTabKey = 'focus_switch_tab';
+  static const String _tabSwitchPolicyKey = 'tab_switch_policy';
 
-  /// 聚焦即切换 (默认开启：移动焦点立刻切换 tab)
-  static bool get focusSwitchTab {
-    return _prefs?.getBool(_focusSwitchTabKey) ?? true;
+  /// 标签页切换策略
+  /// - smooth: 焦点即切换 + 页面驻留
+  /// - balanced: 仅确认键切换 + 页面驻留
+  /// - memorySaver: 仅确认键切换 + 离开即释放旧页面
+  static TabSwitchPolicy get tabSwitchPolicy {
+    final index = _prefs?.getInt(_tabSwitchPolicyKey);
+    if (index != null) {
+      return TabSwitchPolicy.values[index.clamp(
+        0,
+        TabSwitchPolicy.values.length - 1,
+      )];
+    }
+
+    // 兼容旧版本 focusSwitchTab 开关
+    final legacy = _prefs?.getBool(_focusSwitchTabKey);
+    if (legacy != null) {
+      return legacy ? TabSwitchPolicy.smooth : TabSwitchPolicy.balanced;
+    }
+    return TabSwitchPolicy.smooth;
   }
 
-  /// 设置聚焦即切换
-  static Future<void> setFocusSwitchTab(bool value) async {
+  static Future<void> setTabSwitchPolicy(TabSwitchPolicy value) async {
     await init();
-    await _prefs!.setBool(_focusSwitchTabKey, value);
+    await _prefs!.setInt(_tabSwitchPolicyKey, value.index);
   }
 
-  /// 图片解码缓存：最大张数
-  static const int imageCacheMaxSize = 60;
+  /// 兼容旧逻辑：是否聚焦即切换
+  static bool get focusSwitchTab {
+    return tabSwitchPolicy == TabSwitchPolicy.smooth;
+  }
 
-  /// 图片解码缓存：最大字节数
-  static const int imageCacheMaxBytes = 30 * 1024 * 1024;
+  /// 兼容旧逻辑：设置聚焦即切换（映射到策略）
+  static Future<void> setFocusSwitchTab(bool value) async {
+    await setTabSwitchPolicy(
+      value ? TabSwitchPolicy.smooth : TabSwitchPolicy.balanced,
+    );
+  }
+
+  /// 是否保留已访问标签页状态
+  static bool get keepTabPagesAlive {
+    return tabSwitchPolicy != TabSwitchPolicy.memorySaver;
+  }
+
+  // ==================== 播放性能模式 ====================
+  static const String _playbackPerformanceModeKey = 'playback_performance_mode';
+
+  static PlaybackPerformanceMode get playbackPerformanceMode {
+    final index = _prefs?.getInt(_playbackPerformanceModeKey);
+    if (index == null) return PlaybackPerformanceMode.high;
+    return PlaybackPerformanceMode.values[index.clamp(
+      0,
+      PlaybackPerformanceMode.values.length - 1,
+    )];
+  }
+
+  static Future<void> setPlaybackPerformanceMode(
+    PlaybackPerformanceMode value,
+  ) async {
+    await init();
+    await _prefs!.setInt(_playbackPerformanceModeKey, value.index);
+  }
+
+  /// 弹幕同步间隔
+  static Duration get danmakuSyncInterval {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return const Duration(milliseconds: 80);
+      case PlaybackPerformanceMode.medium:
+        return const Duration(milliseconds: 120);
+      case PlaybackPerformanceMode.low:
+        return const Duration(milliseconds: 180);
+    }
+  }
+
+  /// Stats 刷新间隔
+  static Duration get statsInterval {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return const Duration(milliseconds: 250);
+      case PlaybackPerformanceMode.medium:
+        return const Duration(milliseconds: 500);
+      case PlaybackPerformanceMode.low:
+        return const Duration(milliseconds: 1000);
+    }
+  }
+
+  /// 是否在初始化阶段预加载快进预览图
+  static bool get preloadVideoshotOnPlayerInit {
+    return playbackPerformanceMode != PlaybackPerformanceMode.low;
+  }
+
+  /// 快进预览图预加载阈值（当前雪碧图使用进度达到该比例后，预加载下一张）
+  static double get videoshotPreloadThreshold {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return 0.8;
+      case PlaybackPerformanceMode.medium:
+        return 0.7;
+      case PlaybackPerformanceMode.low:
+        return 0.55;
+    }
+  }
+
+  /// 图片解码缓存：最大张数（按播放性能模式动态调整）
+  static int get imageCacheMaxSize {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return 60;
+      case PlaybackPerformanceMode.medium:
+        return 40;
+      case PlaybackPerformanceMode.low:
+        return 20;
+    }
+  }
+
+  /// 图片解码缓存：最大字节数（按播放性能模式动态调整）
+  static int get imageCacheMaxBytes {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return 30 * 1024 * 1024;
+      case PlaybackPerformanceMode.medium:
+        return 20 * 1024 * 1024;
+      case PlaybackPerformanceMode.low:
+        return 10 * 1024 * 1024;
+    }
+  }
+
+  /// 磁盘缓存对象上限（仅在 BiliCacheManager 首次创建时生效）
+  static int get cacheMaxObjects {
+    switch (playbackPerformanceMode) {
+      case PlaybackPerformanceMode.high:
+        return 200;
+      case PlaybackPerformanceMode.medium:
+        return 150;
+      case PlaybackPerformanceMode.low:
+        return 80;
+    }
+  }
 
   /// 列表加载上限
   static const int listMaxItems = 200;

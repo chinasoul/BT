@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'base_api.dart';
 import 'sign_utils.dart';
+import '../../models/danmaku_item.dart';
 import '../auth_service.dart';
 import '../codec_service.dart';
 import '../settings_service.dart';
@@ -104,7 +105,8 @@ class PlaybackApi {
         'fourk': '1',
       };
 
-      final hasWbiKey = (BaseApi.imgKey?.isNotEmpty ?? false) &&
+      final hasWbiKey =
+          (BaseApi.imgKey?.isNotEmpty ?? false) &&
           (BaseApi.subKey?.isNotEmpty ?? false);
       final queryParams = hasWbiKey
           ? SignUtils.signWithWbi(params, BaseApi.imgKey!, BaseApi.subKey!)
@@ -237,7 +239,9 @@ class PlaybackApi {
               if (videoUrl != null) {
                 final width = _toInt(selectedVideo['width']);
                 final height = _toInt(selectedVideo['height']);
-                final videoBandwidth = _toInt(selectedVideo['bandwidth']); // bps
+                final videoBandwidth = _toInt(
+                  selectedVideo['bandwidth'],
+                ); // bps
                 final frameRate = _parseFrameRate(
                   selectedVideo['frameRate'] ?? selectedVideo['frame_rate'],
                 );
@@ -298,7 +302,8 @@ class PlaybackApi {
         'fourk': '0',
       };
 
-      final hasWbiKey = (BaseApi.imgKey?.isNotEmpty ?? false) &&
+      final hasWbiKey =
+          (BaseApi.imgKey?.isNotEmpty ?? false) &&
           (BaseApi.subKey?.isNotEmpty ?? false);
       final queryParams = hasWbiKey
           ? SignUtils.signWithWbi(params, BaseApi.imgKey!, BaseApi.subKey!)
@@ -324,8 +329,7 @@ class PlaybackApi {
               // 提取画质列表
               final qualities = <Map<String, dynamic>>[];
               final acceptQuality = data['accept_quality'] as List? ?? [];
-              final acceptDesc =
-                  data['accept_description'] as List? ?? [];
+              final acceptDesc = data['accept_description'] as List? ?? [];
               for (int i = 0; i < acceptQuality.length; i++) {
                 qualities.add({
                   'qn': acceptQuality[i],
@@ -357,7 +361,7 @@ class PlaybackApi {
   }
 
   /// 获取弹幕数据 (XML 格式，支持 deflate/gzip/raw)
-  static Future<List<Map<String, dynamic>>> getDanmaku(int cid) async {
+  static Future<List<BiliDanmakuItem>> getDanmaku(int cid) async {
     try {
       final url = 'https://comment.bilibili.com/$cid.xml';
 
@@ -393,7 +397,7 @@ class PlaybackApi {
           xmlString = utf8.decode(bytes, allowMalformed: true);
         }
 
-        final danmakuList = <Map<String, dynamic>>[];
+        final danmakuList = <BiliDanmakuItem>[];
 
         final regex = RegExp(r'<d p="([^"]+)">([^<]*)</d>');
         for (final match in regex.allMatches(xmlString)) {
@@ -402,13 +406,15 @@ class PlaybackApi {
 
           final parts = pAttr.split(',');
           if (parts.length >= 4) {
-            danmakuList.add({
-              'time': double.tryParse(parts[0]) ?? 0.0,
-              'type': int.tryParse(parts[1]) ?? 1,
-              'fontSize': double.tryParse(parts[2]) ?? 25.0,
-              'color': int.tryParse(parts[3]) ?? 0xFFFFFF,
-              'content': content,
-            });
+            danmakuList.add(
+              BiliDanmakuItem(
+                time: double.tryParse(parts[0]) ?? 0.0,
+                type: int.tryParse(parts[1]) ?? 1,
+                fontSize: double.tryParse(parts[2]) ?? 25.0,
+                color: int.tryParse(parts[3]) ?? 0xFFFFFF,
+                content: content,
+              ),
+            );
           }
         }
 

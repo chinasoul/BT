@@ -35,8 +35,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       danmakuSpeed = prefs.getDouble('danmaku_speed') ?? 10.0;
       hideTopDanmaku = prefs.getBool('hide_top_danmaku') ?? false;
       hideBottomDanmaku = prefs.getBool('hide_bottom_danmaku') ?? false;
-      preferNativeDanmaku =
-          prefs.getBool('prefer_native_danmaku') ?? false;
+      preferNativeDanmaku = prefs.getBool('prefer_native_danmaku') ?? false;
       // 根据设置决定是否显示控制栏
       showControls = !SettingsService.hideControlsOnStart;
     });
@@ -119,8 +118,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
         return;
       }
 
-      // 立即启动快照数据预加载 (并行执行)
-      loadVideoshot();
+      // 按性能模式控制是否在初始化阶段预加载快照
+      loadVideoshot(
+        preloadAllSprites: SettingsService.preloadVideoshotOnPlayerInit,
+        precacheFirstSprite: SettingsService.preloadVideoshotOnPlayerInit,
+      );
 
       // 注意：集数焦点索引在延迟加载完整集数列表后设置（见 deferredEpisodes 逻辑）
 
@@ -351,7 +353,6 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
           // 监听播放状态变化
           _setupPlayerListeners();
-          _startStatsTimer();
 
           if (BuildFlags.pluginsEnabled) {
             // 初始化插件
@@ -496,7 +497,6 @@ mixin PlayerActionMixin on PlayerStateMixin {
           debugPrint('🎬 [CompatFallback] durl playback succeeded!');
 
           _setupPlayerListeners();
-          _startStatsTimer();
 
           if (BuildFlags.pluginsEnabled) {
             final plugins = PluginManager().getEnabledPlugins<PlayerPlugin>();
@@ -540,9 +540,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       if (!mounted) return;
       setState(() {
         danmakuList = danmaku;
-        danmakuList.sort(
-          (a, b) => (a['time'] as double).compareTo(b['time'] as double),
-        );
+        danmakuList.sort((a, b) => a.time.compareTo(b.time));
         lastDanmakuIndex = 0;
       });
     } catch (e) {
@@ -1148,7 +1146,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (!useNativeDanmaku && danmakuController == null) return;
 
     if (lastDanmakuIndex < danmakuList.length) {
-      final nextDmTime = danmakuList[lastDanmakuIndex]['time'] as double;
+      final nextDmTime = danmakuList[lastDanmakuIndex].time;
       // 检测跳转 (Seek)
       if (currentTime - nextDmTime > 5.0) {
         resetDanmakuIndex(Duration(seconds: currentTime.toInt()));
@@ -1167,13 +1165,13 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     while (lastDanmakuIndex < danmakuList.length) {
       final dm = danmakuList[lastDanmakuIndex];
-      final time = dm['time'] as double;
+      final time = dm.time;
 
       if (time <= currentTime) {
         if (currentTime - time < 1.0) {
           Map<String, dynamic>? dmItem = {
-            'content': dm['content'],
-            'color': dm['color'],
+            'content': dm.content,
+            'color': dm.color,
           };
 
           DanmakuStyle? style;
@@ -1217,15 +1215,13 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   void _startDanmakuSyncTimer() {
     danmakuSyncTimer?.cancel();
-    danmakuSyncTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+    danmakuSyncTimer = Timer.periodic(SettingsService.danmakuSyncInterval, (_) {
       if (!mounted ||
           !danmakuEnabled ||
           videoController == null ||
           !videoController!.value.isInitialized ||
           !videoController!.value.isPlaying ||
-          (_useNativeDanmakuRender
-              ? false
-              : danmakuController == null)) {
+          (_useNativeDanmakuRender ? false : danmakuController == null)) {
         return;
       }
       syncDanmaku(videoController!.value.position.inMilliseconds / 1000.0);
@@ -1235,9 +1231,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
   void resetDanmakuIndex(Duration position) {
     if (danmakuList.isEmpty) return;
     final seconds = position.inSeconds.toDouble();
-    int index = danmakuList.indexWhere(
-      (dm) => (dm['time'] as double) >= seconds,
-    );
+    int index = danmakuList.indexWhere((dm) => dm.time >= seconds);
     if (index == -1) {
       index = danmakuList.length;
     }
@@ -1580,18 +1574,23 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   /// 加载视频快照(雪碧图)数据
-  Future<void> loadVideoshot() async {
-    // 始终尝试加载数据，以便在用户启用设置时能够立即使用
+  Future<void> loadVideoshot({
+    bool preloadAllSprites = true,
+    bool precacheFirstSprite = true,
+  }) async {
     try {
       final data = await BilibiliApi.getVideoshot(
         bvid: widget.video.bvid,
         cid: cid,
+        preloadAllImages: preloadAllSprites,
       );
       if (mounted && data != null) {
         setState(() => videoshotData = data);
         precachedSpriteIndex = -1;
-        // 预缓存第一张雪碧图到 GPU
-        _precacheNextSprite(0);
+        if (precacheFirstSprite) {
+          // 预缓存第一张雪碧图到 GPU
+          _precacheNextSprite(0);
+        }
       }
     } catch (e) {
       debugPrint('Failed to load videoshot: $e');
@@ -1621,8 +1620,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
     final frame = videoshotData!.getIndex(position);
     final spriteIdx = frame ~/ l;
 
-    // 如果当前帧已超过该雪碧图的 80%，预加载下一张
-    if (frame % l > l * 0.8 && spriteIdx + 1 < videoshotData!.images.length) {
+    final threshold = SettingsService.videoshotPreloadThreshold;
+    if (frame % l > l * threshold &&
+        spriteIdx + 1 < videoshotData!.images.length) {
       _precacheNextSprite(spriteIdx + 1);
     }
   }
@@ -1763,16 +1763,19 @@ mixin PlayerActionMixin on PlayerStateMixin {
     NativePlayerDanmakuService.updateOption(videoController, currentOption);
     danmakuOptionApplyTimer?.cancel();
     int retries = 0;
-    danmakuOptionApplyTimer = Timer.periodic(const Duration(milliseconds: 180), (timer) {
-      NativePlayerDanmakuService.updateOption(videoController, currentOption);
-      retries++;
-      if (retries >= 10 || !mounted || videoController == null) {
-        timer.cancel();
-        if (identical(danmakuOptionApplyTimer, timer)) {
-          danmakuOptionApplyTimer = null;
+    danmakuOptionApplyTimer = Timer.periodic(
+      const Duration(milliseconds: 180),
+      (timer) {
+        NativePlayerDanmakuService.updateOption(videoController, currentOption);
+        retries++;
+        if (retries >= 10 || !mounted || videoController == null) {
+          timer.cancel();
+          if (identical(danmakuOptionApplyTimer, timer)) {
+            danmakuOptionApplyTimer = null;
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   void toggleStatsForNerds() async {
@@ -1786,6 +1789,12 @@ mixin PlayerActionMixin on PlayerStateMixin {
         lastStatsTime = null;
       }
     });
+    if (showStatsForNerds) {
+      _startStatsTimer();
+    } else {
+      statsTimer?.cancel();
+      statsTimer = null;
+    }
     ToastUtils.dismiss();
     ToastUtils.show(context, showStatsForNerds ? '视频数据实时监测已开启' : '视频数据实时监测已关闭');
   }
@@ -1801,9 +1810,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   void _startStatsTimer() {
     statsTimer?.cancel();
+    if (!showStatsForNerds) return;
     lastStatsBuffered = Duration.zero;
     lastStatsTime = null;
-    statsTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+    statsTimer = Timer.periodic(SettingsService.statsInterval, (_) {
       _updateStatsForNerds();
     });
   }

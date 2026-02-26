@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 import 'package:bili_tv_app/config/app_style.dart';
 import 'value_picker_popup.dart';
@@ -10,10 +11,13 @@ import 'value_picker_popup.dart';
 class SettingDropdownRow<T> extends StatelessWidget {
   final String label;
   final String? subtitle;
+  final Widget? subtitleWidget; // 优先于 subtitle，支持富文本
   final T value;
   final List<T> items;
   final String Function(T) itemLabel;
   final ValueChanged<T?> onChanged;
+  final bool autofocus;
+  final FocusNode? focusNode;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final FocusNode? sidebarFocusNode;
@@ -24,10 +28,13 @@ class SettingDropdownRow<T> extends StatelessWidget {
     super.key,
     required this.label,
     this.subtitle,
+    this.subtitleWidget,
     required this.value,
     required this.items,
     required this.itemLabel,
     required this.onChanged,
+    this.autofocus = false,
+    this.focusNode,
     this.onMoveUp,
     this.onMoveDown,
     this.sidebarFocusNode,
@@ -50,143 +57,110 @@ class SettingDropdownRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      onKeyEvent: (node, event) {
-        // 处理左右键导航和值切换
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-
-        switch (event.logicalKey) {
-          case LogicalKeyboardKey.arrowLeft:
-            sidebarFocusNode?.requestFocus();
-            return KeyEventResult.handled;
-
-          case LogicalKeyboardKey.arrowUp:
-            if (isFirst && onMoveUp != null) {
-              onMoveUp!();
-              return KeyEventResult.handled;
-            }
-            if (isFirst) return KeyEventResult.handled;
-            FocusTraversalGroup.of(node.context!).inDirection(
-              node,
-              TraversalDirection.up,
-            );
-            return KeyEventResult.handled;
-
-          case LogicalKeyboardKey.arrowDown:
-            if (isLast && onMoveDown != null) {
-              onMoveDown!();
-              return KeyEventResult.handled;
-            }
-            if (isLast) return KeyEventResult.handled;
-            FocusTraversalGroup.of(node.context!).inDirection(
-              node,
-              TraversalDirection.down,
-            );
-            return KeyEventResult.handled;
-
-          case LogicalKeyboardKey.arrowRight:
-          case LogicalKeyboardKey.enter:
-          case LogicalKeyboardKey.select:
-            // 防止长按确认反复弹窗
-            if (event is KeyDownEvent) {
-              _showPicker(context);
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-
-          default:
-            return KeyEventResult.ignored;
-        }
-      },
+    return TvFocusScope(
+      pattern: FocusPattern.vertical,
+      enableKeyRepeat: true,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      exitLeft: sidebarFocusNode,
+      onExitUp: isFirst ? onMoveUp : null,
+      onExitDown: isLast ? onMoveDown : null,
+      isFirst: isFirst,
+      isLast: isLast,
+      onSelect: () => _showPicker(context),
       child: Builder(
         builder: (context) {
-          final focusScope = Focus.of(context);
-          final isFocused = focusScope.hasFocus;
+          final isFocused = Focus.of(context).hasFocus;
           return MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _showPicker(context),
               child: Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(
-                minHeight: AppSpacing.settingItemMinHeight,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: AppSpacing.settingItemVerticalPadding,
-              ),
-              decoration: BoxDecoration(
-                color: isFocused
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: isFocused ? Colors.white : Colors.white70,
-                            fontSize: AppFonts.sizeMD,
-                          ),
-                        ),
-                        if (subtitle != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              subtitle!,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: AppSpacing.settingItemRightHeight,
-                    child: Container(
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: isFocused
-                            ? SettingsService.themeColor
-                            : Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                width: double.infinity,
+                constraints: const BoxConstraints(
+                  minHeight: AppSpacing.settingItemMinHeight,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: AppSpacing.settingItemVerticalPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: isFocused
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            itemLabel(value),
+                            label,
                             style: TextStyle(
                               color: isFocused ? Colors.white : Colors.white70,
-                              fontSize: 14,
+                              fontSize: AppFonts.sizeMD,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.unfold_more,
-                            size: 16,
-                            color: isFocused ? Colors.white : Colors.white54,
-                          ),
+                          if (subtitleWidget != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: subtitleWidget!,
+                            )
+                          else if (subtitle != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                subtitle!,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    SizedBox(
+                      height: AppSpacing.settingItemRightHeight,
+                      child: Container(
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: isFocused
+                              ? SettingsService.themeColor
+                              : Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              itemLabel(value),
+                              style: TextStyle(
+                                color: isFocused
+                                    ? Colors.white
+                                    : Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.unfold_more,
+                              size: 16,
+                              color: isFocused ? Colors.white : Colors.white54,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

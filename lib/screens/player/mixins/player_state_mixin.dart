@@ -5,6 +5,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import '../player_screen.dart';
 import '../widgets/settings_panel.dart';
 import '../../../models/videoshot.dart';
+import '../../../models/danmaku_item.dart';
 
 /// 播放器状态 Mixin
 /// 包含所有 State 变量
@@ -94,7 +95,7 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   Map<String, dynamic>? nextEpisodeInfo; // {title, pic}
 
   // 弹幕数据
-  List<dynamic> danmakuList = [];
+  List<BiliDanmakuItem> danmakuList = [];
   int lastDanmakuIndex = 0;
   DateTime? lastUiRebuildAt;
   DateTime? lastPluginHandleAt;

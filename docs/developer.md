@@ -97,3 +97,27 @@
 2. `developer_settings.dart`：新增 UI 开关与本地状态字段
 3. 生效组件：读取该设置并在需要时监听回调
 4. `docs/developer.md`：补充“入口/写入/生效点”三段信息
+
+## 5. Android API21 兼容构建说明
+
+当前仓库为了兼容 Android 5.0/6.0 测试，采用了低版本 Android 构建路径，关键点如下：
+
+1. `android/app/build.gradle.kts`
+   - `appMinSdk = 21`
+   - `minSdk = appMinSdk`
+2. `packages/video_player_android/android/build.gradle`
+   - `minSdkVersion 21`
+3. `pubspec.yaml`
+   - `dependency_overrides.shared_preferences_android = 2.4.17`
+   - 备注：`2.4.18+` 已将 Android `minSdk` 提升到 `24`
+
+构建命令（ARM 真机测试）：
+
+```bash
+bash scripts/build_apk_matrix.sh --obfuscate --split-debug-info=build/symbols --android-skip-build-dependency-validation
+```
+
+说明：
+
+- `--android-skip-build-dependency-validation` 只跳过 Flutter 侧的最低版本校验，不会绕过 Gradle 的真实 `minSdk` 冲突检查。
+- 如需恢复主线较新 Android 策略（例如 `minSdk 24`），请同步调整上述 3 处配置，避免本地/CI 结果不一致。

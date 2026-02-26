@@ -55,6 +55,8 @@ dependencies:
 dependency_overrides:
   video_player_android:
     path: packages/video_player_android
+  # 2.4.18+ raises Android minSdk to 24; pin 2.4.17 for API 21 compatibility.
+  shared_preferences_android: 2.4.17
 
 dev_dependencies:
   flutter_test:

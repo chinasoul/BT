@@ -204,9 +204,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    // 普通模式 / 聚焦即切换模式 均通过确认键切换 tab
-    _visitedTabs.add(index);
-    setState(() => _selectedTabIndex = index);
+    _switchToTab(index);
+  }
+
+  void _switchToTab(int index) {
+    if (index == _selectedTabIndex) return;
+    final previous = _selectedTabIndex;
+    setState(() {
+      _visitedTabs.add(index);
+      _selectedTabIndex = index;
+      if (!SettingsService.keepTabPagesAlive) {
+        _visitedTabs.remove(previous);
+      }
+    });
   }
 
   void _handleLoginSuccess() {
@@ -379,8 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               // 聚焦即切换：移动焦点立刻切换内容
                               // 普通模式：只高亮图标，不切换内容
                               if (SettingsService.focusSwitchTab) {
-                                _visitedTabs.add(index);
-                                setState(() => _selectedTabIndex = index);
+                                _switchToTab(index);
                               }
                             },
                             onTap: () => _handleSideBarTap(index),

@@ -4,6 +4,7 @@ import '../../../../services/settings_service.dart';
 import '../../../../config/app_style.dart';
 import '../../../../core/focus/focus_navigation.dart';
 import '../widgets/setting_action_row.dart';
+import '../widgets/setting_dropdown_row.dart';
 import '../widgets/setting_toggle_row.dart';
 
 class InterfaceSettings extends StatefulWidget {
@@ -108,47 +109,75 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
     );
   }
 
+  Widget _buildTabSwitchPolicyDescription(TabSwitchPolicy mode) {
+    final baseStyle = TextStyle(
+      color: Colors.white.withValues(alpha: 0.55),
+      fontSize: 12,
+      height: 1.45,
+    );
+    switch (mode) {
+      case TabSwitchPolicy.smooth:
+        return Text(
+          '流畅优先：焦点即切页 + 页面驻留，切页最快但内存占用最高',
+          style: baseStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case TabSwitchPolicy.balanced:
+        return Text(
+          '平衡：仅确认键切页 + 页面驻留，避免误切页且占用中等',
+          style: baseStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      case TabSwitchPolicy.memorySaver:
+        return Text.rich(
+          TextSpan(
+            style: baseStyle,
+            children: [
+              const TextSpan(text: '省内存：仅确认键切页 + 离开释放页面，回切可能重新加载，'),
+              TextSpan(
+                text: '低内存设备推荐',
+                style: TextStyle(
+                  color: Colors.amber.shade300,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 获取启用的分区 (用于排序)
     final enabledOrder = _categoryOrder
         .where((name) => SettingsService.isCategoryEnabled(name))
         .toList();
+    final tabSwitchPolicy = SettingsService.tabSwitchPolicy;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 聚焦即切换
-        SettingToggleRow(
-          label: '标签页选中即切换',
-          subtitleWidget: Text.rich(
-            TextSpan(
-              children: [
-                const TextSpan(
-                  text: '焦点移动即切换页面，',
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-                TextSpan(
-                  text: '低内存设备建议关闭',
-                  style: TextStyle(
-                    color: Colors.amber.shade300,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          value: SettingsService.focusSwitchTab,
-          autofocus: true,
+        // 标签页切换策略（合并“焦点即切换”和“页面驻留策略”）
+        SettingDropdownRow<TabSwitchPolicy>(
+          label: '标签页切换策略',
+          subtitleWidget: _buildTabSwitchPolicyDescription(tabSwitchPolicy),
+          value: tabSwitchPolicy,
+          items: TabSwitchPolicy.values.toList(),
+          itemLabel: (mode) => mode.label,
           isFirst: true,
           onMoveUp: widget.onMoveUp,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
-            await SettingsService.setFocusSwitchTab(value);
-            setState(() {});
+            if (value != null) {
+              await SettingsService.setTabSwitchPolicy(value);
+              setState(() {});
+            }
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),

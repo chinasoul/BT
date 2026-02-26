@@ -5,6 +5,7 @@
 package io.flutter.plugins.videoplayer.platformview;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
@@ -58,6 +59,27 @@ public class PlatformViewVideoPlayer extends VideoPlayer {
         asset.getMediaItem(),
         options,
         () -> {
+          // 读取 Flutter 设置中的播放性能模式（0=高,1=中,2=低）
+          final SharedPreferences prefs =
+              context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
+          final int perfMode = (int) prefs.getLong("flutter.playback_performance_mode", 1L);
+
+          int minBufferMs = 3000;
+          int maxBufferMs = 30000;
+          int bufferForPlaybackMs = 1500;
+          int bufferForPlaybackAfterRebufferMs = 3000;
+          if (perfMode == 0) {
+            minBufferMs = 5000;
+            maxBufferMs = 50000;
+            bufferForPlaybackMs = 2000;
+            bufferForPlaybackAfterRebufferMs = 4000;
+          } else if (perfMode == 2) {
+            minBufferMs = 2000;
+            maxBufferMs = 15000;
+            bufferForPlaybackMs = 1000;
+            bufferForPlaybackAfterRebufferMs = 2000;
+          }
+
           androidx.media3.exoplayer.trackselection.DefaultTrackSelector trackSelector =
               new androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context);
           // 启用隧道播放：解码帧直通显示硬件，绕过 Flutter 合成（TV 专用，不支持时自动回退）
@@ -70,10 +92,10 @@ public class PlatformViewVideoPlayer extends VideoPlayer {
           DefaultLoadControl loadControl =
               new DefaultLoadControl.Builder()
                   .setBufferDurationsMs(
-                      5000,   // minBufferMs：最少缓冲 5 秒
-                      50000,  // maxBufferMs：最多缓冲 50 秒
-                      2000,   // bufferForPlaybackMs：起播前缓冲 2 秒
-                      4000)   // bufferForPlaybackAfterRebufferMs：重缓冲后 4 秒再播
+                      minBufferMs,
+                      maxBufferMs,
+                      bufferForPlaybackMs,
+                      bufferForPlaybackAfterRebufferMs)
                   .setPrioritizeTimeOverSizeThresholds(true)
                   .build();
 

@@ -245,10 +245,6 @@ class LiveTabState extends State<LiveTab> {
     if ((_categoryRooms[index] ?? []).isEmpty) {
       _loadDataForCategory(index);
     }
-    // 延迟释放图片缓存，等旧 widget 完成 dispose 后再清理
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      PaintingBinding.instance.imageCache.clear();
-    });
   }
 
   Widget _buildLoadMoreTile() {

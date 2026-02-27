@@ -421,14 +421,11 @@ class HomeTabState extends State<HomeTab> {
 
     _isSwitchingCategory = false;
 
-    // ---- 延迟释放旧分类的 FocusNode + 图片缓存 ----
+    // ---- 延迟释放旧分类的 FocusNode ----
     // 必须在 setState 之后、widget 重建完成后再 dispose，
     // 否则 dispose 会触发焦点迁移，导致递归调用 _switchCategory。
-    // imageCache.clear() 也放在这里：此时旧 widget 已 dispose 掉
-    // ImageStreamCompleter listener，clear 能真正释放 native 图片内存。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _disposeFocusNodesForCategory(prevIndex);
-      PaintingBinding.instance.imageCache.clear();
       // 使用本地缓存数据时显示更新时间 Banner
       if (usedLocalCache) {
         _showUpdateTimeForCurrentCategory();

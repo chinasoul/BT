@@ -545,23 +545,29 @@ class _LiveCategoryTab extends StatelessWidget {
         focusNode: focusNode,
         onFocusChange: (f) => f ? onFocus() : null,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                onMoveLeft != null) {
-              onMoveLeft!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-                onMoveRight != null) {
-              onMoveRight!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.select ||
-                event.logicalKey == LogicalKeyboardKey.enter) {
-              // Refresh or select
-              onTap();
-              return KeyEventResult.handled;
-            }
+          if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+            return KeyEventResult.ignored;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+              onMoveLeft != null) {
+            // 边界循环/回侧边栏仅单击触发；长按到边界应停住
+            if (event is KeyRepeatEvent) return KeyEventResult.handled;
+            onMoveLeft!();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+              onMoveRight != null) {
+            // 边界循环仅单击触发；长按到边界应停住
+            if (event is KeyRepeatEvent) return KeyEventResult.handled;
+            onMoveRight!();
+            return KeyEventResult.handled;
+          }
+          if (event is KeyDownEvent &&
+              (event.logicalKey == LogicalKeyboardKey.select ||
+                  event.logicalKey == LogicalKeyboardKey.enter)) {
+            // Refresh or select
+            onTap();
+            return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
         },

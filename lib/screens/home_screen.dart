@@ -385,6 +385,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             avatarUrl: avatarUrl,
                             isSelected: _selectedTabIndex == index,
                             focusNode: _sideBarFocusNodes[index],
+                            isFirst: index == 0,
+                            isLast: index == _mainTabIcons.length - 1,
                             onFocus: () {
                               // 聚焦即切换：移动焦点立刻切换内容
                               // 普通模式：只高亮图标，不切换内容

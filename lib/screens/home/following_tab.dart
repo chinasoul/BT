@@ -1097,11 +1097,13 @@ class _TopTab extends StatelessWidget {
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
             onMoveLeft != null) {
+          if (event is KeyRepeatEvent) return KeyEventResult.handled;
           onMoveLeft!();
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
             onMoveRight != null) {
+          if (event is KeyRepeatEvent) return KeyEventResult.handled;
           onMoveRight!();
           return KeyEventResult.handled;
         }
@@ -1204,11 +1206,13 @@ class _FolderTab extends StatelessWidget {
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
             onMoveLeft != null) {
+          if (event is KeyRepeatEvent) return KeyEventResult.handled;
           onMoveLeft!();
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
             onMoveRight != null) {
+          if (event is KeyRepeatEvent) return KeyEventResult.handled;
           onMoveRight!();
           return KeyEventResult.handled;
         }

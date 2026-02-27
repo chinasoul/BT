@@ -42,9 +42,10 @@ class TvFocusableItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TvFocusScope(
-    pattern: FocusPattern.grid,
+    pattern: FocusPattern.vertical,
     focusNode: focusNode,
     autofocus: autofocus,
+    enableKeyRepeat: true,
     onFocusChange: (f) => f ? onFocus() : null,
     onExitUp: onMoveUp,
     onExitDown: onMoveDown,

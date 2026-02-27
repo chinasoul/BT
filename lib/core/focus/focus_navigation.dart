@@ -224,6 +224,13 @@ class TvFocusScope extends StatelessWidget {
 
     switch (pattern) {
       case FocusPattern.vertical:
+        // 长按到边界时停住：单击触发循环/退出，长按重复不触发边界回调。
+        if (enableKeyRepeat && event is KeyRepeatEvent) {
+          if ((isFirst && event.logicalKey == LogicalKeyboardKey.arrowUp) ||
+              (isLast && event.logicalKey == LogicalKeyboardKey.arrowDown)) {
+            return KeyEventResult.handled;
+          }
+        }
         return handler(
           event,
           // 垂直模式使用方向性导航，避免 previous/next 跨区“串焦点”
@@ -237,6 +244,13 @@ class TvFocusScope extends StatelessWidget {
         );
 
       case FocusPattern.horizontal:
+        // 长按到边界时停住：单击触发循环/退出，长按重复不触发边界回调。
+        if (enableKeyRepeat && event is KeyRepeatEvent) {
+          if ((isFirst && event.logicalKey == LogicalKeyboardKey.arrowLeft) ||
+              (isLast && event.logicalKey == LogicalKeyboardKey.arrowRight)) {
+            return KeyEventResult.handled;
+          }
+        }
         return handler(
           event,
           onUp: _getExitUpHandler(),

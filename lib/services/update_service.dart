@@ -249,40 +249,6 @@ class UpdateService {
     return 0;
   }
 
-  /// 优先从 release body 中提取 APK 下载链接（如 R2 镜像链接）
-  static String? _pickApkUrlFromBody(String body, String arch) {
-    if (body.trim().isEmpty) return null;
-
-    final urlRegex = RegExp(
-      r'https?://[^\s\)\]\}<>"]+\.apk(?:\?[^\s\)\]\}<>"]*)?',
-      caseSensitive: false,
-    );
-    final matches = urlRegex.allMatches(body).map((m) => m.group(0)!).toList();
-    if (matches.isEmpty) return null;
-
-    final candidates = <String>{};
-    for (final url in matches) {
-      candidates.add(url);
-    }
-    final urls = candidates.toList();
-
-    final archPattern = arch == 'armeabi-v7a'
-        ? RegExp(r'v7|armeabi|arm.?32', caseSensitive: false)
-        : RegExp(r'v8|arm64|aarch64', caseSensitive: false);
-
-    for (final url in urls) {
-      final uri = Uri.tryParse(url);
-      final fileName = uri?.pathSegments.isNotEmpty == true
-          ? uri!.pathSegments.last
-          : '';
-      if (archPattern.hasMatch(url) || archPattern.hasMatch(fileName)) {
-        return url;
-      }
-    }
-
-    return urls.first;
-  }
-
   static String? _pickApkAssetUrl(
     List<dynamic> assets,
     String arch,
@@ -315,6 +281,21 @@ class UpdateService {
     return (apkAssets.first['browser_download_url'] ?? '').toString();
   }
 
+  static String _ensureTagPrefix(String tag) {
+    final t = tag.trim();
+    if (t.isEmpty) return t;
+    return (t.startsWith('v') || t.startsWith('V')) ? t : 'v$t';
+  }
+
+  /// 当 Gitee release 没有 assets 时，回退到 GitHub release 约定命名链接。
+  static String? _buildGitHubReleaseApkUrl(String releaseTag, String arch) {
+    if (!_isGitHubConfigured) return null;
+    final tag = _ensureTagPrefix(releaseTag);
+    if (tag.isEmpty) return null;
+    final fileName = arch == 'armeabi-v7a' ? 'v7a.apk' : 'v8a.apk';
+    return 'https://github.com/$githubRepo/releases/download/$tag/$fileName';
+  }
+
   // ============ 通用 Release 检查 ============
 
   /// 从指定 API 端点检查更新（GitHub / Gitee 通用）
@@ -334,8 +315,8 @@ class UpdateService {
       final release = Map<String, dynamic>.from(jsonDecode(response.body));
       if ((release['draft'] ?? false) == true) return null;
 
-      final tagName =
-          _normalizeVersion((release['tag_name'] ?? '').toString());
+      final rawTag = (release['tag_name'] ?? '').toString();
+      final tagName = _normalizeVersion(rawTag);
       if (tagName.isEmpty) return null;
 
       final packageInfo = await PackageInfo.fromPlatform();
@@ -348,19 +329,28 @@ class UpdateService {
 
       final arch = await _getDeviceArch();
       final body = (release['body'] ?? '').toString();
-      final bodyApkUrl = _pickApkUrlFromBody(body, arch);
       final assets = (release['assets'] as List?) ?? const [];
       final assetApkUrl = _pickApkAssetUrl(assets, arch);
-      final apkUrl = bodyApkUrl ?? assetApkUrl;
+      final fromGitee = apiUrl.contains('gitee.com');
+      final githubFallbackApkUrl = fromGitee
+          ? _buildGitHubReleaseApkUrl(rawTag.isNotEmpty ? rawTag : tagName, arch)
+          : null;
+
+      final apkUrl = assetApkUrl ?? githubFallbackApkUrl;
       if (apkUrl == null || apkUrl.isEmpty) return null;
 
-      // body 链接优先；若主链接不可达，立即回退到 assets
       final fallbackUrls = <String>[];
       if (assetApkUrl != null &&
           assetApkUrl.isNotEmpty &&
           assetApkUrl != apkUrl &&
           !fallbackUrls.contains(assetApkUrl)) {
         fallbackUrls.add(assetApkUrl);
+      }
+      if (githubFallbackApkUrl != null &&
+          githubFallbackApkUrl.isNotEmpty &&
+          githubFallbackApkUrl != apkUrl &&
+          !fallbackUrls.contains(githubFallbackApkUrl)) {
+        fallbackUrls.add(githubFallbackApkUrl);
       }
 
       return UpdateCheckResult(

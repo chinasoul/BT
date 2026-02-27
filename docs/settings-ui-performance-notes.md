@@ -286,3 +286,53 @@
 - 已完成：弹幕 typed class 改造
 - 已完成：标签页切换策略与省内存模式对齐
 - 已完成：播放器侧边面板 & UP主弹窗图片解码优化（消除 +150MB 峰值）
+
+## 8. 新增设置语义与默认值调整（2026-02）
+
+本节记录近期对播放/界面/弹幕设置的语义升级和默认值调整，避免后续误改回旧行为。
+
+### 8.1 播放设置：自动连播 -> 播放完成后的行为
+
+文件：
+
+- `lib/services/settings_service.dart`
+- `lib/screens/home/settings/tabs/playback_settings.dart`
+- `lib/screens/player/mixins/player_action_mixin.dart`
+- `lib/screens/player/player_screen.dart`
+
+改动：
+
+- 原布尔开关“自动连播”已替换为枚举“播放完成后的行为”
+- 四个选项：
+  - `暂停播放`：播放完成后暂停并停留当前页
+  - `退出播放`：播放完成后退出播放器并返回来源页
+  - `播放下一集`：分P/合集自动切到下一集（无下一集则停留暂停）
+  - `播放推荐视频`：播放完成后跳转推荐视频
+- 右上角提示仅在“播放下一集”模式展示，避免语义错位
+
+### 8.2 弹幕设置：原生弹幕渲染优化默认开启 + 行高对齐
+
+文件：
+
+- `lib/services/settings_service.dart`
+- `lib/screens/player/mixins/player_action_mixin.dart`
+- `lib/screens/home/settings/tabs/danmaku_settings.dart`
+
+改动：
+
+- `prefer_native_danmaku` 默认值从关闭改为开启
+- 播放器初始化读取该项的兜底默认值同步改为开启
+- 设置页“原生弹幕渲染优化”改用标准 `subtitle`（单行省略），不再使用自定义 `subtitleWidget`
+- 目的：与其他设置项保持一致的行高与视觉对齐
+
+### 8.3 界面设置：显示时间默认开启
+
+文件：
+
+- `lib/services/settings_service.dart`
+- `lib/screens/home/settings/tabs/interface_settings.dart`
+
+改动：
+
+- `show_time_display` 默认值从关闭改为开启
+- 首次安装/无历史配置时，右上角时间默认可见

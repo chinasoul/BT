@@ -141,7 +141,6 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                 style: TextStyle(
                   color: Colors.amber.shade300,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],

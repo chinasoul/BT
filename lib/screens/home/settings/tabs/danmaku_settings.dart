@@ -61,14 +61,30 @@ class _DanmakuSettingsState extends State<DanmakuSettings> {
 
   @override
   Widget build(BuildContext context) {
+    final baseSubtitleStyle = TextStyle(
+      color: Colors.white.withValues(alpha: 0.55),
+      fontSize: 12,
+      height: 1.45,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingToggleRow(
           label: '原生弹幕渲染优化',
-          subtitleWidget: Text(
-            '若弹幕卡顿可开启',
-            style: TextStyle(color: Colors.amber.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+          subtitleWidget: Text.rich(
+            TextSpan(
+              style: baseSubtitleStyle,
+              children: [
+                const TextSpan(text: '关闭为flutter模式，开启为原生模式，'),
+                TextSpan(
+                  text: '若卡顿可开启',
+                  style: TextStyle(
+                    color: Colors.amber.shade300,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

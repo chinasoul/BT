@@ -41,7 +41,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       danmakuSpeed = prefs.getDouble('danmaku_speed') ?? 10.0;
       hideTopDanmaku = prefs.getBool('hide_top_danmaku') ?? false;
       hideBottomDanmaku = prefs.getBool('hide_bottom_danmaku') ?? false;
-      preferNativeDanmaku = prefs.getBool('prefer_native_danmaku') ?? false;
+      preferNativeDanmaku = prefs.getBool('prefer_native_danmaku') ?? true;
       subtitleEnabled = prefs.getBool('subtitle_enabled') ?? false;
       // 根据设置决定是否显示控制栏
       showControls = !SettingsService.hideControlsOnStart;
@@ -122,7 +122,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
             }
           }
 
-          // 🔥 轻量预计算：只提取"是否有多集"和"下一集信息"，用于自动连播
+          // 🔥 轻量预计算：只提取"是否有多集"和"下一集信息"，用于播放完成后行为
           // 不存储完整列表，避免影响渲染
           _precomputeNextEpisode(videoInfo);
 
@@ -154,7 +154,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       // 注意：集数焦点索引在延迟加载完整集数列表后设置（见 deferredEpisodes 逻辑）
 
-      // 异步加载相关视频 (用于自动连播)
+      // 异步加载相关视频 (用于播放完成后行为)
       BilibiliApi.getRelatedVideos(widget.video.bvid).then((videos) {
         if (mounted) {
           relatedVideos = videos
@@ -721,7 +721,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     _checkSpritePreload(value.position);
     _syncSubtitle(value.position);
 
-    // 下一集预览倒计时（多集/合集 + 自动连播开启时）
+    // 下一集预览倒计时（多集/合集 + 播放下一集模式）
     _updateNextEpisodePreview(value);
 
     // ── 播放完成检测 (三级策略) ──
@@ -842,7 +842,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   /// 更新下一集预览倒计时
   void _updateNextEpisodePreview(VideoPlayerValue value) {
-    if (!SettingsService.autoPlay ||
+    if (SettingsService.playbackCompletionAction !=
+            PlaybackCompletionAction.playNextEpisode ||
         hasHandledVideoComplete ||
         !hasMultipleEpisodes) {
       if (showNextEpisodePreview) {
@@ -1193,6 +1194,15 @@ mixin PlayerActionMixin on PlayerStateMixin {
     );
   }
 
+  void _exitPlayerAfterCompletion() {
+    // 与手动退出保持一致：先移除监听再暂停，避免闪现暂停指示。
+    cancelPlayerListeners();
+    videoController?.pause();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   /// 视频播放完成回调
   void onVideoComplete() {
     // 防止重复触发
@@ -1214,67 +1224,80 @@ mixin PlayerActionMixin on PlayerStateMixin {
     hideTimer?.cancel();
     setState(() => showControls = true);
 
-    // 检查是否开启自动连播
-    if (!SettingsService.autoPlay) return;
+    final completionAction = SettingsService.playbackCompletionAction;
 
-    // 1. 检查是否有下一集（使用预计算数据，O(1)）
-    if (precomputedNextEpisode != null) {
-      final nextEp = precomputedNextEpisode!;
-      final nextTitle = nextEp['title'] ?? '下一集';
-      ToastUtils.show(context, '自动播放下一集: $nextTitle');
-
-      if (isUgcSeason) {
-        // 合集：直接导航到新播放器（不依赖 episodes 列表）
-        final bvid = nextEp['bvid'] as String? ?? '';
-        if (bvid.isNotEmpty && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => PlayerScreen(
-                video: models.Video(
-                  bvid: bvid,
-                  title: nextEp['title'] ?? '',
-                  pic: nextEp['pic'] ?? '',
-                  ownerName: widget.video.ownerName,
-                  ownerFace: widget.video.ownerFace,
-                  duration: nextEp['duration'] ?? 0,
-                  pubdate: widget.video.pubdate,
-                  view: 0,
-                ),
-              ),
-            ),
-          );
-        }
-      } else if (nextEp['cid'] != null) {
-        // 分P：同一视频内切换 cid
-        switchEpisode(nextEp['cid'] as int);
-      }
+    if (completionAction == PlaybackCompletionAction.exit) {
+      reportPlaybackProgress(overrideProgress: -1);
+      _exitPlayerAfterCompletion();
       return;
     }
 
-    // 2. 所有集数播完，检查相关视频
-    if (relatedVideos.isNotEmpty) {
-      final nextVideo = relatedVideos.first;
-      ToastUtils.show(context, '自动播放推荐视频');
-      // 导航到新视频
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => PlayerScreen(
-            video: models.Video(
-              bvid: nextVideo['bvid'] ?? '',
-              title: nextVideo['title'] ?? '',
-              pic: nextVideo['pic'] ?? '',
-              ownerName: nextVideo['owner']?['name'] ?? '',
-              ownerFace: nextVideo['owner']?['face'] ?? '',
-              duration: nextVideo['duration'] ?? 0,
-              pubdate: nextVideo['pubdate'] ?? 0,
-              view: nextVideo['stat']?['view'] ?? 0,
-            ),
-          ),
-        ),
-      );
+    if (completionAction == PlaybackCompletionAction.playNextEpisode) {
+      // 检查是否有下一集（使用预计算数据，O(1)）
+      if (precomputedNextEpisode != null) {
+        final nextEp = precomputedNextEpisode!;
+        final nextTitle = nextEp['title'] ?? '下一集';
+        ToastUtils.show(context, '自动播放下一集: $nextTitle');
+
+        if (isUgcSeason) {
+          // 合集：直接导航到新播放器（不依赖 episodes 列表）
+          final bvid = nextEp['bvid'] as String? ?? '';
+          if (bvid.isNotEmpty && mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  video: models.Video(
+                    bvid: bvid,
+                    title: nextEp['title'] ?? '',
+                    pic: nextEp['pic'] ?? '',
+                    ownerName: widget.video.ownerName,
+                    ownerFace: widget.video.ownerFace,
+                    duration: nextEp['duration'] ?? 0,
+                    pubdate: widget.video.pubdate,
+                    view: 0,
+                  ),
+                ),
+              ),
+            );
+          }
+        } else if (nextEp['cid'] != null) {
+          // 分P：同一视频内切换 cid
+          switchEpisode(nextEp['cid'] as int);
+        }
+      }
+      reportPlaybackProgress(overrideProgress: -1);
+      return;
     }
 
-    // 🔥 3. 无论是否有后续动作，都强制上报一次"已看完"
+    if (completionAction == PlaybackCompletionAction.playRecommended) {
+      if (relatedVideos.isNotEmpty) {
+        final nextVideo = relatedVideos.first;
+        ToastUtils.show(context, '自动播放推荐视频');
+        // 导航到新视频
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              video: models.Video(
+                bvid: nextVideo['bvid'] ?? '',
+                title: nextVideo['title'] ?? '',
+                pic: nextVideo['pic'] ?? '',
+                ownerName: nextVideo['owner']?['name'] ?? '',
+                ownerFace: nextVideo['owner']?['face'] ?? '',
+                duration: nextVideo['duration'] ?? 0,
+                pubdate: nextVideo['pubdate'] ?? 0,
+                view: nextVideo['stat']?['view'] ?? 0,
+              ),
+            ),
+          ),
+        );
+      }
+      reportPlaybackProgress(overrideProgress: -1);
+      return;
+    }
+
+    // pause: 无后续动作，保持暂停状态。
+
+    // 🔥 无论是否有后续动作，都强制上报一次"已看完"
     reportPlaybackProgress(overrideProgress: -1);
   }
 

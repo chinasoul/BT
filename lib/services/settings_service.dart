@@ -38,6 +38,17 @@ enum PlaybackPerformanceMode {
   const PlaybackPerformanceMode(this.label);
 }
 
+/// 播放完成后行为
+enum PlaybackCompletionAction {
+  pause('暂停播放'),
+  exit('退出播放'),
+  playNextEpisode('播放下一集'),
+  playRecommended('播放推荐视频');
+
+  final String label;
+  const PlaybackCompletionAction(this.label);
+}
+
 /// 自定义缓存管理器
 class BiliCacheManager {
   static const key = 'biliTvCache';
@@ -155,18 +166,23 @@ class SettingsService {
     await _prefs!.setBool(_useHardwareDecodeKey, value);
   }
 
-  // 自动连播设置
-  static const String _autoPlayKey = 'auto_play';
+  // 播放完成后行为设置
+  static const String _playbackCompletionActionKey =
+      'playback_completion_action';
 
-  /// 是否自动连播
-  static bool get autoPlay {
-    return _prefs?.getBool(_autoPlayKey) ?? false; // 默认关闭
+  /// 播放完成后行为
+  static PlaybackCompletionAction get playbackCompletionAction {
+    final index = _prefs?.getInt(_playbackCompletionActionKey) ?? 0; // 默认暂停
+    return PlaybackCompletionAction
+        .values[index.clamp(0, PlaybackCompletionAction.values.length - 1)];
   }
 
-  /// 设置自动连播
-  static Future<void> setAutoPlay(bool value) async {
+  /// 设置播放完成后行为
+  static Future<void> setPlaybackCompletionAction(
+    PlaybackCompletionAction value,
+  ) async {
     await init();
-    await _prefs!.setBool(_autoPlayKey, value);
+    await _prefs!.setInt(_playbackCompletionActionKey, value.index);
   }
 
   // 首选编解码器设置
@@ -244,7 +260,7 @@ class SettingsService {
 
   /// 是否显示时间（全局控制）
   static bool get showTimeDisplay {
-    return _prefs?.getBool(_showTimeDisplayKey) ?? false; // 默认关闭
+    return _prefs?.getBool(_showTimeDisplayKey) ?? true; // 默认开启
   }
 
   /// 设置是否显示时间（全局控制）
@@ -454,9 +470,9 @@ class SettingsService {
     await _prefs!.setBool(_hideBottomDanmakuKey, value);
   }
 
-  /// 优先使用原生弹幕渲染 (Android, 默认关闭)
+  /// 优先使用原生弹幕渲染 (Android, 默认开启)
   static bool get preferNativeDanmaku =>
-      _prefs?.getBool(_preferNativeDanmakuKey) ?? false;
+      _prefs?.getBool(_preferNativeDanmakuKey) ?? true;
   static Future<void> setPreferNativeDanmaku(bool value) async {
     await init();
     await _prefs!.setBool(_preferNativeDanmakuKey, value);

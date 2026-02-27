@@ -20,6 +20,19 @@ class PlaybackSettings extends StatefulWidget {
 }
 
 class _PlaybackSettingsState extends State<PlaybackSettings> {
+  String _buildCompletionActionDescription(PlaybackCompletionAction action) {
+    switch (action) {
+      case PlaybackCompletionAction.pause:
+        return '暂停视频，停留在当前播放页';
+      case PlaybackCompletionAction.exit:
+        return '退出播放器并返回来源页面';
+      case PlaybackCompletionAction.playNextEpisode:
+        return '播放分P或合集的下一集，最后一集时暂停';
+      case PlaybackCompletionAction.playRecommended:
+        return '自动播放推荐视频';
+    }
+  }
+
   Widget _buildPerformanceModeDescription(PlaybackPerformanceMode mode) {
     final baseStyle = TextStyle(
       color: Colors.white.withValues(alpha: 0.55),
@@ -54,7 +67,6 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
                 style: TextStyle(
                   color: Colors.amber.shade300,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -68,6 +80,7 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
   @override
   Widget build(BuildContext context) {
     final performanceMode = SettingsService.playbackPerformanceMode;
+    final completionAction = SettingsService.playbackCompletionAction;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,14 +107,18 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
-        SettingToggleRow(
-          label: '自动连播',
-          subtitle: '视频播完自动播放下一集或推荐视频',
-          value: SettingsService.autoPlay,
+        SettingDropdownRow<PlaybackCompletionAction>(
+          label: '播放完成后',
+          subtitle: _buildCompletionActionDescription(completionAction),
+          value: completionAction,
+          items: PlaybackCompletionAction.values.toList(),
+          itemLabel: (action) => action.label,
           sidebarFocusNode: widget.sidebarFocusNode,
-          onChanged: (value) async {
-            await SettingsService.setAutoPlay(value);
-            setState(() {});
+          onChanged: (action) async {
+            if (action != null) {
+              await SettingsService.setPlaybackCompletionAction(action);
+              setState(() {});
+            }
           },
         ),
         const SizedBox(height: AppSpacing.settingItemGap),

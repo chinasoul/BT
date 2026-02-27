@@ -80,6 +80,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
+    final completionAction = SettingsService.playbackCompletionAction;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: onPopInvoked,
@@ -354,8 +355,8 @@ class _PlayerScreenState extends State<PlayerScreen>
               if (SettingsService.alwaysShowPlayerTime)
                 const Positioned(top: 10, right: 14, child: TimeDisplay()),
 
-              // 自动连播提示 (全局开启 + 多集视频时显示)
-              if (SettingsService.autoPlay &&
+              // 播放完成行为提示（仅“播放下一集”且多集视频时显示）
+              if (completionAction == PlaybackCompletionAction.playNextEpisode &&
                   hasMultipleEpisodes &&
                   !isLoading &&
                   videoController != null)
@@ -372,7 +373,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '自动连播已开启',
+                      '播放完成后：下一集',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,

@@ -85,7 +85,7 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   bool isUgcSeason = false; // 是否为合集（ugc_season），合集的每集有不同 bvid
   bool episodesFullyLoaded = false; // 标记 episodes 是否已填充完整合集数据
 
-  // 自动连播用：预计算的下一集信息（不需要加载完整列表）
+  // 播放完成后行为用：预计算的下一集信息（不需要加载完整列表）
   Map<String, dynamic>? precomputedNextEpisode; // {title, pic, bvid?, cid?}
   bool hasMultipleEpisodes = false; // 是否有多集（合集或分P > 1）
   String? currentEpisodeTitle; // 当前集标题（用于 getDisplayVideo）
@@ -126,7 +126,7 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   // 自动续播
   int? initialProgress; // 从历史记录恢复的进度
 
-  // 相关视频 (用于自动连播)
+  // 相关视频 (用于播放完成后行为)
   List<dynamic> relatedVideos = [];
 
   // 返回键处理标志 - 防止 handleGlobalKeyEvent 和 onPopInvoked 重复处理

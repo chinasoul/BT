@@ -82,10 +82,17 @@ class UpdateService {
   // ============ 自动检查配置 ============
   static const String _autoCheckIntervalKey = 'update_auto_check_interval';
   static const String _lastCheckTimeKey = 'update_last_check_time';
+  static const String _downloadSourcePreferenceKey =
+      'update_download_source_preference';
 
   /// 自动检查间隔选项 & 标签
   static const List<int> autoCheckOptions = [0, 1, 3, 7];
   static const List<String> autoCheckLabels = ['关闭', '每天', '每3天', '每7天'];
+  static const List<int> downloadSourceOptions = [0, 1];
+  static const List<String> downloadSourceLabels = [
+    'GitHub直连优先',
+    '国内代理优先',
+  ];
 
   static SharedPreferences? _prefs;
 
@@ -144,6 +151,17 @@ class UpdateService {
   static Future<void> setAutoCheckInterval(int days) async {
     await init();
     await _prefs!.setInt(_autoCheckIntervalKey, days);
+  }
+
+  /// 下载源优先策略（0=GitHub直连优先，1=国内代理优先）
+  static int get downloadSourcePreference {
+    final raw = _prefs?.getInt(_downloadSourcePreferenceKey) ?? 0;
+    return raw.clamp(0, 1);
+  }
+
+  static Future<void> setDownloadSourcePreference(int value) async {
+    await init();
+    await _prefs!.setInt(_downloadSourcePreferenceKey, value.clamp(0, 1));
   }
 
   /// 上次检查时间（毫秒时间戳）
@@ -373,6 +391,12 @@ class UpdateService {
 
   /// 为 GitHub URL 构建代理候选列表：直连 → 代理镜像
   static List<String> _buildGitHubDownloadCandidates(String githubUrl) {
+    if (downloadSourcePreference == 1) {
+      return [
+        ...(_builtinProxies.map((p) => '$p$githubUrl')),
+        githubUrl,
+      ];
+    }
     return [
       githubUrl,
       ...(_builtinProxies.map((p) => '$p$githubUrl')),

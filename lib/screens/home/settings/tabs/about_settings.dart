@@ -27,6 +27,7 @@ class _AboutSettingsState extends State<AboutSettings> {
 
   // 自动检查间隔
   int _autoCheckInterval = 0;
+  int _downloadSourcePreference = 0;
 
   @override
   void initState() {
@@ -47,6 +48,7 @@ class _AboutSettingsState extends State<AboutSettings> {
       setState(() {
         _currentVersion = version;
         _autoCheckInterval = UpdateService.autoCheckInterval;
+        _downloadSourcePreference = UpdateService.downloadSourcePreference;
       });
     }
   }
@@ -122,6 +124,25 @@ class _AboutSettingsState extends State<AboutSettings> {
             if (v == null) return;
             setState(() => _autoCheckInterval = v);
             UpdateService.setAutoCheckInterval(v);
+          },
+          sidebarFocusNode: widget.sidebarFocusNode,
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+        SettingDropdownRow<int>(
+          label: '优先下载源',
+          subtitle: _downloadSourcePreference == 1
+              ? '优先使用 ghfast/ghproxy 等国内代理，再回退直连'
+              : '优先 GitHub 直连，若下载速度慢请切国内代理',
+          value: _downloadSourcePreference,
+          items: UpdateService.downloadSourceOptions,
+          itemLabel: (v) {
+            final idx = UpdateService.downloadSourceOptions.indexOf(v);
+            return idx >= 0 ? UpdateService.downloadSourceLabels[idx] : '$v';
+          },
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() => _downloadSourcePreference = v);
+            UpdateService.setDownloadSourcePreference(v);
           },
           isLast: true,
           sidebarFocusNode: widget.sidebarFocusNode,

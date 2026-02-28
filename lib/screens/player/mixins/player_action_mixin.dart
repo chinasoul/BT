@@ -42,6 +42,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       hideTopDanmaku = prefs.getBool('hide_top_danmaku') ?? false;
       hideBottomDanmaku = prefs.getBool('hide_bottom_danmaku') ?? false;
       preferNativeDanmaku = prefs.getBool('prefer_native_danmaku') ?? true;
+      playbackSpeed = prefs.getDouble('playback_speed') ?? 1.0;
       subtitleEnabled = prefs.getBool('subtitle_enabled') ?? false;
       // 根据设置决定是否显示控制栏
       showControls = !SettingsService.hideControlsOnStart;
@@ -54,8 +55,167 @@ mixin PlayerActionMixin on PlayerStateMixin {
     // 全局默认值通过 设置 → 弹幕设置 页面修改。
   }
 
-  bool get _useNativeDanmakuRender =>
-      defaultTargetPlatform == TargetPlatform.android && preferNativeDanmaku;
+  Future<void> _persistPlaybackSpeed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('playback_speed', playbackSpeed);
+  }
+
+  Future<void> _rebuildCurrentPlaybackForTunnelModeChange() async {
+    if (cid == null || videoController == null || !videoController!.value.isInitialized) {
+      return;
+    }
+
+    final previousPosition = videoController!.value.position;
+    final wasPlaying = videoController!.value.isPlaying;
+
+    if (mounted) {
+      setState(() => isLoading = true);
+    }
+
+    cancelPlayerListeners();
+    await videoController?.pause();
+    await videoController?.dispose();
+    videoController = null;
+    LocalServer.instance.clearMpdContent();
+
+    final playInfo = await BilibiliApi.getVideoPlayUrl(
+      bvid: widget.video.bvid,
+      cid: cid!,
+      qn: currentQuality,
+    );
+    if (playInfo == null) {
+      throw Exception('获取播放地址失败');
+    }
+
+    currentQuality = playInfo['currentQuality'] ?? currentQuality;
+    currentCodec = playInfo['codec'] ?? currentCodec;
+    currentAudioUrl = playInfo['audioUrl'];
+    videoWidth = int.tryParse(playInfo['width']?.toString() ?? '') ?? 0;
+    videoHeight = int.tryParse(playInfo['height']?.toString() ?? '') ?? 0;
+    videoFrameRate = double.tryParse(playInfo['frameRate']?.toString() ?? '') ?? 0.0;
+    videoDataRateKbps =
+        ((int.tryParse(playInfo['videoBandwidth']?.toString() ?? '') ?? 0) / 1000)
+            .round();
+    qualities = List<Map<String, dynamic>>.from(playInfo['qualities'] ?? []);
+
+    String? playUrl;
+    if (playInfo['dashData'] != null) {
+      final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
+      LocalServer.instance.setMpdContent(mpdContent);
+      playUrl = LocalServer.instance.mpdUrl;
+    } else {
+      playUrl = playInfo['url'];
+    }
+
+    if (playUrl == null || playUrl.isEmpty) {
+      throw Exception('当前清晰度暂无可播放地址，请尝试其他清晰度');
+    }
+
+    videoController = VideoPlayerController.networkUrl(
+      Uri.parse(playUrl),
+      viewType: VideoViewType.platformView,
+      httpHeaders: {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+        'Referer': 'https://www.bilibili.com/',
+        'Origin': 'https://www.bilibili.com',
+        if (AuthService.sessdata != null) 'Cookie': 'SESSDATA=${AuthService.sessdata}',
+      },
+    );
+
+    await videoController!.initialize();
+    await videoController!.seekTo(previousPosition);
+    resetDanmakuIndex(previousPosition);
+    resetSubtitleIndex(previousPosition);
+
+    _setupPlayerListeners();
+    _startStatsTimer();
+    if (wasPlaying) {
+      await videoController!.play();
+    }
+
+    videoController?.setPlaybackSpeed(playbackSpeed);
+    updateDanmakuOption();
+    startHideTimer();
+
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _syncTunnelModeWithPlaybackSpeed(double speed) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    if (isSwitchingTunnelModeForSpeed) return;
+
+    final shouldDisableTunnel = speed != 1.0 && SettingsService.tunnelModeEnabled;
+    final shouldRestoreTunnel = speed == 1.0 && tunnelModeTemporarilyDisabledForSpeed;
+    if (!shouldDisableTunnel && !shouldRestoreTunnel) return;
+
+    isSwitchingTunnelModeForSpeed = true;
+    try {
+      if (shouldDisableTunnel) {
+        await SettingsService.setTunnelModeEnabled(false);
+        tunnelModeTemporarilyDisabledForSpeed = true;
+      } else if (shouldRestoreTunnel) {
+        await SettingsService.setTunnelModeEnabled(true);
+        tunnelModeTemporarilyDisabledForSpeed = false;
+      }
+
+      await _rebuildCurrentPlaybackForTunnelModeChange();
+
+      ToastUtils.show(
+        context,
+        shouldDisableTunnel
+            ? '检测到非 1x 倍速，已临时关闭隧道播放'
+            : '已恢复隧道播放模式',
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = '切换隧道播放模式失败: $e';
+          isLoading = false;
+        });
+      }
+      ToastUtils.show(context, '隧道播放模式切换失败');
+    } finally {
+      isSwitchingTunnelModeForSpeed = false;
+    }
+  }
+
+  /// 隧道播放模式开启时，首次播放提示用户：若画面黑屏可去设置关闭。
+  /// 仅在 Android + 隧道模式开启 + 首次未提示过 时触发，整个应用生命周期只弹一次。
+  void _showTunnelModeHintIfNeeded() {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    if (!SettingsService.tunnelModeEnabled) return;
+    if (SettingsService.tunnelModeHintShown) return;
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      if (videoController == null || !videoController!.value.isPlaying) return;
+      ToastUtils.show(
+        context,
+        '若画面黑屏，请到 设置→播放设置 关闭「隧道播放模式」',
+        duration: const Duration(seconds: 4),
+      );
+      SettingsService.setTunnelModeHintShown(true);
+    });
+  }
+
+  bool get useNativeDanmakuRender {
+    if (defaultTargetPlatform != TargetPlatform.android || !preferNativeDanmaku) {
+      return false;
+    }
+    // On API <= 25, PlatformVideoView uses setZOrderMediaOverlay(true) which
+    // puts the SurfaceView surface above the window surface. When tunnel mode
+    // is on, frames bypass SurfaceView so the DanmakuOverlayView stays visible.
+    // When tunnel mode is off, SurfaceView renders on top and covers the
+    // DanmakuOverlayView. Fall back to Flutter canvas danmaku in that case.
+    if (!SettingsService.tunnelModeEnabled &&
+        SettingsService.androidSdkInt <= 25) {
+      return false;
+    }
+    return true;
+  }
 
   Future<void> initializePlayer() async {
     setState(() {
@@ -468,7 +628,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
           }
 
           await videoController!.play();
+          // 初始化成功后恢复倍速，并同步弹幕速度（含原生弹幕渲染）
+          videoController?.setPlaybackSpeed(playbackSpeed);
+          updateDanmakuOption();
           startHideTimer();
+          _showTunnelModeHintIfNeeded();
 
           await loadDanmaku();
           await loadSubtitles();
@@ -539,7 +703,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
           });
 
           await videoController!.play();
+          // 兼容回退路径也要恢复倍速，并同步弹幕速度（含原生弹幕渲染）
+          videoController?.setPlaybackSpeed(playbackSpeed);
+          updateDanmakuOption();
           startHideTimer();
+          _showTunnelModeHintIfNeeded();
           await loadDanmaku();
           await loadSubtitles();
           return; // 兜底成功
@@ -937,42 +1105,31 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   Future<void> disposePlayer() async {
-    // 退出前上报进度并保存到本地缓存
-    await reportPlaybackProgress();
-
-    // 🔥 保存进度到本地缓存（解决 B站 API history 字段不可靠的问题）
-    if (cid != null && videoController != null) {
-      final currentPos = videoController!.value.position.inSeconds;
-      if (currentPos > 5) {
-        // 只有播放超过 5 秒才缓存
-        await PlaybackProgressCache.saveProgress(
-          widget.video.bvid,
-          cid!,
-          currentPos,
-        );
-        debugPrint(
-          '🎬 [Cache] Saved progress: bvid=${widget.video.bvid}, cid=$cid, pos=$currentPos',
-        );
-      }
+    // Snapshot progress data BEFORE releasing the player, so we can report
+    // after ExoPlayer is freed (network calls must not block codec release).
+    final bvid = widget.video.bvid;
+    final cidSnapshot = cid;
+    int? posSnapshot;
+    if (videoController != null && videoController!.value.isInitialized) {
+      posSnapshot = videoController!.value.position.inSeconds;
     }
 
+    // ── Phase 1: Release ExoPlayer / MediaCodec IMMEDIATELY ──
     cancelPlayerListeners();
     seekIndicatorTimer?.cancel();
     seekCommitTimer?.cancel();
     bufferHideTimer?.cancel();
-    onlineCountTimer?.cancel(); // 取消在线人数定时器
+    onlineCountTimer?.cancel();
     statsTimer?.cancel();
-    _clearSpritesFromMemory(); // 清理雪碧图内存缓存
+    _clearSpritesFromMemory();
 
     if (BuildFlags.pluginsEnabled) {
-      // 通知插件视频结束
       final plugins = PluginManager().getEnabledPlugins<PlayerPlugin>();
       for (var plugin in plugins) {
         plugin.onVideoEnd();
       }
     }
 
-    // 先暂停播放，防止 dispose 过程中视频表面已销毁但音频仍在播放
     await videoController?.pause();
     await videoController?.dispose();
     videoController = null;
@@ -987,6 +1144,22 @@ mixin PlayerActionMixin on PlayerStateMixin {
     subtitleNeedLogin = false;
     subtitleOwnerBvid = null;
     subtitleOwnerCid = null;
+
+    // ── Phase 2: Network / storage (player already freed) ──
+    if (cidSnapshot != null && posSnapshot != null && posSnapshot > 5) {
+      await PlaybackProgressCache.saveProgress(bvid, cidSnapshot, posSnapshot);
+      debugPrint(
+        '🎬 [Cache] Saved progress: bvid=$bvid, cid=$cidSnapshot, pos=$posSnapshot',
+      );
+    }
+
+    if (cidSnapshot != null) {
+      BilibiliApi.reportProgress(
+        bvid: bvid,
+        cid: cidSnapshot,
+        progress: posSnapshot ?? 0,
+      );
+    }
   }
 
   /// 获取在线观看人数
@@ -1324,7 +1497,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (!danmakuEnabled) {
       return;
     }
-    final useNativeDanmaku = _useNativeDanmakuRender;
+    final useNativeDanmaku = useNativeDanmakuRender;
     if (useNativeDanmaku && videoController == null) return;
     if (!useNativeDanmaku && danmakuController == null) return;
 
@@ -1404,7 +1577,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
           videoController == null ||
           !videoController!.value.isInitialized ||
           !videoController!.value.isPlaying ||
-          (_useNativeDanmakuRender ? false : danmakuController == null)) {
+          (useNativeDanmakuRender ? false : danmakuController == null)) {
         return;
       }
       syncDanmaku(videoController!.value.position.inMilliseconds / 1000.0);
@@ -1987,7 +2160,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       NativePlayerDanmakuService.clear(videoController);
       danmakuController?.clear();
     } else {
-      if (_useNativeDanmakuRender) {
+      if (useNativeDanmakuRender) {
         danmakuController?.clear();
       }
       _applyDanmakuOptionWithRetry();
@@ -2000,7 +2173,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
   void updateDanmakuOption() {
     final option = _buildDanmakuOption();
     danmakuController?.updateOption(option);
-    if (!_useNativeDanmakuRender) {
+    if (!useNativeDanmakuRender) {
       danmakuOptionApplyTimer?.cancel();
       danmakuOptionApplyTimer = null;
       NativePlayerDanmakuService.clear(videoController);
@@ -2022,7 +2195,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
   }
 
   void _applyDanmakuOptionWithRetry({DanmakuOption? option}) {
-    if (!_useNativeDanmakuRender) return;
+    if (!useNativeDanmakuRender) return;
     final currentOption = option ?? _buildDanmakuOption();
     NativePlayerDanmakuService.updateOption(videoController, currentOption);
     danmakuOptionApplyTimer?.cancel();
@@ -2359,8 +2532,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
         final idx = episodes.indexWhere((e) => e['cid'] == cid);
         if (idx != -1) setState(() => focusedEpisodeIndex = idx);
 
-        // 恢复倍速
+        // 恢复倍速，并同步弹幕速度（含原生弹幕渲染）
         videoController?.setPlaybackSpeed(playbackSpeed);
+        updateDanmakuOption();
       } else {
         throw Exception('获取播放地址失败');
       }
@@ -2372,6 +2546,23 @@ mixin PlayerActionMixin on PlayerStateMixin {
         });
       }
     }
+  }
+
+  void selectPlaybackSpeedByIndex(int index) {
+    if (index < 0 || index >= availableSpeeds.length) return;
+    final speed = availableSpeeds[index];
+    setState(() {
+      settingsMenuType = SettingsMenuType.speed;
+      focusedSettingIndex = index;
+      playbackSpeed = speed;
+    });
+    videoController?.setPlaybackSpeed(speed);
+    // 倍速变化后同步弹幕飞行时长（含原生弹幕渲染）
+    updateDanmakuOption();
+    _persistPlaybackSpeed();
+    unawaited(_syncTunnelModeWithPlaybackSpeed(speed));
+    ToastUtils.dismiss();
+    ToastUtils.show(context, '倍速已设置为 ${speed}x');
   }
 
   void activateSetting() {
@@ -2408,11 +2599,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
     } else if (settingsMenuType == SettingsMenuType.subtitle) {
       adjustSubtitleSetting(1);
     } else if (settingsMenuType == SettingsMenuType.speed) {
-      final speed = availableSpeeds[focusedSettingIndex];
-      setState(() => playbackSpeed = speed);
-      videoController?.setPlaybackSpeed(speed);
-      ToastUtils.dismiss();
-      ToastUtils.show(context, '倍速已设置为 ${speed}x');
+      selectPlaybackSpeedByIndex(focusedSettingIndex);
     }
   }
 
@@ -2491,8 +2678,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
       _startStatsTimer();
       await videoController!.play();
 
-      // 恢复倍速
+      // 恢复倍速，并同步弹幕速度（含原生弹幕渲染）
       videoController?.setPlaybackSpeed(playbackSpeed);
+      updateDanmakuOption();
 
       setState(() => isLoading = false);
 

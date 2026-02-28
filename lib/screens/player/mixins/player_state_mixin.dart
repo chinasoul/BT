@@ -11,6 +11,9 @@ import '../../../models/subtitle_item.dart';
 /// 播放器状态 Mixin
 /// 包含所有 State 变量
 mixin PlayerStateMixin on State<PlayerScreen> {
+  // 播放器页面根焦点节点，用于回前台后恢复焦点
+  final FocusNode playerFocusNode = FocusNode();
+
   // 控制器
   VideoPlayerController? videoController;
   DanmakuController? danmakuController;
@@ -50,6 +53,9 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   // 播放设置
   double playbackSpeed = 1.0;
   final List<double> availableSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+  // 倍速期间临时关闭隧道模式：回到 1x 时自动恢复
+  bool tunnelModeTemporarilyDisabledForSpeed = false;
+  bool isSwitchingTunnelModeForSpeed = false;
 
   // UI 控制
   bool showControls = true;

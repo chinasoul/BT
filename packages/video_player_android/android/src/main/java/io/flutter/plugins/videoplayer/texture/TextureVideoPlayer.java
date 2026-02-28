@@ -82,12 +82,13 @@ public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProd
             backBufferDurationMs = 0;
           }
 
+          final boolean tunnelMode = prefs.getBoolean("flutter.tunnel_mode_enabled", true);
+
           androidx.media3.exoplayer.trackselection.DefaultTrackSelector trackSelector =
               new androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context);
-          // 启用隧道播放：解码帧直通显示硬件，绕过 Flutter 合成（TV 专用，不支持时自动回退）
           trackSelector.setParameters(
               trackSelector.buildUponParameters()
-                  .setTunnelingEnabled(true)
+                  .setTunnelingEnabled(tunnelMode)
                   .build());
 
           // 自定义缓冲策略：更大缓冲减少卡顿

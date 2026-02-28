@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/settings_service.dart'; // 包含 BiliCacheManager
 import '../services/update_service.dart';
 import '../services/bilibili_api.dart';
+import '../services/device_info_service.dart';
 import '../models/video.dart';
 import 'home_screen.dart';
 import '../utils/image_url_utils.dart';
@@ -31,6 +32,9 @@ class _SplashScreenState extends State<SplashScreen> {
       AuthService.init(),
       SettingsService.init(),
       UpdateService.init(),
+      DeviceInfoService.getDeviceInfo().then((info) {
+        SettingsService.androidSdkInt = info['sdkInt'] as int? ?? 99;
+      }),
     ]);
 
     // 4. 如果已登录，更新一下用户信息 (获取最新 VIP 状态)

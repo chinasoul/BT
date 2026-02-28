@@ -56,25 +56,39 @@ class _PlayerScreenState extends State<PlayerScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // 应用进入后台时上报进度 (包括按主页键)
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       reportPlaybackProgress();
+    } else if (state == AppLifecycleState.resumed) {
+      // Reclaim focus after returning from background.
+      // On some TV boxes (especially Android 6.0), the PlatformView's
+      // SurfaceView can cause focus drift when the app is backgrounded
+      // and resumed, making the remote control unresponsive.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !playerFocusNode.hasFocus) {
+          playerFocusNode.requestFocus();
+        }
+      });
     }
   }
 
   @override
   void dispose() {
-    // 恢复屏幕休眠
     WakelockPlus.disable();
     WidgetsBinding.instance.removeObserver(this);
     hideTimer?.cancel();
     progressReportTimer?.cancel();
-    // 退出时上报进度
-    reportPlaybackProgress();
 
-    // 通过 mixin 方法销毁播放器
+    // Synchronously cancel listeners and stop the player BEFORE super.dispose(),
+    // ensuring ExoPlayer/MediaCodec resources are released even though
+    // disposePlayer() is async. On resource-constrained devices (Android 6.0),
+    // un-released resources cause the app to freeze on re-entry.
+    cancelPlayerListeners();
+    videoController?.pause();
+
+    // Fire-and-forget: async cleanup (progress save, cache, full dispose)
     disposePlayer();
+    playerFocusNode.dispose();
     super.dispose();
   }
 
@@ -87,6 +101,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Focus(
+          focusNode: playerFocusNode,
           autofocus: true,
           onKeyEvent: handleGlobalKeyEvent,
           child: GestureDetector(
@@ -132,12 +147,11 @@ class _PlayerScreenState extends State<PlayerScreen>
                 errorMessage: errorMessage,
               ),
 
-              // 弹幕层
+              // 弹幕层 (当原生弹幕渲染未生效时使用 Flutter Canvas 弹幕)
               if (!isLoading &&
                   videoController != null &&
                   danmakuEnabled &&
-                  !(defaultTargetPlatform == TargetPlatform.android &&
-                      preferNativeDanmaku))
+                  !useNativeDanmakuRender)
                 DanmakuLayer(
                   onCreated: (c) => danmakuController = c,
                   option: DanmakuOption(
@@ -475,6 +489,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     });
                   },
                   onQualityPicker: showQualityPicker,
+                  onSpeedSelect: selectPlaybackSpeedByIndex,
                 ),
 
               // UP主面板

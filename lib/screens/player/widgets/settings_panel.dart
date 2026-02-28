@@ -26,6 +26,7 @@ class SettingsPanel extends StatefulWidget {
   // Callbacks
   final Function(SettingsMenuType, int) onNavigate;
   final VoidCallback onQualityPicker;
+  final ValueChanged<int>? onSpeedSelect;
 
   const SettingsPanel({
     super.key,
@@ -46,6 +47,7 @@ class SettingsPanel extends StatefulWidget {
     required this.hideBottomDanmaku,
     required this.onNavigate,
     required this.onQualityPicker,
+    this.onSpeedSelect,
   });
 
   @override
@@ -326,7 +328,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
           icon: Icons.speed,
           title: '${speed}x',
           value: isSelected ? '当前' : '',
-          onTap: () {},
+          onTap: () => widget.onSpeedSelect?.call(index),
         );
       }).toList(),
     );

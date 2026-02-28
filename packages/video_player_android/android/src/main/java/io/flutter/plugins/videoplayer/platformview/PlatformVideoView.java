@@ -37,6 +37,16 @@ public final class PlatformVideoView implements PlatformView {
     surfaceView = new SurfaceView(context);
     danmakuOverlayView = new DanmakuOverlayView(context);
 
+    // Prevent native views from stealing focus from Flutter's key event system.
+    // On older Android (especially TV boxes with Android 6.0), a focusable SurfaceView
+    // intercepts remote control key events before they reach Flutter.
+    surfaceView.setFocusable(false);
+    surfaceView.setFocusableInTouchMode(false);
+    danmakuOverlayView.setFocusable(false);
+    danmakuOverlayView.setFocusableInTouchMode(false);
+    container.setFocusable(false);
+    container.setFocusableInTouchMode(false);
+
     final FrameLayout.LayoutParams matchParent =
         new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);

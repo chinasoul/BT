@@ -71,6 +71,9 @@ class SettingsService {
   static const String _useHardwareDecodeKey = 'use_hardware_decode';
   static SharedPreferences? _prefs;
 
+  /// Android SDK 版本号（缓存），非 Android 平台为 99
+  static int androidSdkInt = 99;
+
   /// 初始化
   static Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -198,6 +201,31 @@ class SettingsService {
   static Future<void> setPreferredCodec(VideoCodec codec) async {
     await init();
     await _prefs!.setInt(_preferredCodecKey, codec.index);
+  }
+
+  // 隧道播放模式（Tunnel Mode）
+  static const String _tunnelModeEnabledKey = 'tunnel_mode_enabled';
+
+  /// 是否启用隧道播放（解码帧直通显示硬件，部分设备可能黑屏）
+  static bool get tunnelModeEnabled {
+    return _prefs?.getBool(_tunnelModeEnabledKey) ?? true;
+  }
+
+  static Future<void> setTunnelModeEnabled(bool value) async {
+    await init();
+    await _prefs!.setBool(_tunnelModeEnabledKey, value);
+  }
+
+  static const String _tunnelModeHintShownKey = 'tunnel_mode_hint_shown';
+
+  /// 是否已展示过隧道模式黑屏提示
+  static bool get tunnelModeHintShown {
+    return _prefs?.getBool(_tunnelModeHintShownKey) ?? false;
+  }
+
+  static Future<void> setTunnelModeHintShown(bool value) async {
+    await init();
+    await _prefs!.setBool(_tunnelModeHintShownKey, value);
   }
 
   // 迷你进度条设置

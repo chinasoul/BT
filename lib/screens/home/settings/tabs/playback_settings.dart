@@ -161,13 +161,28 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
           value: SettingsService.preferredCodec,
           items: VideoCodec.values.toList(),
           itemLabel: (codec) => codec.label,
-          isLast: true, // 最后一项，阻止向下导航
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (codec) async {
             if (codec != null) {
               await SettingsService.setPreferredCodec(codec);
               setState(() {});
             }
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+        SettingToggleRow(
+          label: '隧道播放模式',
+          subtitle: '解码帧直通显示硬件，画面黑屏时请关闭（重启播放生效）',
+          value: SettingsService.tunnelModeEnabled,
+          isLast: true,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (value) async {
+            await SettingsService.setTunnelModeEnabled(value);
+            if (value) {
+              await SettingsService.setTunnelModeHintShown(false);
+            }
+            setState(() {});
+            ToastUtils.show(context, value ? '隧道播放已开启，下次播放生效' : '隧道播放已关闭，下次播放生效');
           },
         ),
       ],

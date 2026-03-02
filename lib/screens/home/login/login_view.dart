@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/auth_service.dart';
@@ -203,20 +203,11 @@ class _LoginViewState extends State<LoginView> {
           if (_status == 'expired' || _status == 'error')
             Focus(
               autofocus: true,
-              onKeyEvent: (node, event) {
-                if (event is KeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.select)) {
-                  _generateQrCode();
-                  return KeyEventResult.handled;
-                }
-                if (event is KeyDownEvent &&
-                    event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                  widget.sidebarFocusNode?.requestFocus();
-                  return KeyEventResult.handled;
-                }
-                return KeyEventResult.ignored;
-              },
+              onKeyEvent: (node, event) => TvKeyHandler.handleNavigation(
+                event,
+                onSelect: _generateQrCode,
+                onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+              ),
               child: Builder(
                 builder: (context) {
                   final isFocused = Focus.of(context).hasFocus;

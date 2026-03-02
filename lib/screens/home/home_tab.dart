@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../models/video.dart';
@@ -469,32 +469,21 @@ class HomeTabState extends State<HomeTab> {
     return Focus(
       focusNode: _loadMoreFocusNode,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          final gridColumns = SettingsService.videoGridColumns;
-          final lastRowStart =
-              (_currentVideos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _currentVideos.length
-              ? lastRowStart
-              : _currentVideos.length - 1;
-          _getFocusNode(targetIndex).requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          widget.sidebarFocusNode?.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.select) {
-          _extendLimit();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleSinglePress(
+          event,
+          onUp: () {
+            final gridColumns = SettingsService.videoGridColumns;
+            final lastRowStart =
+                (_currentVideos.length ~/ gridColumns) * gridColumns;
+            final targetIndex = lastRowStart < _currentVideos.length
+                ? lastRowStart
+                : _currentVideos.length - 1;
+            _getFocusNode(targetIndex).requestFocus();
+          },
+          blockDown: true,
+          onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+          onSelect: _extendLimit,
+        );
       },
       child: Builder(
         builder: (ctx) {
@@ -748,29 +737,12 @@ class _CategoryTab extends StatelessWidget {
         focusNode: focusNode,
         onFocusChange: (f) => f ? onFocus() : null,
         onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            onMoveLeft != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveLeft!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-            onMoveRight != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveRight!();
-          return KeyEventResult.handled;
-        }
-        // 确定键不处理重复事件，避免长按重复触发刷新
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.select ||
-                event.logicalKey == LogicalKeyboardKey.enter)) {
-          onConfirm();
-          return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
+          return TvKeyHandler.handleSinglePress(
+            event,
+            onLeft: onMoveLeft,
+            onRight: onMoveRight,
+            onSelect: onConfirm,
+          );
         },
         child: Builder(
           builder: (ctx) {

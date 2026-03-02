@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
@@ -292,30 +292,20 @@ class DynamicTabState extends State<DynamicTab> {
     return Focus(
       focusNode: _loadMoreFocusNode,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          // 返回最后一行最左侧卡片
-          final gridColumns = SettingsService.videoGridColumns;
-          final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _videos.length
-              ? lastRowStart
-              : _videos.length - 1;
-          _getFocusNode(targetIndex).requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          return KeyEventResult.handled; // 阻止向下
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          widget.sidebarFocusNode?.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.select) {
-          _extendLimit();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleSinglePress(
+          event,
+          onUp: () {
+            final gridColumns = SettingsService.videoGridColumns;
+            final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
+            final targetIndex = lastRowStart < _videos.length
+                ? lastRowStart
+                : _videos.length - 1;
+            _getFocusNode(targetIndex).requestFocus();
+          },
+          blockDown: true,
+          onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+          onSelect: _extendLimit,
+        );
       },
       child: Builder(
         builder: (ctx) {

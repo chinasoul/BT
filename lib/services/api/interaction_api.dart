@@ -271,10 +271,12 @@ class InteractionApi {
   }
 
   /// 获取关注列表
+  /// [orderType] 排序方式：'attention' 按最近关注，'' 按最常访问
   /// 返回 { 'list': List<FollowingUser>, 'hasMore': bool }
   static Future<Map<String, dynamic>> getFollowingUsers({
     int page = 1,
     int pageSize = 30,
+    String orderType = 'attention',
   }) async {
     if (!AuthService.isLoggedIn) {
       return {'list': <FollowingUser>[], 'hasMore': false};
@@ -292,7 +294,7 @@ class InteractionApi {
           'pn': page.toString(),
           'ps': pageSize.toString(),
           'order': 'desc',
-          'order_type': 'attention',
+          'order_type': orderType,
         },
       );
 

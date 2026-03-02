@@ -530,6 +530,23 @@ mixin PlayerEventMixin on PlayerActionMixin {
       return KeyEventResult.ignored;
     }
 
+    // 同时有合集和分P时，左右键在标签间切换（不循环）
+    // 布局：合集(左) | 分P(右)
+    if (hasBothEpisodeTypes && event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+          !episodePanelShowingPages) {
+        switchEpisodeTab();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          episodePanelShowingPages) {
+        switchEpisodeTab();
+        return KeyEventResult.handled;
+      }
+      // 合集标签按左 → 落到下方 handleEpisodePanelNavigation 收回面板
+      // 分P标签按右 → 落到下方 handleEpisodePanelNavigation 无操作
+    }
+
     final nav = PlayerFocusHandler.handleEpisodePanelNavigation(
       event,
       currentIndex: focusedEpisodeIndex,
@@ -537,12 +554,12 @@ mixin PlayerEventMixin on PlayerActionMixin {
       onSelect: () {
         if (episodes.isNotEmpty) {
           final ep = episodes[focusedEpisodeIndex];
-          if (isUgcSeason) {
-            // 合集：通过 bvid 切换（会导航到新播放器）
-            switchEpisode(0, targetBvid: ep['bvid']);
-          } else {
+          if (isPanelShowingPages) {
             // 分P：通过 cid 切换
             switchEpisode(ep['cid']);
+          } else {
+            // 合集：通过 bvid 切换（会导航到新播放器）
+            switchEpisode(0, targetBvid: ep['bvid']);
           }
         }
       },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 
 /// 判断是否为按键按下或重复事件
@@ -38,29 +39,19 @@ class _TvKeyboardButtonState extends State<TvKeyboardButton> {
       focusNode: widget.focusNode,
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       onKeyEvent: (node, event) {
+        final result = TvKeyHandler.handleNavigationWithRepeat(
+          event,
+          onLeft: widget.onMoveLeft,
+          onUp: widget.onMoveUp,
+          onSelect: widget.onTap,
+        );
+        if (result == KeyEventResult.handled) return result;
         if (_isKeyDownOrRepeat(event)) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-              widget.onMoveLeft != null) {
-            widget.onMoveLeft!();
-            return KeyEventResult.handled;
-          }
-          // 上键
-          if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-              widget.onMoveUp != null) {
-            widget.onMoveUp!();
-            return KeyEventResult.handled;
-          }
-          // 返回键
           if ((event.logicalKey == LogicalKeyboardKey.escape ||
                   event.logicalKey == LogicalKeyboardKey.goBack ||
                   event.logicalKey == LogicalKeyboardKey.browserBack) &&
               widget.onBack != null) {
             widget.onBack!();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.enter ||
-              event.logicalKey == LogicalKeyboardKey.select) {
-            widget.onTap();
             return KeyEventResult.handled;
           }
         }
@@ -126,29 +117,19 @@ class _TvActionButtonState extends State<TvActionButton> {
     return Focus(
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       onKeyEvent: (node, event) {
+        final result = TvKeyHandler.handleNavigationWithRepeat(
+          event,
+          onLeft: widget.onMoveLeft,
+          onUp: widget.onMoveUp,
+          onSelect: widget.onTap,
+        );
+        if (result == KeyEventResult.handled) return result;
         if (_isKeyDownOrRepeat(event)) {
-          if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-              widget.onMoveLeft != null) {
-            widget.onMoveLeft!();
-            return KeyEventResult.handled;
-          }
-          // 上键
-          if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-              widget.onMoveUp != null) {
-            widget.onMoveUp!();
-            return KeyEventResult.handled;
-          }
-          // 返回键
           if ((event.logicalKey == LogicalKeyboardKey.escape ||
                   event.logicalKey == LogicalKeyboardKey.goBack ||
                   event.logicalKey == LogicalKeyboardKey.browserBack) &&
               widget.onBack != null) {
             widget.onBack!();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.enter ||
-              event.logicalKey == LogicalKeyboardKey.select) {
-            widget.onTap();
             return KeyEventResult.handled;
           }
         }

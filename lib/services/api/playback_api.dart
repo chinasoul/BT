@@ -318,7 +318,8 @@ class PlaybackApi {
                 videosByQuality.putIfAbsent(id, () => []).add(v);
               }
 
-              final targetQn = qn;
+              final apiQuality = data['quality'] as int?;
+              final targetQn = apiQuality ?? qn;
               var candidateVideos = videosByQuality[targetQn];
               if (candidateVideos == null || candidateVideos.isEmpty) {
                 final sortedQualities = videosByQuality.keys.toList()
@@ -339,9 +340,21 @@ class PlaybackApi {
               final hasAv1Hw = hwDecoders.contains('av1');
               final hasHevcHw = hwDecoders.contains('hevc');
               final hasAvcHw = hwDecoders.contains('avc');
+              final hasDvHw = hwDecoders.contains('dolby-vision');
+
+              // 0. 杜比视界优先：qn=126 且设备支持 DV 时，优先选 dvhe/dvav 流
+              if (hasDvHw && targetQn == 126) {
+                selectedVideo = candidateVideos.firstWhere((v) {
+                  final codecs = v['codecs'] as String? ?? '';
+                  return codecs.startsWith('dvhe') ||
+                      codecs.startsWith('dvav');
+                }, orElse: () => null);
+              }
 
               // 1. 如果指定了 forceCodec（失败回退时），优先使用
-              if (forceCodec != null && forceCodec != VideoCodec.auto) {
+              if (selectedVideo == null &&
+                  forceCodec != null &&
+                  forceCodec != VideoCodec.auto) {
                 selectedVideo = candidateVideos.firstWhere((v) {
                   final codecs = v['codecs'] as String? ?? '';
                   return codecs.startsWith(forceCodec.prefix);
@@ -353,7 +366,6 @@ class PlaybackApi {
                 final userCodec = SettingsService.preferredCodec;
 
                 if (userCodec != VideoCodec.auto) {
-                  // 用户指定了具体编码器
                   selectedVideo = candidateVideos.firstWhere((v) {
                     final codecs = v['codecs'] as String? ?? '';
                     return codecs.startsWith(userCodec.prefix);
@@ -390,7 +402,24 @@ class PlaybackApi {
               videoUrl = selectedVideo['baseUrl'] ?? selectedVideo['base_url'];
               final selectedCodec = selectedVideo['codecs'] as String? ?? '';
 
-              if (audios.isNotEmpty) {
+              // 杜比全景声音频（dash.dolby.audio）
+              final dolbyAudioList = <dynamic>[];
+              if (dash['dolby'] != null && dash['dolby']['audio'] is List) {
+                dolbyAudioList.addAll(dash['dolby']['audio'] as List);
+              }
+
+              // Hi-Res FLAC 音频（dash.flac.audio）
+              final flacAudio = dash['flac']?['audio'];
+
+              // 音频选择优先级：杜比全景声 > FLAC > 普通最高码率
+              if (dolbyAudioList.isNotEmpty && targetQn == 126) {
+                audioUrl =
+                    dolbyAudioList.first['baseUrl'] ??
+                    dolbyAudioList.first['base_url'];
+              } else if (flacAudio != null) {
+                audioUrl =
+                    flacAudio['baseUrl'] ?? flacAudio['base_url'];
+              } else if (audios.isNotEmpty) {
                 var sortedAudios = List.from(audios);
                 sortedAudios.sort(
                   (a, b) =>
@@ -410,11 +439,12 @@ class PlaybackApi {
                 final frameRate = _parseFrameRate(
                   selectedVideo['frameRate'] ?? selectedVideo['frame_rate'],
                 );
+                final actualStreamQn = selectedVideo['id'] as int? ?? data['quality'] ?? qn;
                 return {
                   'url': videoUrl,
                   'audioUrl': audioUrl,
                   'qualities': qualities,
-                  'currentQuality': data['quality'] ?? qn,
+                  'currentQuality': actualStreamQn,
                   'isDash': isDash,
                   'codec': selectedCodec,
                   'width': width,

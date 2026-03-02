@@ -3,7 +3,12 @@
 class MpdGenerator {
   /// 生成 DASH MPD 文件
   /// [dashData] 是 Bilibili API 返回的 dash 对象
-  static Future<String> generate(Map<String, dynamic> dashData) async {
+  /// [selectedQn] 若指定，则只保留该画质等级 (id) 的视频 Representation，
+  ///   阻止 ExoPlayer ABR 自动降级到低分辨率
+  static Future<String> generate(
+    Map<String, dynamic> dashData, {
+    int? selectedQn,
+  }) async {
     final buffer = StringBuffer();
 
     // MPD 头部
@@ -29,6 +34,9 @@ class MpdGenerator {
         '    <AdaptationSet mimeType="video/mp4" contentType="video" subsegmentAlignment="true" subsegmentStartsWithSAP="1">',
       );
       for (var video in dashData['video']) {
+        if (selectedQn != null && (video['id'] as int?) != selectedQn) {
+          continue;
+        }
         _writeRepresentation(buffer, video, true);
       }
       buffer.writeln('    </AdaptationSet>');
@@ -43,6 +51,34 @@ class MpdGenerator {
         _writeRepresentation(buffer, audio, false);
       }
       buffer.writeln('    </AdaptationSet>');
+    }
+
+    // 杜比全景声音频（E-AC-3 / ec-3）
+    if (dashData['dolby'] != null && dashData['dolby']['audio'] is List) {
+      final dolbyAudios = dashData['dolby']['audio'] as List;
+      if (dolbyAudios.isNotEmpty) {
+        buffer.writeln(
+          '    <AdaptationSet mimeType="audio/mp4" contentType="audio" subsegmentAlignment="true" subsegmentStartsWithSAP="1" lang="dolby">',
+        );
+        for (var audio in dolbyAudios) {
+          if (audio is Map<String, dynamic>) {
+            _writeRepresentation(buffer, audio, false);
+          }
+        }
+        buffer.writeln('    </AdaptationSet>');
+      }
+    }
+
+    // Hi-Res FLAC 音频
+    if (dashData['flac'] != null && dashData['flac']['audio'] != null) {
+      final flacAudio = dashData['flac']['audio'];
+      if (flacAudio is Map<String, dynamic>) {
+        buffer.writeln(
+          '    <AdaptationSet mimeType="audio/mp4" contentType="audio" subsegmentAlignment="true" subsegmentStartsWithSAP="1" lang="flac">',
+        );
+        _writeRepresentation(buffer, flacAudio, false);
+        buffer.writeln('    </AdaptationSet>');
+      }
     }
 
     buffer.writeln('  </Period>');

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:flutter/rendering.dart';
 import '../../services/api/live_api.dart';
 import '../../services/api/base_api.dart';
@@ -252,28 +252,19 @@ class LiveTabState extends State<LiveTab> {
     return Focus(
       focusNode: _loadMoreFocusNode,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          final lastRowStart = (rooms.length ~/ 4) * 4;
-          final targetIndex = lastRowStart < rooms.length
-              ? lastRowStart
-              : rooms.length - 1;
-          _getFocusNode(targetIndex).requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          widget.sidebarFocusNode.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.select) {
-          _extendLimit();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleSinglePress(
+          event,
+          onUp: () {
+            final lastRowStart = (rooms.length ~/ 4) * 4;
+            final targetIndex = lastRowStart < rooms.length
+                ? lastRowStart
+                : rooms.length - 1;
+            _getFocusNode(targetIndex).requestFocus();
+          },
+          blockDown: true,
+          onLeft: () => widget.sidebarFocusNode.requestFocus(),
+          onSelect: _extendLimit,
+        );
       },
       child: Builder(
         builder: (ctx) {
@@ -545,31 +536,12 @@ class _LiveCategoryTab extends StatelessWidget {
         focusNode: focusNode,
         onFocusChange: (f) => f ? onFocus() : null,
         onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-            return KeyEventResult.ignored;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-              onMoveLeft != null) {
-            // 边界循环/回侧边栏仅单击触发；长按到边界应停住
-            if (event is KeyRepeatEvent) return KeyEventResult.handled;
-            onMoveLeft!();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-              onMoveRight != null) {
-            // 边界循环仅单击触发；长按到边界应停住
-            if (event is KeyRepeatEvent) return KeyEventResult.handled;
-            onMoveRight!();
-            return KeyEventResult.handled;
-          }
-          if (event is KeyDownEvent &&
-              (event.logicalKey == LogicalKeyboardKey.select ||
-                  event.logicalKey == LogicalKeyboardKey.enter)) {
-            // Refresh or select
-            onTap();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
+          return TvKeyHandler.handleSinglePress(
+            event,
+            onLeft: onMoveLeft,
+            onRight: onMoveRight,
+            onSelect: onTap,
+          );
         },
         child: Builder(
           builder: (ctx) {

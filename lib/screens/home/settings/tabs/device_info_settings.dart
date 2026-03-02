@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../../../services/device_info_service.dart';
 import '../../../../config/app_style.dart';
 import '../widgets/setting_action_row.dart';
@@ -149,33 +149,25 @@ class _DeviceInfoSettingsState extends State<DeviceInfoSettings> {
         }
       },
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          if (index == 0) {
-            _refreshFocusNode.requestFocus();
-          } else {
-            _infoFocusNodes[index - 1].requestFocus();
-          }
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          if (index < _infoFocusNodes.length - 1) {
-            _infoFocusNodes[index + 1].requestFocus();
-          }
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            widget.sidebarFocusNode != null) {
-          widget.sidebarFocusNode!.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (onSelect != null &&
-            (event.logicalKey == LogicalKeyboardKey.select ||
-                event.logicalKey == LogicalKeyboardKey.enter)) {
-          onSelect();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleNavigation(
+          event,
+          onUp: () {
+            if (index == 0) {
+              _refreshFocusNode.requestFocus();
+            } else {
+              _infoFocusNodes[index - 1].requestFocus();
+            }
+          },
+          onDown: () {
+            if (index < _infoFocusNodes.length - 1) {
+              _infoFocusNodes[index + 1].requestFocus();
+            }
+          },
+          onLeft: widget.sidebarFocusNode != null
+              ? () => widget.sidebarFocusNode!.requestFocus()
+              : null,
+          onSelect: onSelect,
+        );
       },
       child: Builder(
         builder: (ctx) {

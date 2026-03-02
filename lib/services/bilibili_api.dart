@@ -233,10 +233,12 @@ class BilibiliApi {
       InteractionApi.checkFollowStatus(mid);
 
   /// 获取关注列表
+  /// [orderType] 排序方式：'attention' 按最近关注，'' 按最常访问
   static Future<Map<String, dynamic>> getFollowingUsers({
     int page = 1,
     int pageSize = 30,
-  }) => InteractionApi.getFollowingUsers(page: page, pageSize: pageSize);
+    String orderType = 'attention',
+  }) => InteractionApi.getFollowingUsers(page: page, pageSize: pageSize, orderType: orderType);
 
   /// 获取UP主详细信息（用户卡片）
   /// 返回: mid, name, face, sign, sex, level, fans, attention, following, archiveCount, likeNum

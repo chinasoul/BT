@@ -7,6 +7,8 @@ package io.flutter.plugins.videoplayer;
 import static androidx.media3.common.Player.REPEAT_MODE_ALL;
 import static androidx.media3.common.Player.REPEAT_MODE_OFF;
 
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.AudioAttributes;
@@ -36,6 +38,14 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   @NonNull protected ExoPlayer exoPlayer;
   // TODO: Migrate to stable API, see https://github.com/flutter/flutter/issues/147039.
   @UnstableApi @Nullable protected DefaultTrackSelector trackSelector;
+
+  // Mute during initialization to prevent audio noise/static on some TV devices
+  // (e.g., TCL Android 9) where tunnel mode AudioTrack HAL outputs garbage data
+  // during codec init. Unmuted on first play() after a brief stabilization delay.
+  private final Handler mainHandler = new Handler(Looper.getMainLooper());
+  private float targetVolume = 1.0f;
+  private boolean initialMuted = true;
+  private boolean disposed = false;
 
   /** A closure-compatible signature since {@link java.util.function.Supplier} is API level 24. */
   public interface ExoPlayerProvider {
@@ -73,6 +83,9 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
       trackSelector = (DefaultTrackSelector) exoPlayer.getTrackSelector();
     }
 
+    // Mute before prepare() to suppress tunnel mode audio init noise on some devices
+    exoPlayer.setVolume(0f);
+
     exoPlayer.setMediaItem(mediaItem);
     exoPlayer.prepare();
     exoPlayer.addListener(createExoPlayerEventListener(exoPlayer, surfaceProducer));
@@ -96,6 +109,14 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   @Override
   public void play() {
     exoPlayer.play();
+    if (initialMuted) {
+      initialMuted = false;
+      mainHandler.postDelayed(() -> {
+        if (!disposed) {
+          exoPlayer.setVolume(targetVolume);
+        }
+      }, 150);
+    }
   }
 
   @Override
@@ -111,7 +132,10 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   @Override
   public void setVolume(double volume) {
     float bracketedValue = (float) Math.max(0.0, Math.min(1.0, volume));
-    exoPlayer.setVolume(bracketedValue);
+    targetVolume = bracketedValue;
+    if (!initialMuted) {
+      exoPlayer.setVolume(bracketedValue);
+    }
   }
 
   @Override
@@ -234,6 +258,8 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
   }
 
   public void dispose() {
+    disposed = true;
+    mainHandler.removeCallbacksAndMessages(null);
     if (disposeHandler != null) {
       disposeHandler.onDispose();
     }

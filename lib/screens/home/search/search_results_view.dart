@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../models/video.dart';
 import '../../../services/bilibili_api.dart';
@@ -382,18 +383,11 @@ class _SortButtonState extends State<_SortButton> {
         if (focused) widget.onFocus();
       },
       onKeyEvent: (node, event) {
-        if (_isKeyDownOrRepeat(event)) {
-          // 阻止上键导航到其他页面
-          if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.enter ||
-              event.logicalKey == LogicalKeyboardKey.select) {
-            widget.onTap();
-            return KeyEventResult.handled;
-          }
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleNavigationWithRepeat(
+          event,
+          onSelect: widget.onTap,
+          blockUp: true,
+        );
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -441,25 +435,20 @@ class _BackToSearchButtonState extends State<_BackToSearchButton> {
       focusNode: widget.focusNode,
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       onKeyEvent: (node, event) {
+        final result = TvKeyHandler.handleNavigationWithRepeat(
+          event,
+          onSelect: widget.onTap,
+          blockUp: true,
+          blockDown: true,
+          blockLeft: true,
+          blockRight: true,
+        );
+        if (result == KeyEventResult.handled) return result;
         if (_isKeyDownOrRepeat(event)) {
-          // 返回键
           if (event.logicalKey == LogicalKeyboardKey.escape ||
               event.logicalKey == LogicalKeyboardKey.goBack ||
               event.logicalKey == LogicalKeyboardKey.browserBack) {
             widget.onTap();
-            return KeyEventResult.handled;
-          }
-          // 确认键
-          if (event.logicalKey == LogicalKeyboardKey.enter ||
-              event.logicalKey == LogicalKeyboardKey.select) {
-            widget.onTap();
-            return KeyEventResult.handled;
-          }
-          // 阻止方向键导航到其他地方
-          if (event.logicalKey == LogicalKeyboardKey.arrowUp ||
-              event.logicalKey == LogicalKeyboardKey.arrowDown ||
-              event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-              event.logicalKey == LogicalKeyboardKey.arrowRight) {
             return KeyEventResult.handled;
           }
         }

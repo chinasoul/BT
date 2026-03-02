@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../services/bilibili_api.dart';
@@ -149,39 +149,31 @@ class _ActionButtonsState extends State<ActionButtons> {
   }
 
   KeyEventResult _handleKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      setState(() => _focusedIndex = (_focusedIndex - 1).clamp(0, 2));
-      widget.onUserInteraction?.call();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      setState(() => _focusedIndex = (_focusedIndex + 1).clamp(0, 2));
-      widget.onUserInteraction?.call();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      widget.onFocusExit?.call();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.enter) {
-      switch (_focusedIndex) {
-        case 0:
-          _onLike();
-          break;
-        case 1:
-          _onCoin();
-          break;
-        case 2:
-          _onFavorite();
-          break;
-      }
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
+    return TvKeyHandler.handleNavigation(
+      event,
+      onLeft: () {
+        setState(() => _focusedIndex = (_focusedIndex - 1).clamp(0, 2));
+        widget.onUserInteraction?.call();
+      },
+      onRight: () {
+        setState(() => _focusedIndex = (_focusedIndex + 1).clamp(0, 2));
+        widget.onUserInteraction?.call();
+      },
+      onUp: () => widget.onFocusExit?.call(),
+      onSelect: () {
+        switch (_focusedIndex) {
+          case 0:
+            _onLike();
+            break;
+          case 1:
+            _onCoin();
+            break;
+          case 2:
+            _onFavorite();
+            break;
+        }
+      },
+    );
   }
 
   @override

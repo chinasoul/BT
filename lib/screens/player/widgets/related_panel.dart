@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../../utils/image_url_utils.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
@@ -126,36 +126,29 @@ class _RelatedPanelState extends State<RelatedPanel> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      if (_focusedIndex > 0) {
-        setState(() => _focusedIndex--);
-        _scrollToFocused();
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      if (_focusedIndex < _videos.length - 1) {
-        setState(() => _focusedIndex++);
-        _scrollToFocused();
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      widget.onClose();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.enter) {
-      if (_videos.isNotEmpty) {
-        widget.onVideoSelect(_videos[_focusedIndex]);
-      }
-      return KeyEventResult.handled;
-    }
-
-    // Back key: Not handled here, handled by PopScope/onPopInvoked
-    return KeyEventResult.ignored;
+    return TvKeyHandler.handleNavigation(
+      event,
+      onUp: () {
+        if (_focusedIndex > 0) {
+          setState(() => _focusedIndex--);
+          _scrollToFocused();
+        }
+      },
+      onDown: () {
+        if (_focusedIndex < _videos.length - 1) {
+          setState(() => _focusedIndex++);
+          _scrollToFocused();
+        }
+      },
+      onLeft: widget.onClose,
+      onSelect: () {
+        if (_videos.isNotEmpty) {
+          widget.onVideoSelect(_videos[_focusedIndex]);
+        }
+      },
+      blockUp: true,
+      blockDown: true,
+    );
   }
 
   @override

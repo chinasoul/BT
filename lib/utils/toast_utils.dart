@@ -4,19 +4,17 @@ import '../services/settings_service.dart';
 
 /// 轻量级自定义 Toast 工具
 ///
-/// 内存影响评估:
-/// - 新增对象: 1个 OverlayEntry + 1个 Timer
-/// - 生命周期: 短期（显示后自动销毁）
-/// - 预估开销: 可忽略
-/// - 清理方式: Timer 结束后自动移除
+/// 支持多条消息堆叠：短时间内连续调用 show() 时，新消息追加在下方并列显示，
+/// 而非覆盖前一条。定时器在最后一条消息加入后重新计时。
 class ToastUtils {
   static OverlayEntry? _currentEntry;
   static Timer? _timer;
   static Timer? _fadeTimer;
   static double _opacity = 1.0;
+  static final List<String> _messages = [];
 
   /// 默认显示时长
-  static const Duration defaultDuration = Duration(seconds: 1);
+  static const Duration defaultDuration = Duration(milliseconds: 1500);
 
   /// 淡出动画时长
   static const int _fadeSteps = 10;
@@ -24,69 +22,86 @@ class ToastUtils {
 
   /// 显示 Toast
   ///
-  /// [context] BuildContext
-  /// [msg] 显示内容
-  /// [duration] 显示时长，默认 1 秒
+  /// 若当前已有 Toast 显示，新消息追加在下方并列展示，定时器重新计时。
   static void show(
     BuildContext context,
     String msg, {
     Duration duration = defaultDuration,
   }) {
-    // 取消之前的定时器
     _timer?.cancel();
     _timer = null;
     _fadeTimer?.cancel();
     _fadeTimer = null;
     _opacity = 1.0;
 
-    // 移除旧的 entry
-    _removeEntry();
+    if (_currentEntry != null && _messages.isNotEmpty) {
+      if (!_messages.contains(msg)) {
+        _messages.add(msg);
+      }
+      _currentEntry?.markNeedsBuild();
+    } else {
+      _removeEntry();
+      _messages.clear();
+      _messages.add(msg);
 
-    final overlay = Overlay.of(context);
+      final overlay = Overlay.of(context);
 
-    _currentEntry = OverlayEntry(
-      builder: (context) {
-        final screenSize = MediaQuery.of(context).size;
-        final screenWidth = screenSize.width;
-        final screenHeight = screenSize.height;
-        // 侧边栏占 5%，内容区占 95%
-        final sidebarWidth = screenWidth * 0.05;
-        // 垂直位置：屏幕高度 2/3 处
-        final topOffset = screenHeight * 2 / 3;
+      _currentEntry = OverlayEntry(
+        builder: (context) {
+          final screenSize = MediaQuery.of(context).size;
+          final screenWidth = screenSize.width;
+          final screenHeight = screenSize.height;
+          final sidebarWidth = screenWidth * 0.05;
+          final topOffset = screenHeight * 2 / 3;
 
-        return Positioned(
-          top: topOffset,
-          left: sidebarWidth,
-          right: 0,
-          child: Center(
-            child: Opacity(
-              opacity: _opacity,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: SettingsService.themeColor.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    msg,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+          return Positioned(
+            top: topOffset,
+            left: sidebarWidth,
+            right: 0,
+            child: Center(
+              child: Opacity(
+                opacity: _opacity,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _messages.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          top: entry.key == 0 ? 0 : 8,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: SettingsService.themeColor.withValues(
+                              alpha: 0.9,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            entry.value,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
 
-    overlay.insert(_currentEntry!);
+      overlay.insert(_currentEntry!);
+    }
 
-    // 设置定时器，到时间后开始淡出
     _timer = Timer(duration, _startFadeOut);
   }
 
@@ -119,6 +134,7 @@ class ToastUtils {
     } catch (_) {}
     _currentEntry = null;
     _opacity = 1.0;
+    _messages.clear();
   }
 
   /// 取消当前 Toast

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 import 'package:bili_tv_app/config/app_style.dart';
 
@@ -212,33 +213,21 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
           child: FocusScope(
             autofocus: true,
             onKeyEvent: (node, event) {
-              if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                return KeyEventResult.ignored;
-              }
-
-              switch (event.logicalKey) {
-                case LogicalKeyboardKey.escape:
-                case LogicalKeyboardKey.goBack:
+              if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.escape ||
+                    event.logicalKey == LogicalKeyboardKey.goBack) {
                   widget.onClose();
                   return KeyEventResult.handled;
-                case LogicalKeyboardKey.arrowUp:
-                  _moveFocus(-1);
-                  return KeyEventResult.handled;
-                case LogicalKeyboardKey.arrowDown:
-                  _moveFocus(1);
-                  return KeyEventResult.handled;
-                case LogicalKeyboardKey.arrowLeft:
-                  widget.onClose();
-                  return KeyEventResult.handled;
-                case LogicalKeyboardKey.arrowRight:
-                  return KeyEventResult.handled;
-                case LogicalKeyboardKey.enter:
-                case LogicalKeyboardKey.select:
-                  widget.onSelected(widget.items[_focusedIndex]);
-                  return KeyEventResult.handled;
-                default:
-                  return KeyEventResult.ignored;
+                }
               }
+              return TvKeyHandler.handleNavigationWithRepeat(
+                event,
+                onUp: () => _moveFocus(-1),
+                onDown: () => _moveFocus(1),
+                onLeft: widget.onClose,
+                blockRight: true,
+                onSelect: () => widget.onSelected(widget.items[_focusedIndex]),
+              );
             },
             child: Stack(
               children: [

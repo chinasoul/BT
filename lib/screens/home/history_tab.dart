@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/auth_service.dart';
@@ -280,32 +280,20 @@ class HistoryTabState extends State<HistoryTab> {
     return Focus(
       focusNode: _loadMoreFocusNode,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          final gridColumns = SettingsService.videoGridColumns;
-          final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
-          final targetIndex = lastRowStart < _videos.length
-              ? lastRowStart
-              : _videos.length - 1;
-          _getFocusNode(targetIndex).requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          widget.sidebarFocusNode?.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select)) {
-          _extendLimit();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleSinglePress(
+          event,
+          onUp: () {
+            final gridColumns = SettingsService.videoGridColumns;
+            final lastRowStart = (_videos.length ~/ gridColumns) * gridColumns;
+            final targetIndex = lastRowStart < _videos.length
+                ? lastRowStart
+                : _videos.length - 1;
+            _getFocusNode(targetIndex).requestFocus();
+          },
+          blockDown: true,
+          onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+          onSelect: _extendLimit,
+        );
       },
       child: Builder(
         builder: (ctx) {

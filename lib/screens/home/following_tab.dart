@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../models/favorite_folder.dart';
 import '../../models/following_user.dart';
@@ -67,10 +67,16 @@ class FollowingTabState extends State<FollowingTab> {
         return false; // 已经在顶部 Tab 上，让上层处理
       }
     }
+    // 检查焦点是否在关注排序标签上
+    for (final node in _followingSortFocusNodes) {
+      if (node.hasFocus) {
+        _tabFocusNodes[_selectedTabIndex].requestFocus();
+        return true;
+      }
+    }
     // 检查焦点是否在收藏夹文件夹标签上
     for (final node in _folderFocusNodes) {
       if (node.hasFocus) {
-        // 在文件夹标签上，回到顶部 Tab
         _tabFocusNodes[_selectedTabIndex].requestFocus();
         return true;
       }
@@ -92,6 +98,9 @@ class FollowingTabState extends State<FollowingTab> {
   bool _followingLoadingMore = false;
   bool _followingHasMore = true;
   int _followingPage = 1;
+  // 'attention' = 按最常访问（默认），'' = 按最近关注
+  String _followingOrderType = 'attention';
+  late final List<FocusNode> _followingSortFocusNodes;
 
   // 收藏夹
   List<FavoriteFolder> _folders = [];
@@ -116,6 +125,7 @@ class FollowingTabState extends State<FollowingTab> {
   void initState() {
     super.initState();
     _tabFocusNodes = List.generate(3, (_) => FocusNode());
+    _followingSortFocusNodes = List.generate(2, (_) => FocusNode());
     _followingScrollController.addListener(_onFollowingScroll);
     _favoritesScrollController.addListener(_onFavoritesScroll);
     // 首次创建且可见时立即加载当前子 tab（默认关注列表）
@@ -150,6 +160,9 @@ class FollowingTabState extends State<FollowingTab> {
       node.dispose();
     }
     for (final node in _tabFocusNodes) {
+      node.dispose();
+    }
+    for (final node in _followingSortFocusNodes) {
       node.dispose();
     }
     for (final node in _folderFocusNodes) {
@@ -305,6 +318,7 @@ class FollowingTabState extends State<FollowingTab> {
     final result = await BilibiliApi.getFollowingUsers(
       page: reset ? 1 : _followingPage,
       pageSize: 30,
+      orderType: _followingOrderType,
     );
     if (!mounted) return;
 
@@ -623,6 +637,13 @@ class FollowingTabState extends State<FollowingTab> {
     _folderFocusNodes = List.generate(count, (_) => FocusNode());
   }
 
+  void _switchFollowingOrder(String orderType) {
+    if (_followingOrderType == orderType) return;
+    setState(() => _followingOrderType = orderType);
+    _scrollToTop();
+    _loadFollowingUsers(reset: true);
+  }
+
   void _scrollToTop() {
     final controller = _activeScrollController;
     if (controller.hasClients) {
@@ -683,12 +704,56 @@ class FollowingTabState extends State<FollowingTab> {
           onMoveRight: index == labels.length - 1
               ? () => _tabFocusNodes[0].requestFocus()
               : null,
-          // 收藏夹 Tab 向下移动到第一个子收藏夹
-          onMoveDown: index == 1 && _folderFocusNodes.isNotEmpty
-              ? () => _folderFocusNodes[_selectedFolderIndex].requestFocus()
-              : null,
+          onMoveDown: index == 0
+              ? () {
+                  final sortIdx = _followingOrderType == 'attention' ? 0 : 1;
+                  _followingSortFocusNodes[sortIdx].requestFocus();
+                }
+              : (index == 1 && _folderFocusNodes.isNotEmpty
+                  ? () => _folderFocusNodes[_selectedFolderIndex].requestFocus()
+                  : null),
         );
       }),
+    );
+  }
+
+  Widget _buildFollowingSortTabs() {
+    if (_selectedTabIndex != 0) return const SizedBox.shrink();
+    final options = [
+      ('最常访问', 'attention'),
+      ('最近关注', ''),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: List.generate(options.length, (index) {
+          final (label, orderType) = options[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _FolderTab(
+              label: label,
+              isSelected: _followingOrderType == orderType,
+              focusNode: _followingSortFocusNodes[index],
+              onFocus: () {},
+              onTap: () {
+                if (_followingOrderType == orderType) {
+                  _scrollToTop();
+                  _loadFollowingUsers(reset: true);
+                } else {
+                  _switchFollowingOrder(orderType);
+                }
+              },
+              onMoveLeft: index == 0
+                  ? () => widget.sidebarFocusNode?.requestFocus()
+                  : () => _followingSortFocusNodes[index - 1].requestFocus(),
+              onMoveRight: (index + 1 < options.length)
+                  ? () => _followingSortFocusNodes[index + 1].requestFocus()
+                  : () => _followingSortFocusNodes[0].requestFocus(),
+              onMoveUp: () => _tabFocusNodes[0].requestFocus(),
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -815,7 +880,7 @@ class FollowingTabState extends State<FollowingTab> {
       controller: _followingScrollController,
       slivers: [
         SliverPadding(
-          padding: TabStyle.contentPadding,
+          padding: const EdgeInsets.fromLTRB(24, 90, 24, 80),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
@@ -846,8 +911,10 @@ class FollowingTabState extends State<FollowingTab> {
                         : null,
                     onMoveUp: index >= 4
                         ? () => _getFollowingFocusNode(index - 4).requestFocus()
-                        : () =>
-                              _tabFocusNodes[_selectedTabIndex].requestFocus(),
+                        : () {
+                            final sortIdx = _followingOrderType == 'attention' ? 0 : 1;
+                            _followingSortFocusNodes[sortIdx].requestFocus();
+                          },
                     onMoveDown: (index + 4 < _users.length)
                         ? () => _getFollowingFocusNode(index + 4).requestFocus()
                         : null,
@@ -1047,6 +1114,7 @@ class FollowingTabState extends State<FollowingTab> {
                   height: TabStyle.headerHeight - 12, // 减去 top padding
                   child: _buildTopTabs(),
                 ),
+                _buildFollowingSortTabs(),
                 _buildFolderTabs(),
               ],
             ),
@@ -1091,35 +1159,14 @@ class _TopTab extends StatelessWidget {
     return Focus(
       focusNode: focusNode,
       onFocusChange: (f) => f ? onFocus() : null,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            onMoveLeft != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveLeft!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-            onMoveRight != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveRight!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-            onMoveDown != null) {
-          onMoveDown!();
-          return KeyEventResult.handled;
-        }
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select)) {
-          onTap();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: (node, event) => TvKeyHandler.handleSinglePress(
+        event,
+        onLeft: onMoveLeft,
+        onRight: onMoveRight,
+        onDown: onMoveDown,
+        onSelect: onTap,
+        blockUp: true,
+      ),
       child: Builder(
         builder: (ctx) {
           final focused = Focus.of(ctx).hasFocus;
@@ -1200,35 +1247,13 @@ class _FolderTab extends StatelessWidget {
     return Focus(
       focusNode: focusNode,
       onFocusChange: (f) => f ? onFocus() : null,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            onMoveLeft != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveLeft!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-            onMoveRight != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveRight!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-            onMoveUp != null) {
-          onMoveUp!();
-          return KeyEventResult.handled;
-        }
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select)) {
-          onTap();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: (node, event) => TvKeyHandler.handleSinglePress(
+        event,
+        onUp: onMoveUp,
+        onLeft: onMoveLeft,
+        onRight: onMoveRight,
+        onSelect: onTap,
+      ),
       child: Builder(
         builder: (ctx) {
           final focused = Focus.of(ctx).hasFocus;
@@ -1241,9 +1266,12 @@ class _FolderTab extends StatelessWidget {
                     ? SettingsService.themeColor.withValues(alpha: 0.6)
                     : Colors.white10,
                 borderRadius: BorderRadius.circular(10),
-                border: isSelected && !focused
-                    ? Border.all(color: SettingsService.themeColor, width: 1)
-                    : null,
+                border: Border.all(
+                  color: isSelected && !focused
+                      ? SettingsService.themeColor
+                      : Colors.transparent,
+                  width: 1,
+                ),
               ),
               child: Text(
                 label,
@@ -1294,38 +1322,14 @@ class _FollowingUserCard extends StatelessWidget {
           onFocus?.call();
         }
       },
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            onMoveLeft != null) {
-          onMoveLeft!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-            onMoveRight != null) {
-          onMoveRight!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-            onMoveUp != null) {
-          onMoveUp!();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-            onMoveDown != null) {
-          onMoveDown!();
-          return KeyEventResult.handled;
-        }
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.select ||
-                event.logicalKey == LogicalKeyboardKey.enter)) {
-          onTap();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: (node, event) => TvKeyHandler.handleNavigationWithRepeat(
+        event,
+        onUp: onMoveUp,
+        onDown: onMoveDown,
+        onLeft: onMoveLeft,
+        onRight: onMoveRight,
+        onSelect: onTap,
+      ),
       child: Builder(
         builder: (ctx) {
           final focused = Focus.of(ctx).hasFocus;

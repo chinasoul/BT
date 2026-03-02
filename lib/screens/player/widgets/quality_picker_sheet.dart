@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/services/settings_service.dart';
 
 class QualityPickerSheet extends StatefulWidget {
@@ -63,27 +63,23 @@ class _QualityPickerSheetState extends State<QualityPickerSheet> {
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          if (_focusedIndex > 0) {
-            setState(() => _focusedIndex--);
-            _scrollToFocused();
-            return KeyEventResult.handled;
-          }
-        } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          if (_focusedIndex < widget.qualities.length - 1) {
-            setState(() => _focusedIndex++);
-            _scrollToFocused();
-            return KeyEventResult.handled;
-          }
-        } else if (event.logicalKey == LogicalKeyboardKey.select ||
-            event.logicalKey == LogicalKeyboardKey.enter) {
-          widget.onSelect(widget.qualities[_focusedIndex]['qn']);
-          return KeyEventResult.handled;
-        }
-
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleNavigation(
+          event,
+          onUp: _focusedIndex > 0
+              ? () {
+                  setState(() => _focusedIndex--);
+                  _scrollToFocused();
+                }
+              : null,
+          onDown: _focusedIndex < widget.qualities.length - 1
+              ? () {
+                  setState(() => _focusedIndex++);
+                  _scrollToFocused();
+                }
+              : null,
+          onSelect: () =>
+              widget.onSelect(widget.qualities[_focusedIndex]['qn']),
+        );
       },
       child: SafeArea(
         child: Column(

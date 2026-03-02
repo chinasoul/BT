@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import '../../models/following_user.dart';
 import '../../models/video.dart';
@@ -314,108 +315,91 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    // 处理 KeyDownEvent 和 KeyRepeatEvent（支持长按）
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-
-    final gridColumns = SettingsService.videoGridColumns;
-
     // 返回键由 FollowingTab 的 handleBack 统一处理，这里只处理 ESC 键
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
+    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       widget.onClose();
       return KeyEventResult.handled;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      if (_focusedIndex == 0) {
-        widget.onClose();
-      } else if (_focusedIndex <= 3) {
-        final oldIndex = _focusedIndex;
-        setState(() => _focusedIndex--);
-        // 在排序按钮之间切换时，使用缓存切换
-        if (oldIndex == 1 && _focusedIndex == 0) {
-          _switchOrder('pubdate');
-        }
-      } else {
-        final videoIndex = _focusedIndex - 4;
-        if (videoIndex % gridColumns == 0) {
+    final gridColumns = SettingsService.videoGridColumns;
+
+    return TvKeyHandler.handleNavigationWithRepeat(
+      event,
+      onLeft: () {
+        if (_focusedIndex == 0) {
           widget.onClose();
-        } else {
+        } else if (_focusedIndex <= 3) {
+          final oldIndex = _focusedIndex;
           setState(() => _focusedIndex--);
-          _focusCurrentItem();
-        }
-      }
-      return KeyEventResult.handled;
-    }
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      if (_focusedIndex < 3) {
-        final oldIndex = _focusedIndex;
-        setState(() => _focusedIndex++);
-        // 在排序按钮之间切换时，使用缓存切换
-        if (oldIndex == 0 && _focusedIndex == 1) {
-          _switchOrder('click');
-        }
-      } else if (_focusedIndex >= 4) {
-        final videoIndex = _focusedIndex - 4;
-        if (videoIndex + 1 < _videos.length) {
-          setState(() => _focusedIndex++);
-          _focusCurrentItem();
-        }
-      }
-      return KeyEventResult.handled;
-    }
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      if (_focusedIndex <= 3) {
-        // 已在顶部
-      } else {
-        final videoIndex = _focusedIndex - 4;
-        if (videoIndex < gridColumns) {
-          setState(() => _focusedIndex = 0);
-          _mainFocusNode.requestFocus();
+          if (oldIndex == 1 && _focusedIndex == 0) {
+            _switchOrder('pubdate');
+          }
         } else {
-          setState(() => _focusedIndex -= gridColumns);
-          _focusCurrentItem();
+          final videoIndex = _focusedIndex - 4;
+          if (videoIndex % gridColumns == 0) {
+            widget.onClose();
+          } else {
+            setState(() => _focusedIndex--);
+            _focusCurrentItem();
+          }
         }
-      }
-      return KeyEventResult.handled;
-    }
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      if (_focusedIndex <= 3) {
-        if (_videos.isNotEmpty) {
-          setState(() => _focusedIndex = 4);
-          _focusCurrentItem();
+      },
+      onRight: () {
+        if (_focusedIndex < 3) {
+          final oldIndex = _focusedIndex;
+          setState(() => _focusedIndex++);
+          if (oldIndex == 0 && _focusedIndex == 1) {
+            _switchOrder('click');
+          }
+        } else if (_focusedIndex >= 4) {
+          final videoIndex = _focusedIndex - 4;
+          if (videoIndex + 1 < _videos.length) {
+            setState(() => _focusedIndex++);
+            _focusCurrentItem();
+          }
         }
-      } else {
-        final videoIndex = _focusedIndex - 4;
-        if (videoIndex + gridColumns < _videos.length) {
-          setState(() => _focusedIndex += gridColumns);
-          _focusCurrentItem();
+      },
+      onUp: () {
+        if (_focusedIndex > 3) {
+          final videoIndex = _focusedIndex - 4;
+          if (videoIndex < gridColumns) {
+            setState(() => _focusedIndex = 0);
+            _mainFocusNode.requestFocus();
+          } else {
+            setState(() => _focusedIndex -= gridColumns);
+            _focusCurrentItem();
+          }
         }
-      }
-      return KeyEventResult.handled;
-    }
-
-    if (event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.enter) {
-      if (_focusedIndex == 0) {
-        _refreshOrder('pubdate'); // 点击确定：强制刷新
-      } else if (_focusedIndex == 1) {
-        _refreshOrder('click'); // 点击确定：强制刷新
-      } else if (_focusedIndex == 2) {
-        _toggleFollow();
-      } else if (_focusedIndex == 3) {
-        _openCharge();
-      } else if (_focusedIndex >= 4 && _focusedIndex - 4 < _videos.length) {
-        _openVideo(_videos[_focusedIndex - 4]);
-      }
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
+      },
+      onDown: () {
+        if (_focusedIndex <= 3) {
+          if (_videos.isNotEmpty) {
+            setState(() => _focusedIndex = 4);
+            _focusCurrentItem();
+          }
+        } else {
+          final videoIndex = _focusedIndex - 4;
+          if (videoIndex + gridColumns < _videos.length) {
+            setState(() => _focusedIndex += gridColumns);
+            _focusCurrentItem();
+          }
+        }
+      },
+      onSelect: () {
+        if (_focusedIndex == 0) {
+          _refreshOrder('pubdate');
+        } else if (_focusedIndex == 1) {
+          _refreshOrder('click');
+        } else if (_focusedIndex == 2) {
+          _toggleFollow();
+        } else if (_focusedIndex == 3) {
+          _openCharge();
+        } else if (_focusedIndex >= 4 && _focusedIndex - 4 < _videos.length) {
+          _openVideo(_videos[_focusedIndex - 4]);
+        }
+      },
+    );
   }
 
   String _formatNumber(int num) {

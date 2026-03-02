@@ -80,6 +80,62 @@ class TvKeyHandler {
     }
   }
 
+  /// 处理方向键：仅首次按下时执行回调，KeyRepeat 一律吞掉不冒泡
+  ///
+  /// 适合 Tab / 标签 等场景：单击切换、长按不跳。
+  static KeyEventResult handleSinglePress(
+    KeyEvent event, {
+    VoidCallback? onUp,
+    VoidCallback? onDown,
+    VoidCallback? onLeft,
+    VoidCallback? onRight,
+    VoidCallback? onSelect,
+    bool blockUp = false,
+    bool blockDown = false,
+    bool blockLeft = false,
+    bool blockRight = false,
+  }) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final isRepeat = event is KeyRepeatEvent;
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowUp:
+        if (onUp != null) {
+          if (!isRepeat) onUp();
+          return KeyEventResult.handled;
+        }
+        return blockUp ? KeyEventResult.handled : KeyEventResult.ignored;
+      case LogicalKeyboardKey.arrowDown:
+        if (onDown != null) {
+          if (!isRepeat) onDown();
+          return KeyEventResult.handled;
+        }
+        return blockDown ? KeyEventResult.handled : KeyEventResult.ignored;
+      case LogicalKeyboardKey.arrowLeft:
+        if (onLeft != null) {
+          if (!isRepeat) onLeft();
+          return KeyEventResult.handled;
+        }
+        return blockLeft ? KeyEventResult.handled : KeyEventResult.ignored;
+      case LogicalKeyboardKey.arrowRight:
+        if (onRight != null) {
+          if (!isRepeat) onRight();
+          return KeyEventResult.handled;
+        }
+        return blockRight ? KeyEventResult.handled : KeyEventResult.ignored;
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.select:
+        if (!isRepeat && onSelect != null) {
+          onSelect();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      default:
+        return KeyEventResult.ignored;
+    }
+  }
+
   /// 处理支持 KeyRepeat 的方向键（如在网格中按住快速移动）
   static KeyEventResult handleNavigationWithRepeat(
     KeyEvent event, {

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../../config/build_flags.dart';
 import 'tabs/playback_settings.dart';
 import 'tabs/danmaku_settings.dart';
@@ -240,27 +240,12 @@ class SettingsViewState extends State<SettingsView> {
       focusNode: focusNode,
       onFocusChange: (f) => f ? onTap() : null,
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-            onMoveLeft != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveLeft();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-            onMoveRight != null) {
-          if (event is KeyRepeatEvent) return KeyEventResult.handled;
-          onMoveRight();
-          return KeyEventResult.handled;
-        }
-        // 设置页顶部，阻止向上导航
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        return TvKeyHandler.handleSinglePress(
+          event,
+          onLeft: onMoveLeft,
+          onRight: onMoveRight,
+          blockUp: true,
+        );
       },
       child: Builder(
         builder: (ctx) {

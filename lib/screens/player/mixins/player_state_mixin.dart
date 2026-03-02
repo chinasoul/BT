@@ -7,6 +7,7 @@ import '../widgets/settings_panel.dart';
 import '../../../models/videoshot.dart';
 import '../../../models/danmaku_item.dart';
 import '../../../models/subtitle_item.dart';
+import '../../../services/settings_service.dart';
 
 /// 播放器状态 Mixin
 /// 包含所有 State 变量
@@ -68,7 +69,7 @@ mixin PlayerStateMixin on State<PlayerScreen> {
 
   // 分辨率
   List<Map<String, dynamic>> qualities = [];
-  int currentQuality = 80;
+  int currentQuality = SettingsService.preferredQualityQn;
   String currentCodec = ''; // 当前编解码器 (avc/hev/av01)
   bool showStatsForNerds = false;
   int videoWidth = 0;
@@ -90,6 +91,14 @@ mixin PlayerStateMixin on State<PlayerScreen> {
   int focusedEpisodeIndex = 0;
   bool isUgcSeason = false; // 是否为合集（ugc_season），合集的每集有不同 bvid
   bool episodesFullyLoaded = false; // 标记 episodes 是否已填充完整合集数据
+
+  // 同时存在合集和分P时的双标签支持
+  List<dynamic> episodeTabUgc = []; // 合集完整列表
+  List<dynamic> episodeTabPages = []; // 分P列表
+  bool hasBothEpisodeTypes = false; // 是否同时有合集和分P
+  bool episodePanelShowingPages = false; // 选集面板当前显示分P标签
+  int focusedUgcIndex = 0; // 合集标签的焦点索引
+  int focusedPageIndex = 0; // 分P标签的焦点索引
 
   // 播放完成后行为用：预计算的下一集信息（不需要加载完整列表）
   Map<String, dynamic>? precomputedNextEpisode; // {title, pic, bvid?, cid?}
@@ -170,9 +179,12 @@ mixin PlayerStateMixin on State<PlayerScreen> {
     if (currentCodec.startsWith('av01')) {
       return 'AV1';
     }
+    if (currentCodec.startsWith('dvhe') ||
+        currentCodec.startsWith('dvav')) {
+      return '杜比视界';
+    }
     if (currentCodec.startsWith('hev') ||
-        currentCodec.startsWith('hvc') ||
-        currentCodec.startsWith('dvh')) {
+        currentCodec.startsWith('hvc')) {
       return 'H.265';
     }
     if (currentCodec.startsWith('avc')) {

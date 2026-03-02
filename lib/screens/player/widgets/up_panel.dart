@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:bili_tv_app/utils/toast_utils.dart';
 import 'package:bili_tv_app/utils/image_url_utils.dart';
 import '../../../services/bilibili_api.dart';
@@ -206,69 +206,60 @@ class _UpPanelState extends State<UpPanel> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      if (_focusedIndex > -3) {
-        setState(() => _focusedIndex--);
-        if (_focusedIndex >= 0) _scrollToFocused();
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      if (_focusedIndex < _videos.length - 1) {
-        setState(() => _focusedIndex++);
-        if (_focusedIndex >= 0) _scrollToFocused();
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      // 排序按钮区域：左右切换
-      if (_focusedIndex == -2) {
-        setState(() => _focusedIndex = -1);
-        // 聚焦即切换模式
-        if (SettingsService.focusSwitchTab) {
+    return TvKeyHandler.handleNavigation(
+      event,
+      onUp: () {
+        if (_focusedIndex > -3) {
+          setState(() => _focusedIndex--);
+          if (_focusedIndex >= 0) _scrollToFocused();
+        }
+      },
+      onDown: () {
+        if (_focusedIndex < _videos.length - 1) {
+          setState(() => _focusedIndex++);
+          if (_focusedIndex >= 0) _scrollToFocused();
+        }
+      },
+      onLeft: () {
+        if (_focusedIndex == -2) {
+          setState(() => _focusedIndex = -1);
+          if (SettingsService.focusSwitchTab) {
+            _switchOrder('pubdate');
+          }
+        } else if (_focusedIndex == -3) {
+          setState(() => _focusedIndex = -2);
+        } else if (_focusedIndex >= 0) {
+          widget.onClose();
+        } else if (_focusedIndex == -1) {
+          widget.onClose();
+        }
+      },
+      onRight: () {
+        if (_focusedIndex == -1) {
+          setState(() => _focusedIndex = -2);
+          if (SettingsService.focusSwitchTab) {
+            _switchOrder('click');
+          }
+        } else if (_focusedIndex == -2) {
+          setState(() => _focusedIndex = -3);
+        }
+      },
+      onSelect: () {
+        if (_focusedIndex == -1) {
           _switchOrder('pubdate');
-        }
-      } else if (_focusedIndex == -3) {
-        setState(() => _focusedIndex = -2);
-      } else if (_focusedIndex >= 0) {
-        // 视频列表：左键关闭面板
-        widget.onClose();
-      } else if (_focusedIndex == -1) {
-        widget.onClose();
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      // 排序按钮区域：左右切换
-      if (_focusedIndex == -1) {
-        setState(() => _focusedIndex = -2);
-        // 聚焦即切换模式
-        if (SettingsService.focusSwitchTab) {
+        } else if (_focusedIndex == -2) {
           _switchOrder('click');
+        } else if (_focusedIndex == -3) {
+          _toggleFollow();
+        } else if (_videos.isNotEmpty && _focusedIndex >= 0) {
+          widget.onVideoSelect(_videos[_focusedIndex]);
         }
-      } else if (_focusedIndex == -2) {
-        setState(() => _focusedIndex = -3);
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.enter) {
-      if (_focusedIndex == -1) {
-        _switchOrder('pubdate');
-      } else if (_focusedIndex == -2) {
-        _switchOrder('click');
-      } else if (_focusedIndex == -3) {
-        _toggleFollow();
-      } else if (_videos.isNotEmpty && _focusedIndex >= 0) {
-        widget.onVideoSelect(_videos[_focusedIndex]);
-      }
-      return KeyEventResult.handled;
-    }
-
-    // Back key: Not handled here, handled by PopScope/onPopInvoked
-    return KeyEventResult.ignored;
+      },
+      blockUp: true,
+      blockDown: true,
+      blockLeft: true,
+      blockRight: true,
+    );
   }
 
   void _switchOrder(String newOrder) {

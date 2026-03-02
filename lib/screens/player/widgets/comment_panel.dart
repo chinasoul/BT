@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../../models/comment.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
@@ -245,99 +246,87 @@ class _CommentPanelState extends State<CommentPanel> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    // 支持长按滚动：KeyDownEvent 和 KeyRepeatEvent
-    final isKeyDown = event is KeyDownEvent;
-    final isKeyRepeat = event is KeyRepeatEvent;
-    if (!isKeyDown && !isKeyRepeat) return KeyEventResult.ignored;
-
-    final key = event.logicalKey;
-
     // Back / Escape (仅响应 KeyDown，不响应长按)
-    if (isKeyDown &&
-        (key == LogicalKeyboardKey.goBack ||
-            key == LogicalKeyboardKey.escape ||
-            key == LogicalKeyboardKey.browserBack)) {
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.goBack ||
+            event.logicalKey == LogicalKeyboardKey.escape ||
+            event.logicalKey == LogicalKeyboardKey.browserBack)) {
       widget.onClose();
       return KeyEventResult.handled;
     }
 
     // 排序按钮区域 (_focusedIndex < 0) - 仅响应 KeyDown
-    if (_focusedIndex < 0 && isKeyDown) {
-      if (key == LogicalKeyboardKey.arrowLeft) {
-        if (_focusedIndex == -2) {
-          setState(() => _focusedIndex = -1);
-          // 聚焦即切换模式：移动焦点立刻切换排序
-          if (SettingsService.focusSwitchTab) {
-            _switchSort(3); // 最热
+    if (_focusedIndex < 0) {
+      return TvKeyHandler.handleNavigation(
+        event,
+        onLeft: () {
+          if (_focusedIndex == -2) {
+            setState(() => _focusedIndex = -1);
+            if (SettingsService.focusSwitchTab) {
+              _switchSort(3);
+            }
+          } else {
+            widget.onClose();
           }
-        } else {
-          widget.onClose();
-        }
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.arrowRight) {
-        if (_focusedIndex == -1) {
-          setState(() => _focusedIndex = -2);
-          // 聚焦即切换模式：移动焦点立刻切换排序
-          if (SettingsService.focusSwitchTab) {
-            _switchSort(2); // 最新
+        },
+        onRight: () {
+          if (_focusedIndex == -1) {
+            setState(() => _focusedIndex = -2);
+            if (SettingsService.focusSwitchTab) {
+              _switchSort(2);
+            }
           }
-        }
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.arrowDown) {
-        if (_comments.isNotEmpty) {
-          setState(() => _focusedIndex = 0);
-          _scrollToFocused();
-        }
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter) {
-        _switchSort(_focusedIndex == -1 ? 3 : 2);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.handled;
+        },
+        onDown: () {
+          if (_comments.isNotEmpty) {
+            setState(() => _focusedIndex = 0);
+            _scrollToFocused();
+          }
+        },
+        onSelect: () {
+          _switchSort(_focusedIndex == -1 ? 3 : 2);
+        },
+        blockUp: true,
+      );
     }
 
     // 评论列表区域 - 上下键支持长按
-    if (key == LogicalKeyboardKey.arrowUp) {
-      if (_focusedIndex > 0) {
-        setState(() => _focusedIndex--);
-        _scrollToFocused();
-      } else if (isKeyDown) {
-        // 只有首次按下才跳到排序按钮，跳到当前排序对应的按钮
-        setState(() => _focusedIndex = _sortMode == 3 ? -1 : -2);
-      }
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowDown) {
-      if (_focusedIndex < _comments.length - 1) {
-        setState(() => _focusedIndex++);
-        _scrollToFocused();
-        // 接近底部时自动加载更多
-        if (_focusedIndex >= _comments.length - 3) {
-          _loadComments(loadMore: true);
+    final isKeyDown = event is KeyDownEvent;
+
+    final upDownResult = TvKeyHandler.handleNavigationWithRepeat(
+      event,
+      onUp: () {
+        if (_focusedIndex > 0) {
+          setState(() => _focusedIndex--);
+          _scrollToFocused();
+        } else if (isKeyDown) {
+          setState(() => _focusedIndex = _sortMode == 3 ? -1 : -2);
         }
-      }
-      return KeyEventResult.handled;
-    }
+      },
+      onDown: () {
+        if (_focusedIndex < _comments.length - 1) {
+          setState(() => _focusedIndex++);
+          _scrollToFocused();
+          if (_focusedIndex >= _comments.length - 3) {
+            _loadComments(loadMore: true);
+          }
+        }
+      },
+    );
+    if (upDownResult == KeyEventResult.handled) return upDownResult;
 
-    // 以下仅响应 KeyDown
-    if (!isKeyDown) return KeyEventResult.ignored;
-
-    if (key == LogicalKeyboardKey.arrowLeft) {
-      widget.onClose();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter) {
-      // 展开/折叠回复
-      if (_focusedIndex >= 0 && _focusedIndex < _comments.length) {
-        _toggleReplies(_focusedIndex);
-      }
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
+    // Left / Select: KeyDown only, block KeyRepeat
+    return TvKeyHandler.handleSinglePress(
+      event,
+      onLeft: () {
+        widget.onClose();
+      },
+      onSelect: () {
+        if (_focusedIndex >= 0 && _focusedIndex < _comments.length) {
+          _toggleReplies(_focusedIndex);
+        }
+      },
+    );
   }
 
   @override

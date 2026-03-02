@@ -11,6 +11,8 @@ class EpisodePanel extends StatefulWidget {
   final bool isUgcSeason;
   final String? currentBvid;
   final Function(String bvid)? onUgcEpisodeSelect;
+  final bool hasBothTabs;
+  final bool showingPagesTab;
 
   const EpisodePanel({
     super.key,
@@ -22,6 +24,8 @@ class EpisodePanel extends StatefulWidget {
     this.isUgcSeason = false,
     this.currentBvid,
     this.onUgcEpisodeSelect,
+    this.hasBothTabs = false,
+    this.showingPagesTab = false,
   });
 
   @override
@@ -42,7 +46,8 @@ class _EpisodePanelState extends State<EpisodePanel> {
   @override
   void didUpdateWidget(EpisodePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.focusedIndex != oldWidget.focusedIndex) {
+    if (widget.focusedIndex != oldWidget.focusedIndex ||
+        widget.showingPagesTab != oldWidget.showingPagesTab) {
       _scrollToIndex(widget.focusedIndex);
     }
   }
@@ -98,18 +103,65 @@ class _EpisodePanelState extends State<EpisodePanel> {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Text(
-                    widget.isUgcSeason ? '合集' : '分P',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+              child: widget.hasBothTabs
+                  ? Row(
+                      children: [
+                        Text(
+                          '合集',
+                          style: TextStyle(
+                            color: !widget.showingPagesTab
+                                ? SettingsService.themeColor
+                                : Colors.white54,
+                            fontSize: 20,
+                            fontWeight: !widget.showingPagesTab
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            '|',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '分P',
+                          style: TextStyle(
+                            color: widget.showingPagesTab
+                                ? SettingsService.themeColor
+                                : Colors.white54,
+                            fontSize: 20,
+                            fontWeight: widget.showingPagesTab
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '◀▶ 切换',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Text(
+                          widget.isUgcSeason ? '合集' : '分P',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
             Expanded(
               child: ListView.builder(

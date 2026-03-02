@@ -100,7 +100,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
     String? playUrl;
     if (playInfo['dashData'] != null) {
-      final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
+      final mpdContent = await MpdGenerator.generate(
+        playInfo['dashData'],
+        selectedQn: currentQuality,
+      );
       LocalServer.instance.setMpdContent(mpdContent);
       playUrl = LocalServer.instance.mpdUrl;
     } else {
@@ -407,7 +410,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
       }
 
       String? lastError;
-      final baseQn = currentQuality > 0 ? currentQuality : 80;
+      final baseQn = currentQuality > 0 ? currentQuality : SettingsService.preferredQualityQn;
+      final requestedQn = baseQn;
       // 只做“降级”画质兜底，避免出现先升后降导致的额外等待
       final qualityFallbackList = <int>[
         baseQn,
@@ -502,12 +506,19 @@ mixin PlayerActionMixin on PlayerStateMixin {
                       1000)
                   .round();
 
+          if (currentQuality < requestedQn && mounted) {
+            final requested = VideoQuality.fromQn(requestedQn).label;
+            final actual = VideoQuality.fromQn(currentQuality).label;
+            ToastUtils.show(context, '未达到 $requested，当前 $actual');
+          }
+
           String? playUrl;
 
           // 如果有 DASH 数据，生成 MPD 并使用全局服务器
           if (playInfo['dashData'] != null) {
             final mpdContent = await MpdGenerator.generate(
               playInfo['dashData'],
+              selectedQn: currentQuality,
             );
 
             // 使用全局 LocalServer 提供 MPD 内容 (纯内存)
@@ -679,6 +690,18 @@ mixin PlayerActionMixin on PlayerStateMixin {
           updateDanmakuOption();
           startHideTimer();
           _showTunnelModeHintIfNeeded();
+
+          // 同时有合集和分P时提示用户
+          if (isUgcSeason && episodes.length > 1) {
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                ToastUtils.show(
+                  context,
+                  '该视频含 ${episodes.length} 个分P，可在选集面板中切换',
+                );
+              }
+            });
+          }
 
           await loadDanmaku();
           await loadSubtitles();
@@ -1279,7 +1302,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
               '🎬 [Init] UGC Season: $totalCount eps, '
               'current=$currentEpisodeTitle, hasNext=${nextEp != null}',
             );
-            return;
+            // 不 return：继续检查 pages，若有多P则优先播放下一P
           }
         }
       }
@@ -1287,21 +1310,23 @@ mixin PlayerActionMixin on PlayerStateMixin {
       debugPrint('🎬 [Init] UGC precompute error: $e');
     }
 
-    // 非合集：检查 pages 是否多P
+    // 检查 pages 是否多P（同时有合集时，分P优先用于自动播放下一集）
     final pages = videoInfo['pages'] as List?;
     if (pages != null && pages.length > 1) {
       hasMultipleEpisodes = true;
-      // 找当前P和下一P
       for (int i = 0; i < pages.length; i++) {
         if (pages[i]['cid'] == cid) {
-          currentEpisodeTitle = pages[i]['part'] ?? pages[i]['page_part'] ?? '';
+          if (!isUgcSeason) {
+            currentEpisodeTitle =
+                pages[i]['part'] ?? pages[i]['page_part'] ?? '';
+          }
           if (i + 1 < pages.length) {
             final nextPage = pages[i + 1];
             final partName = nextPage['part'] ?? nextPage['page_part'] ?? '';
             precomputedNextEpisode = {
               'cid': nextPage['cid'],
               'title': 'P${i + 2} $partName',
-              'pic': '',
+              'pic': videoInfo['pic'] ?? '',
             };
           }
           break;
@@ -1319,6 +1344,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
     if (fullVideoInfo == null) return;
 
     final videoInfo = fullVideoInfo!;
+    final pages = videoInfo['pages'] as List?;
+    final hasMultiPages = pages != null && pages.length > 1;
+
     try {
       final ugcSeason = videoInfo['ugc_season'];
       if (ugcSeason != null && ugcSeason is Map) {
@@ -1351,16 +1379,44 @@ mixin PlayerActionMixin on PlayerStateMixin {
             }
           }
           if (ugcEpisodes.length > 1) {
-            setState(() {
-              episodes = ugcEpisodes;
-              isUgcSeason = true;
-            });
-            // 设置焦点索引到当前集
-            final idx = episodes.indexWhere(
-              (e) => e['bvid'] == widget.video.bvid,
-            );
-            if (idx != -1) focusedEpisodeIndex = idx;
-            debugPrint('🎬 [LazyLoad] UGC episodes loaded: ${episodes.length}');
+            if (hasMultiPages) {
+              // 同时存在合集和分P，保存两份列表，默认显示分P
+              setState(() {
+                episodeTabUgc = ugcEpisodes;
+                episodeTabPages = List<dynamic>.from(pages!);
+                hasBothEpisodeTypes = true;
+                episodePanelShowingPages = true;
+                episodes = episodeTabPages;
+              });
+              final pageIdx = episodeTabPages.indexWhere(
+                (e) => e['cid'] == cid,
+              );
+              if (pageIdx != -1) {
+                focusedEpisodeIndex = pageIdx;
+                focusedPageIndex = pageIdx;
+              }
+              final ugcIdx = episodeTabUgc.indexWhere(
+                (e) => e['bvid'] == widget.video.bvid,
+              );
+              if (ugcIdx != -1) focusedUgcIndex = ugcIdx;
+              debugPrint(
+                '🎬 [LazyLoad] Both types: ${episodeTabPages.length} pages, '
+                '${episodeTabUgc.length} UGC episodes',
+              );
+            } else {
+              // 仅合集
+              setState(() {
+                episodes = ugcEpisodes;
+                isUgcSeason = true;
+              });
+              final idx = episodes.indexWhere(
+                (e) => e['bvid'] == widget.video.bvid,
+              );
+              if (idx != -1) focusedEpisodeIndex = idx;
+              debugPrint(
+                '🎬 [LazyLoad] UGC episodes loaded: ${episodes.length}',
+              );
+            }
           }
         }
       }
@@ -1368,14 +1424,36 @@ mixin PlayerActionMixin on PlayerStateMixin {
       debugPrint('🎬 [LazyLoad] UGC parse error: $e');
     }
 
-    // 对于普通分P，episodes 已经是 pages，设置焦点索引即可
-    if (!isUgcSeason && episodes.length > 1) {
+    // 对于普通分P（无合集），episodes 已经是 pages，设置焦点索引即可
+    if (!isUgcSeason && !hasBothEpisodeTypes && episodes.length > 1) {
       final idx = episodes.indexWhere((e) => e['cid'] == cid);
       if (idx != -1) focusedEpisodeIndex = idx;
     }
 
     episodesFullyLoaded = true;
   }
+
+  /// 切换选集面板的分P/合集标签
+  void switchEpisodeTab() {
+    if (!hasBothEpisodeTypes) return;
+    setState(() {
+      if (episodePanelShowingPages) {
+        focusedPageIndex = focusedEpisodeIndex;
+        episodes = episodeTabUgc;
+        episodePanelShowingPages = false;
+        focusedEpisodeIndex = focusedUgcIndex;
+      } else {
+        focusedUgcIndex = focusedEpisodeIndex;
+        episodes = episodeTabPages;
+        episodePanelShowingPages = true;
+        focusedEpisodeIndex = focusedPageIndex;
+      }
+    });
+  }
+
+  /// 选集面板当前是否在显示分P列表
+  bool get isPanelShowingPages =>
+      hasBothEpisodeTypes ? episodePanelShowingPages : !isUgcSeason;
 
   /// 获取用于显示的视频信息（优先使用 API 获取的完整信息）
   models.Video getDisplayVideo() {
@@ -1458,27 +1536,25 @@ mixin PlayerActionMixin on PlayerStateMixin {
         final nextTitle = nextEp['title'] ?? '下一集';
         ToastUtils.show(context, '自动播放下一集: $nextTitle');
 
-        if (isUgcSeason) {
-          // 合集：直接导航到新播放器（不依赖 episodes 列表）
-          final bvid = nextEp['bvid'] as String? ?? '';
-          if (bvid.isNotEmpty && mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => PlayerScreen(
-                  video: models.Video(
-                    bvid: bvid,
-                    title: nextEp['title'] ?? '',
-                    pic: nextEp['pic'] ?? '',
-                    ownerName: widget.video.ownerName,
-                    ownerFace: widget.video.ownerFace,
-                    duration: nextEp['duration'] ?? 0,
-                    pubdate: widget.video.pubdate,
-                    view: 0,
-                  ),
+        final nextBvid = nextEp['bvid'] as String? ?? '';
+        if (nextBvid.isNotEmpty && nextBvid != widget.video.bvid && mounted) {
+          // 合集：目标是不同 bvid，导航到新播放器
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                video: models.Video(
+                  bvid: nextBvid,
+                  title: nextEp['title'] ?? '',
+                  pic: nextEp['pic'] ?? '',
+                  ownerName: widget.video.ownerName,
+                  ownerFace: widget.video.ownerFace,
+                  duration: nextEp['duration'] ?? 0,
+                  pubdate: widget.video.pubdate,
+                  view: 0,
                 ),
               ),
-            );
-          }
+            ),
+          );
         } else if (nextEp['cid'] != null) {
           // 分P：同一视频内切换 cid
           switchEpisode(nextEp['cid'] as int);
@@ -2515,7 +2591,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       if (playInfo != null) {
         if (!mounted) return;
-        currentQuality = playInfo['currentQuality'] ?? 80;
+        currentQuality = playInfo['currentQuality'] ?? SettingsService.preferredQualityQn;
         currentCodec = playInfo['codec'] ?? currentCodec;
         currentAudioUrl = playInfo['audioUrl'];
         videoWidth = int.tryParse(playInfo['width']?.toString() ?? '') ?? 0;
@@ -2533,7 +2609,10 @@ mixin PlayerActionMixin on PlayerStateMixin {
         String? playUrl;
 
         if (playInfo['dashData'] != null) {
-          final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
+          final mpdContent = await MpdGenerator.generate(
+            playInfo['dashData'],
+            selectedQn: currentQuality,
+          );
 
           LocalServer.instance.setMpdContent(mpdContent);
           playUrl = LocalServer.instance.mpdUrl;
@@ -2581,6 +2660,11 @@ mixin PlayerActionMixin on PlayerStateMixin {
         // 恢复倍速，并同步弹幕速度（含原生弹幕渲染）
         videoController?.setPlaybackSpeed(playbackSpeed);
         updateDanmakuOption();
+
+        // 切换分P后重新计算下一集，确保自动播放指向正确的下一P
+        if (fullVideoInfo != null) {
+          _precomputeNextEpisode(fullVideoInfo!);
+        }
       } else {
         throw Exception('获取播放地址失败');
       }
@@ -2651,8 +2735,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
   Future<void> switchQuality(int qn) async {
     final position = videoController?.value.position ?? Duration.zero;
-
-    setState(() => isLoading = true);
+    final previousQuality = currentQuality;
 
     try {
       final playInfo = await BilibiliApi.getVideoPlayUrl(
@@ -2663,16 +2746,34 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       if (playInfo == null) {
         ToastUtils.show(context, '切换画质失败');
-        setState(() => isLoading = false);
         return;
       }
+
+      final returnedQuality = playInfo['currentQuality'] as int? ?? qn;
+
+      // 升级请求但 API 返回的画质没有比当前更好 → 拒绝切换
+      if (qn > previousQuality && returnedQuality <= previousQuality) {
+        final requested = VideoQuality.fromQn(qn).label;
+        ToastUtils.show(context, '$requested 不可用，保持当前画质');
+        return;
+      }
+
+      // 有提升但未达到请求画质，先提示再切换
+      if (returnedQuality < qn && mounted) {
+        final requested = VideoQuality.fromQn(qn).label;
+        final actual = VideoQuality.fromQn(returnedQuality).label;
+        ToastUtils.show(context, '未达到 $requested，将以 $actual 播放');
+      }
+
+      // 确认要切换，此时才进入 loading 状态
+      setState(() => isLoading = true);
 
       // 清理旧播放器
       cancelPlayerListeners();
       await videoController?.dispose();
       LocalServer.instance.clearMpdContent();
 
-      currentQuality = playInfo['currentQuality'] ?? qn;
+      currentQuality = returnedQuality;
       currentCodec = playInfo['codec'] ?? currentCodec;
       currentAudioUrl = playInfo['audioUrl'];
       videoWidth = int.tryParse(playInfo['width']?.toString() ?? '') ?? 0;
@@ -2684,10 +2785,15 @@ mixin PlayerActionMixin on PlayerStateMixin {
                   1000)
               .round();
 
+      SettingsService.setPreferredQuality(VideoQuality.fromQn(currentQuality));
+
       String? playUrl;
 
       if (playInfo['dashData'] != null) {
-        final mpdContent = await MpdGenerator.generate(playInfo['dashData']);
+        final mpdContent = await MpdGenerator.generate(
+          playInfo['dashData'],
+          selectedQn: currentQuality,
+        );
 
         LocalServer.instance.setMpdContent(mpdContent);
         playUrl = LocalServer.instance.mpdUrl;
@@ -2730,7 +2836,9 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       setState(() => isLoading = false);
 
-      ToastUtils.show(context, '已切换到 $currentQualityDesc');
+      if (currentQuality >= qn) {
+        ToastUtils.show(context, '已切换到 $currentQualityDesc');
+      }
     } catch (e) {
       setState(() {
         errorMessage = '切换失败: $e';

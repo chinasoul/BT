@@ -77,10 +77,17 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
     }
   }
 
+  String _buildQualitySubtitle(VideoQuality quality) {
+    if (quality.qn >= 120) return '需要大会员，非大会员将自动降级';
+    if (quality.qn >= 112) return '需要大会员或登录，未达条件将自动降级';
+    return '每次打开视频时默认请求此画质';
+  }
+
   @override
   Widget build(BuildContext context) {
     final performanceMode = SettingsService.playbackPerformanceMode;
     final completionAction = SettingsService.playbackCompletionAction;
+    final preferredQuality = SettingsService.preferredQuality;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +181,6 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
           label: '隧道播放模式',
           subtitle: '解码帧直通显示硬件，画面黑屏时请关闭（重启播放生效）',
           value: SettingsService.tunnelModeEnabled,
-          isLast: true,
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
             await SettingsService.setTunnelModeEnabled(value);
@@ -183,6 +189,22 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
             }
             setState(() {});
             ToastUtils.show(context, value ? '隧道播放已开启，下次播放生效' : '隧道播放已关闭，下次播放生效');
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+        SettingDropdownRow<VideoQuality>(
+          label: '默认画质',
+          subtitle: _buildQualitySubtitle(preferredQuality),
+          value: preferredQuality,
+          items: VideoQuality.values.toList(),
+          itemLabel: (q) => q.label,
+          isLast: true,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (quality) async {
+            if (quality != null) {
+              await SettingsService.setPreferredQuality(quality);
+              setState(() {});
+            }
           },
         ),
       ],

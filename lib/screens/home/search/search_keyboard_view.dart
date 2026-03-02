@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/search_history_service.dart';
 import '../../../widgets/tv_keyboard_button.dart';
@@ -289,14 +290,13 @@ class SearchKeyboardViewState extends State<SearchKeyboardView> {
               order: const NumericFocusOrder(0.5),
               child: Focus(
                 onKeyEvent: (node, event) {
+                  final result = TvKeyHandler.handleNavigationWithRepeat(
+                    event,
+                    onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+                    blockUp: true,
+                  );
+                  if (result == KeyEventResult.handled) return result;
                   if (_isKeyDownOrRepeat(event)) {
-                    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                      widget.sidebarFocusNode?.requestFocus();
-                      return KeyEventResult.handled;
-                    }
-                    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                      return KeyEventResult.handled;
-                    }
                     if ((event.logicalKey == LogicalKeyboardKey.escape ||
                             event.logicalKey == LogicalKeyboardKey.goBack ||
                             event.logicalKey == LogicalKeyboardKey.browserBack) &&
@@ -675,25 +675,19 @@ class _ClearButtonState extends State<_ClearButton> {
         focusNode: widget.focusNode,
         onFocusChange: (focused) => setState(() => _isFocused = focused),
         onKeyEvent: (node, event) {
+          final result = TvKeyHandler.handleNavigationWithRepeat(
+            event,
+            onLeft: widget.onMoveLeft,
+            onSelect: widget.onTap,
+            blockUp: true,
+          );
+          if (result == KeyEventResult.handled) return result;
           if (_isKeyDownOrRepeat(event)) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-              return KeyEventResult.handled; // 阻止上键
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                widget.onMoveLeft != null) {
-              widget.onMoveLeft!();
-              return KeyEventResult.handled;
-            }
             if ((event.logicalKey == LogicalKeyboardKey.escape ||
                     event.logicalKey == LogicalKeyboardKey.goBack ||
                     event.logicalKey == LogicalKeyboardKey.browserBack) &&
                 widget.onBack != null) {
               widget.onBack!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select) {
-              widget.onTap();
               return KeyEventResult.handled;
             }
           }
@@ -774,37 +768,21 @@ class _HotSearchItemState extends State<_HotSearchItem> {
         focusNode: widget.focusNode,
         onFocusChange: (focused) => setState(() => _isFocused = focused),
         onKeyEvent: (node, event) {
+          final result = TvKeyHandler.handleNavigationWithRepeat(
+            event,
+            onUp: widget.onMoveUp,
+            onDown: widget.onMoveDown,
+            onLeft: widget.onMoveLeft,
+            onRight: widget.onMoveRight,
+            onSelect: widget.onTap,
+          );
+          if (result == KeyEventResult.handled) return result;
           if (_isKeyDownOrRepeat(event)) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-                widget.onMoveUp != null) {
-              widget.onMoveUp!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-                widget.onMoveDown != null) {
-              widget.onMoveDown!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                widget.onMoveLeft != null) {
-              widget.onMoveLeft!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-                widget.onMoveRight != null) {
-              widget.onMoveRight!();
-              return KeyEventResult.handled;
-            }
             if ((event.logicalKey == LogicalKeyboardKey.escape ||
                     event.logicalKey == LogicalKeyboardKey.goBack ||
                     event.logicalKey == LogicalKeyboardKey.browserBack) &&
                 widget.onBack != null) {
               widget.onBack!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select) {
-              widget.onTap();
               return KeyEventResult.handled;
             }
           }
@@ -908,36 +886,21 @@ class _HistoryItemState extends State<_HistoryItem> {
         focusNode: widget.focusNode,
         onFocusChange: (focused) => setState(() => _isFocused = focused),
         onKeyEvent: (node, event) {
+          final result = TvKeyHandler.handleNavigationWithRepeat(
+            event,
+            onUp: widget.onMoveUp,
+            onDown: widget.onMoveDown,
+            onLeft: widget.onMoveLeft,
+            onSelect: widget.onTap,
+            blockRight: true,
+          );
+          if (result == KeyEventResult.handled) return result;
           if (_isKeyDownOrRepeat(event)) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
-                widget.onMoveUp != null) {
-              widget.onMoveUp!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-                widget.onMoveDown != null) {
-              widget.onMoveDown!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                widget.onMoveLeft != null) {
-              widget.onMoveLeft!();
-              return KeyEventResult.handled;
-            }
-            // 右键不处理，最右边不能再往右
-            if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-              return KeyEventResult.handled;
-            }
             if ((event.logicalKey == LogicalKeyboardKey.escape ||
                     event.logicalKey == LogicalKeyboardKey.goBack ||
                     event.logicalKey == LogicalKeyboardKey.browserBack) &&
                 widget.onBack != null) {
               widget.onBack!();
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.select) {
-              widget.onTap();
               return KeyEventResult.handled;
             }
           }

@@ -38,6 +38,31 @@ enum PlaybackPerformanceMode {
   const PlaybackPerformanceMode(this.label);
 }
 
+/// 默认画质
+enum VideoQuality {
+  q360(16, '360P'),
+  q480(32, '480P'),
+  q720(64, '720P'),
+  q1080(80, '1080P'),
+  q1080plus(112, '1080P+'),
+  q1080p60(116, '1080P 60帧'),
+  q4k(120, '4K'),
+  qHdr(125, 'HDR'),
+  qDolby(126, '杜比视界'),
+  q8k(127, '8K');
+
+  final int qn;
+  final String label;
+  const VideoQuality(this.qn, this.label);
+
+  static VideoQuality fromQn(int qn) {
+    return VideoQuality.values.firstWhere(
+      (q) => q.qn == qn,
+      orElse: () => q1080,
+    );
+  }
+}
+
 /// 播放完成后行为
 enum PlaybackCompletionAction {
   pause('暂停播放'),
@@ -201,6 +226,25 @@ class SettingsService {
   static Future<void> setPreferredCodec(VideoCodec codec) async {
     await init();
     await _prefs!.setInt(_preferredCodecKey, codec.index);
+  }
+
+  // 默认画质设置
+  static const String _preferredQualityKey = 'preferred_quality';
+
+  /// 获取默认画质 qn 值
+  static int get preferredQualityQn {
+    return _prefs?.getInt(_preferredQualityKey) ?? 80;
+  }
+
+  /// 获取默认画质枚举
+  static VideoQuality get preferredQuality {
+    return VideoQuality.fromQn(preferredQualityQn);
+  }
+
+  /// 设置默认画质
+  static Future<void> setPreferredQuality(VideoQuality quality) async {
+    await init();
+    await _prefs!.setInt(_preferredQualityKey, quality.qn);
   }
 
   // 隧道播放模式（Tunnel Mode）

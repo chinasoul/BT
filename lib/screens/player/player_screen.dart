@@ -457,11 +457,13 @@ class _PlayerScreenState extends State<PlayerScreen>
                     });
                     startHideTimer();
                   },
-                  isUgcSeason: isUgcSeason,
+                  isUgcSeason: !isPanelShowingPages,
                   currentBvid: widget.video.bvid,
                   onUgcEpisodeSelect: (bvid) {
                     switchEpisode(0, targetBvid: bvid);
                   },
+                  hasBothTabs: hasBothEpisodeTypes,
+                  showingPagesTab: episodePanelShowingPages,
                 ),
 
               // 设置面板
@@ -561,17 +563,23 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Widget _buildStatsForNerds() {
-    final size = videoController!.value.size;
-    final width = videoWidth > 0 ? videoWidth : size.width.round();
-    final height = videoHeight > 0 ? videoHeight : size.height.round();
+    final decoderSize = videoController!.value.size;
+    final decoderW = decoderSize.width.round();
+    final decoderH = decoderSize.height.round();
+    final streamW = videoWidth > 0 ? videoWidth : decoderW;
+    final streamH = videoHeight > 0 ? videoHeight : decoderH;
     final fps = videoFrameRate > 0 ? videoFrameRate : 0.0;
-    final codec = currentCodec.startsWith('av01')
+    final codec = (currentCodec.startsWith('dvhe') || currentCodec.startsWith('dvav'))
+        ? '杜比视界'
+        : currentCodec.startsWith('av01')
         ? 'AV1'
         : (currentCodec.startsWith('hev') || currentCodec.startsWith('hvc'))
         ? 'H.265'
         : (currentCodec.startsWith('avc') ? 'H.264' : '未知');
 
-    final resolutionText = '$width x $height@${fps.toStringAsFixed(3)}';
+    final resolutionText = (decoderW > 0 && decoderH > 0 && (decoderW != streamW || decoderH != streamH))
+        ? '$decoderW x $decoderH@${fps.toStringAsFixed(3)}（流: $streamW x $streamH）'
+        : '$streamW x $streamH@${fps.toStringAsFixed(3)}';
     final dataRateText =
         '${videoDataRateKbps <= 0 ? 0 : videoDataRateKbps} Kbps';
     final speedText =

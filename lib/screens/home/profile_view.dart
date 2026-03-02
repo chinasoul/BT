@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:bili_tv_app/core/focus/focus_navigation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
@@ -152,19 +152,11 @@ class ProfileViewState extends State<ProfileView> {
                 Focus(
                   focusNode: _logoutFocusNode,
                   autofocus: true,
-                  onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                    if (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.select) {
-                      _handleLogout();
-                      return KeyEventResult.handled;
-                    }
-                    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                      widget.sidebarFocusNode?.requestFocus();
-                      return KeyEventResult.handled;
-                    }
-                    return KeyEventResult.ignored;
-                  },
+                  onKeyEvent: (node, event) => TvKeyHandler.handleNavigation(
+                    event,
+                    onSelect: _handleLogout,
+                    onLeft: () => widget.sidebarFocusNode?.requestFocus(),
+                  ),
                   child: Builder(
                     builder: (context) {
                       final isFocused = Focus.of(context).hasFocus;

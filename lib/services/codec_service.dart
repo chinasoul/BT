@@ -38,4 +38,7 @@ class CodecService {
 
   /// 检查是否支持 AV1 硬解
   static Future<bool> hasAv1Hardware() => hasHardwareDecoder('av1');
+
+  /// 检查是否支持杜比视界硬解
+  static Future<bool> hasDolbyVisionHardware() => hasHardwareDecoder('dolby-vision');
 }

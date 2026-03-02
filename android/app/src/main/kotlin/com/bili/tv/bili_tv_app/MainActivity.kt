@@ -102,6 +102,7 @@ class MainActivity : FlutterActivity() {
                         type.equals("video/hevc", ignoreCase = true) -> supportedFormats.add("hevc")
                         type.equals("video/av01", ignoreCase = true) -> supportedFormats.add("av1")
                         type.equals("video/x-vnd.on2.vp9", ignoreCase = true) -> supportedFormats.add("vp9")
+                        type.equals("video/dolby-vision", ignoreCase = true) -> supportedFormats.add("dolby-vision")
                     }
                 }
             }

@@ -284,8 +284,6 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
           value: '当前: ${SettingsService.fontScaleLabel(_fontScale)}',
           buttonLabel: SettingsService.fontScaleLabel(_fontScale),
           sidebarFocusNode: widget.sidebarFocusNode,
-          isLast: true,
-          onMoveDown: () => _themeColorFocusNodes[0].requestFocus(),
           optionLabels: SettingsService.fontScaleOptions
               .map((s) => SettingsService.fontScaleLabel(s))
               .toList(),

@@ -957,7 +957,7 @@ class FollowingTabState extends State<FollowingTab> {
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: gridColumns,
-              childAspectRatio: 320 / 280,
+              childAspectRatio: GridStyle.videoCardAspectRatio(context),
               crossAxisSpacing: 20,
               mainAxisSpacing: 10,
             ),
@@ -1329,6 +1329,11 @@ class _FollowingUserCard extends StatelessWidget {
         onLeft: onMoveLeft,
         onRight: onMoveRight,
         onSelect: onTap,
+        // 边界方向无目标时吞键，避免系统默认焦点搜索把焦点串到侧边栏
+        blockUp: onMoveUp == null,
+        blockDown: onMoveDown == null,
+        blockLeft: onMoveLeft == null,
+        blockRight: onMoveRight == null,
       ),
       child: Builder(
         builder: (ctx) {

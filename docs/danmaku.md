@@ -12,12 +12,12 @@
 | 原生弹幕（实验） | `preferNativeDanmaku == true` 且 Android | `DanmakuOverlayView`（Java 自定义 View） | 渲染与视频在同一 PlatformView，无 Flutter 合成开销 | 仅 Android；功能比 Flutter 方案少 |
 
 切换入口：设置 → 弹幕设置 → 第一项「原生弹幕渲染优化(实验)」
-存储 key：`prefer_native_danmaku`（默认 false）
+存储 key：`prefer_native_danmaku`（默认 true）
 
-判断逻辑：`player_action_mixin.dart` 第 51 行
+判断逻辑：`player_action_mixin.dart` 中 `useNativeDanmakuRender` getter
 
 ```dart
-bool get _useNativeDanmakuRender =>
+bool get useNativeDanmakuRender =>
     defaultTargetPlatform == TargetPlatform.android && preferNativeDanmaku;
 ```
 
@@ -125,16 +125,21 @@ syncDanmaku(currentTime)
 
 - `opacityScale = clamp(0.05 + 0.95 * opacity, 0, 1)` — 近线性曲线
 - 填充色 alpha = `sourceAlpha * opacityScale`
-- 描边 alpha = `fillAlpha * 0.45`（opacityScale < 0.25 时隐藏描边）
+- 描边 alpha = `max(165, fillAlpha * 1.00)`（opacityScale < 0.10 时隐藏描边）
 
-### 4.5 绘制循环
+### 4.5 字体清晰度策略
+
+- `textPaint` 与 `strokePaint` 使用同一字体：`sans-serif-medium`
+- 开启 `setHinting(Paint.HINTING_ON)`，关闭 `setSubpixelText(false)`，减少滚动时边缘发虚
+- 先将绘制坐标对齐到整数像素（`drawX = round(x)`, `drawY = round(y)`），再执行 `drawText`
+- 描边宽度会在 `updateOption` 中做增强：`clamp(strokeWidth, 1.5, 3.5)` 后再 `+0.30`（上限 3.7）
+
+### 4.6 绘制循环
 
 `onDraw()` 在 `synchronized(items)` 内遍历所有弹幕：
 - 计算 x 位置，移出屏幕左侧则 `remove()`
 - 先画 strokePaint（黑色描边），再画 textPaint（填充色）
 - 有存活弹幕 && running → `postInvalidateOnAnimation()` 驱动下一帧
-
----
 
 ## 5. 选项下发与重试
 
@@ -186,7 +191,7 @@ DanmakuOption(
 
 修改弹幕功能时，按以下检查单操作：
 
-1. **新增弹幕设置项**：`SettingsService` 新增 key/getter/setter → `danmaku_settings.dart` 加 UI → `_buildDanmakuOption()` 加字段 → `NativePlayerDanmakuService.updateOption()` 加参数 → `DanmakuOverlayView.updateOption()` 加字段
+1. **调整现有弹幕设置项**：`SettingsService`（持久化）→ `danmaku_settings.dart`（设置 UI）→ `PlayerActionMixin.loadSettings()`（播放器读取）→ `NativePlayerDanmakuService.updateOption()`（通道参数）→ `DanmakuOverlayView.updateOption()`（原生生效）
 2. **修改渲染逻辑**：改 `DanmakuOverlayView.onDraw()` 或 `addDanmaku()`
 3. **修改同步逻辑**：改 `syncDanmaku()` 或 `_startDanmakuSyncTimer()`
 4. **修改生命周期**：改 `player_action_mixin.dart` 中对应的 toggle/pause/resume 方法

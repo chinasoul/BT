@@ -7,6 +7,7 @@ import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../utils/image_url_utils.dart';
+import '../../config/app_style.dart';
 import '../../widgets/time_display.dart';
 import '../player/player_screen.dart';
 
@@ -419,7 +420,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: gridColumns,
-                                  childAspectRatio: 320 / 280,
+                                  childAspectRatio: GridStyle.videoCardAspectRatio(context),
                                   crossAxisSpacing: 20,
                                   mainAxisSpacing: 10,
                                 ),

@@ -138,8 +138,8 @@ class TvLiveCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 标题
-            SizedBox(
-              height: 20,
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 20),
               child: isFocused
                   ? ConditionalMarquee(
                       text: title,

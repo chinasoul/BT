@@ -8,6 +8,7 @@ import '../../models/video.dart';
 import '../../services/bilibili_api.dart';
 import '../../services/settings_service.dart';
 import '../../utils/image_url_utils.dart';
+import '../../config/app_style.dart';
 import '../player/player_screen.dart';
 
 /// UP主空间弹窗（Popup方式，半透明遮罩+居中弹窗）
@@ -46,7 +47,13 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
   int _focusedIndex = 4;
 
   // 固定高度常量
-  static const double _headerHeight = 130.0;
+  static const double _baseHeaderHeight = 130.0;
+
+  double _headerHeightForContext(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
+    final t = ((textScale - 1.0) / 0.4).clamp(0.0, 1.0);
+    return _baseHeaderHeight + 64.0 * t;
+  }
 
   // 快速导航节流：记录上次焦点时间，短间隔内用 jumpTo 而非 animateTo
   DateTime _lastFocusTime = DateTime(0);
@@ -198,9 +205,11 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
     final cardTop = cardInViewport.dy;
     final cardBottom = cardTop + cardHeight;
 
+    final ctx = focusNode.context ?? context;
+    final headerHeight = _headerHeightForContext(ctx);
     // 顶部安全边界：header 高度 + 露出上一行的比例
     final revealHeight = cardHeight * 0.25; // TabStyle.scrollRevealRatio
-    final topBoundary = _headerHeight + revealHeight;
+    final topBoundary = headerHeight + revealHeight;
 
     // 底部安全边界：屏幕底部留出空间，用于显示下一行
     final bottomBoundary = viewportHeight - revealHeight;
@@ -418,6 +427,7 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
     final popupHeight = screenSize.height * 0.90;
     final gridColumns = SettingsService.videoGridColumns;
     final themeColor = SettingsService.themeColor;
+    final headerHeight = _headerHeightForContext(context);
 
     return FocusScope(
       // 使用 FocusScope 限制焦点范围，防止焦点逃逸到 popup 外部
@@ -491,7 +501,7 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
                                   SliverPadding(
                                     padding: EdgeInsets.fromLTRB(
                                       24,
-                                      _headerHeight + 10,
+                                      headerHeight + 10,
                                       24,
                                       40,
                                     ),
@@ -499,7 +509,7 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: gridColumns,
-                                            childAspectRatio: 320 / 280,
+                                            childAspectRatio: GridStyle.videoCardAspectRatio(context),
                                             crossAxisSpacing: 16,
                                             mainAxisSpacing: 8,
                                           ),
@@ -537,7 +547,7 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: _headerHeight,
+                        height: headerHeight,
                         child: Container(
                           decoration: const BoxDecoration(
                             color: Color(0xFF1A1A1A),
@@ -571,115 +581,126 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 第一行：头像、名字、标签信息（固定高度）
-        SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              // 头像
-              ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: ImageUrlUtils.getResizedUrl(
-                    widget.user.face,
-                    width: 96,
-                    height: 96,
-                  ),
-                  cacheManager: BiliCacheManager.instance,
-                  memCacheWidth: 96,
-                  memCacheHeight: 96,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) => Container(
-                    color: Colors.white12,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.person, color: Colors.white54),
-                  ),
-                  errorWidget: (_, _, _) => Container(
-                    color: Colors.white12,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.person, color: Colors.white54),
-                  ),
+        // 第一行：头像、名字、标签信息
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 头像
+            ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: ImageUrlUtils.getResizedUrl(
+                  widget.user.face,
+                  width: 96,
+                  height: 96,
+                ),
+                cacheManager: BiliCacheManager.instance,
+                memCacheWidth: 96,
+                memCacheHeight: 96,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                placeholder: (_, _) => Container(
+                  color: Colors.white12,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.person, color: Colors.white54),
+                ),
+                errorWidget: (_, _, _) => Container(
+                  color: Colors.white12,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.person, color: Colors.white54),
                 ),
               ),
-              const SizedBox(width: 12),
-              // 名字和标签
-              Expanded(
+            ),
+            const SizedBox(width: 12),
+            // 名字和标签
+            Expanded(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 名字行
-                    SizedBox(
-                      height: 26,
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              widget.user.uname,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.user.uname,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 8),
-                          if (sex == '男')
-                            const Icon(Icons.male, color: Colors.blue, size: 18)
-                          else if (sex == '女')
-                            const Icon(
-                              Icons.female,
-                              color: Colors.pink,
-                              size: 18,
-                            ),
-                          const SizedBox(width: 6),
-                          _buildLevelBadge(level),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (sex == '男')
+                          const Icon(Icons.male, color: Colors.blue, size: 18)
+                        else if (sex == '女')
+                          const Icon(
+                            Icons.female,
+                            color: Colors.pink,
+                            size: 18,
+                          ),
+                        const SizedBox(width: 6),
+                        _buildLevelBadge(level),
+                      ],
                     ),
                     const SizedBox(height: 4),
-                    // 粉丝、关注、获赞（固定高度）
-                    SizedBox(
-                      height: 18,
-                      child: Row(
-                        children: [
-                          _buildStatItem('关注', attention, _isLoadingUserInfo),
-                          const SizedBox(width: 14),
-                          _buildStatItem('粉丝', fans, _isLoadingUserInfo),
-                          const SizedBox(width: 14),
-                          _buildStatItem('获赞', likeNum, _isLoadingUserInfo),
-                        ],
-                      ),
+                    // 粉丝、关注、获赞
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 4,
+                      children: [
+                        _buildStatItem('关注', attention, _isLoadingUserInfo),
+                        _buildStatItem('粉丝', fans, _isLoadingUserInfo),
+                        _buildStatItem('获赞', likeNum, _isLoadingUserInfo),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
-        // 第二行：排序按钮 + 关注/充电按钮（固定高度）
-        SizedBox(
-          height: 32,
-          child: Row(
-            children: [
-              _buildSortButton('最新', 0, _order == 'pubdate', themeColor),
-              const SizedBox(width: 10),
-              _buildSortButton('最热', 1, _order == 'click', themeColor),
-              const Spacer(),
-              _buildActionButton(
-                _isFollowing ? '已关注' : '+ 关注',
-                2,
-                _isFollowing ? Colors.grey : themeColor,
-                icon: _isFollowing ? Icons.check : Icons.add,
+        // 第二行：排序按钮 + 关注/充电按钮（保持同一行）
+        Row(
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSortButton('最新', 0, _order == 'pubdate', themeColor),
+                const SizedBox(width: 10),
+                _buildSortButton('最热', 1, _order == 'click', themeColor),
+              ],
+            ),
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildActionButton(
+                    _isFollowing ? '已关注' : '+ 关注',
+                    2,
+                    _isFollowing ? Colors.grey : themeColor,
+                    icon: _isFollowing ? Icons.check : Icons.add,
+                  ),
+                  const SizedBox(width: 10),
+                  _buildActionButton(
+                    '充电',
+                    3,
+                    Colors.orange,
+                    icon: Icons.flash_on,
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              _buildActionButton('充电', 3, Colors.orange, icon: Icons.flash_on),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );

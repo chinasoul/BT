@@ -143,8 +143,8 @@ class TvVideoCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 标题区域
-            SizedBox(
-              height: 20,
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 20),
               child: isFocused
                   ? ConditionalMarquee(
                       text: video.title,

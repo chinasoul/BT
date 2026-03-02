@@ -46,15 +46,25 @@ class _EpisodePanelState extends State<EpisodePanel> {
   @override
   void didUpdateWidget(EpisodePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.focusedIndex != oldWidget.focusedIndex ||
-        widget.showingPagesTab != oldWidget.showingPagesTab) {
+    if (widget.showingPagesTab != oldWidget.showingPagesTab) {
+      // tab 切换：等布局完成后重置滚动位置再定位到焦点项
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+          _scrollToIndex(widget.focusedIndex);
+        }
+      });
+    } else if (widget.focusedIndex != oldWidget.focusedIndex) {
       _scrollToIndex(widget.focusedIndex);
     }
   }
 
+  /// 每项高度 = padding(15*2) + 文本行高(fontSize 16 * ~1.4) ≈ 52，再乘以字体缩放
+  double get _itemHeight => 52.0 * SettingsService.fontScale;
+
   void _scrollToIndex(int index) {
     if (!_scrollController.hasClients) return;
-    const itemHeight = 54.0; // Approx height
+    final itemHeight = _itemHeight;
     final offset = index * itemHeight;
     final viewport = _scrollController.position.viewportDimension;
 

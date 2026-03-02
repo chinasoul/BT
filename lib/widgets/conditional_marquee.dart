@@ -91,10 +91,12 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
   }
 
   double _measureTextWidth() {
+    final textScaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final tp = TextPainter(
       text: TextSpan(text: widget.text, style: widget.style),
       maxLines: 1,
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
     )..layout(minWidth: 0, maxWidth: double.infinity);
     return tp.width;
   }

@@ -165,6 +165,17 @@ abstract final class GridStyle {
   /// 默认视频卡片宽高比
   static const double videoAspectRatio = 320 / 280;
 
+  /// 根据字体缩放动态计算视频卡片宽高比，避免大字号时信息区被挤压/溢出。
+  static double videoCardAspectRatio(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4);
+    final t = ((textScale - 1.0) / 0.4).clamp(0.0, 1.0);
+    const baseWidth = 320.0;
+    const baseHeight = 250.0;
+    const extraHeightAtMaxScale = 24.0;
+    final height = baseHeight + extraHeightAtMaxScale * t;
+    return baseWidth / height;
+  }
+
   /// 网格列间距
   static const double crossAxisSpacing = 20;
 

@@ -375,9 +375,9 @@ class LiveTabState extends State<LiveTab> {
                         padding: TabStyle.contentPadding,
                         sliver: SliverGrid(
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
+                              SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 4,
-                                childAspectRatio: 320 / 280,
+                                childAspectRatio: GridStyle.videoCardAspectRatio(context),
                                 crossAxisSpacing: 20,
                                 mainAxisSpacing: 10,
                               ),

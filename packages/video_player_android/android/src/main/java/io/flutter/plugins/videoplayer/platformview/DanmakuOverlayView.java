@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.View;
@@ -67,10 +68,20 @@ final class DanmakuOverlayView extends View {
 
     textPaint.setStyle(Paint.Style.FILL);
     textPaint.setColor(Color.WHITE);
+    textPaint.setFakeBoldText(true);
+    textPaint.setSubpixelText(false);
+    textPaint.setHinting(Paint.HINTING_ON);
+    textPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
 
     strokePaint.setStyle(Paint.Style.STROKE);
     strokePaint.setColor(Color.BLACK);
-    strokePaint.setStrokeWidth(0.8f);
+    strokePaint.setStrokeWidth(1.9f);
+    strokePaint.setStrokeJoin(Paint.Join.ROUND);
+    strokePaint.setStrokeMiter(10f);
+    strokePaint.setFakeBoldText(true);
+    strokePaint.setSubpixelText(false);
+    strokePaint.setHinting(Paint.HINTING_ON);
+    strokePaint.setTypeface(textPaint.getTypeface());
   }
 
   void updateOption(
@@ -87,7 +98,8 @@ final class DanmakuOverlayView extends View {
     this.durationSec = Math.max((float) duration, 3.0f);
     this.hideScroll = hideScroll;
     this.lineHeight = clamp((float) lineHeight, 1.0f, 2.2f);
-    strokePaint.setStrokeWidth(clamp((float) strokeWidth, 0f, 2.5f));
+    final float baseStrokeWidth = clamp((float) strokeWidth, 1.5f, 3.5f);
+    strokePaint.setStrokeWidth(Math.min(3.7f, baseStrokeWidth + 0.30f));
     invalidate();
   }
 
@@ -195,19 +207,20 @@ final class DanmakuOverlayView extends View {
         hasAlive = true;
         final int fillColor = applyOpacity(item.color, opacityScale);
         textPaint.setColor(fillColor);
+        final int fillAlpha = Color.alpha(fillColor);
         final int strokeAlpha =
-            Math.min(
-                220,
-                Math.max(
-                    0,
-                    (int)
-                        (Color.alpha(fillColor)
-                            * (opacityScale < 0.25f ? 0.0f : 0.45f))));
+            opacityScale < 0.10f
+                ? 0
+                : Math.min(
+                    250,
+                    Math.max(165, (int) Math.round(fillAlpha * 1.00f)));
+        final float drawX = Math.round(x);
+        final float drawY = Math.round(item.y);
         strokePaint.setColor(Color.argb(strokeAlpha, 0, 0, 0));
-        if (strokePaint.getStrokeWidth() > 0f) {
-          canvas.drawText(item.text, x, item.y, strokePaint);
+        if (strokePaint.getStrokeWidth() > 0f && strokeAlpha > 0) {
+          canvas.drawText(item.text, drawX, drawY, strokePaint);
         }
-        canvas.drawText(item.text, x, item.y, textPaint);
+        canvas.drawText(item.text, drawX, drawY, textPaint);
       }
     }
 

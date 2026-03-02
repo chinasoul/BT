@@ -405,7 +405,7 @@ class HistoryTabState extends State<HistoryTab> {
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: gridColumns,
-                    childAspectRatio: 320 / 280,
+                    childAspectRatio: GridStyle.videoCardAspectRatio(context),
                     crossAxisSpacing: 20,
                     mainAxisSpacing: 10,
                   ),

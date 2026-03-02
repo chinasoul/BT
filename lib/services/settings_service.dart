@@ -95,6 +95,7 @@ class BiliCacheManager {
 class SettingsService {
   static const String _useHardwareDecodeKey = 'use_hardware_decode';
   static SharedPreferences? _prefs;
+  static final ValueNotifier<double> _fontScaleNotifier = ValueNotifier(1.0);
 
   /// Android SDK 版本号（缓存），非 Android 平台为 99
   static int androidSdkInt = 99;
@@ -102,6 +103,7 @@ class SettingsService {
   /// 初始化
   static Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
+    _fontScaleNotifier.value = fontScale;
     // 初始化完成后通知监听者
     onShowMemoryInfoChanged?.call();
   }
@@ -888,10 +890,14 @@ class SettingsService {
     return (_prefs?.getDouble(_fontScaleKey) ?? 1.0).clamp(0.8, 1.4);
   }
 
+  static ValueNotifier<double> get fontScaleListenable => _fontScaleNotifier;
+
   /// 设置字体缩放比例
   static Future<void> setFontScale(double value) async {
     await init();
-    await _prefs!.setDouble(_fontScaleKey, value.clamp(0.8, 1.4));
+    final clamped = value.clamp(0.8, 1.4);
+    await _prefs!.setDouble(_fontScaleKey, clamped);
+    _fontScaleNotifier.value = clamped;
   }
 
   /// 字体缩放选项列表

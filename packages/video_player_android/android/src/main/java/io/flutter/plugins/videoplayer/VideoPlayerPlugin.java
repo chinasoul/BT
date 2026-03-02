@@ -255,7 +255,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
             toDouble(args.get("area"), 0.25),
             toDouble(args.get("duration"), 10.0),
             toBoolean(args.get("hideScroll"), false),
-            toDouble(args.get("strokeWidth"), 0.8),
+            toDouble(args.get("strokeWidth"), 1.9),
             toDouble(args.get("lineHeight"), 1.6));
         result.success(null);
         return;

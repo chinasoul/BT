@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../models/video.dart';
 import '../../../services/bilibili_api.dart';
 import '../../../services/settings_service.dart';
+import '../../../config/app_style.dart';
 import '../../../widgets/tv_video_card.dart';
 import '../../player/player_screen.dart';
 
@@ -220,7 +221,7 @@ class _SearchResultsViewState extends State<SearchResultsView> {
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: gridColumns,
-                childAspectRatio: 360 / 300,
+                childAspectRatio: GridStyle.videoCardAspectRatio(context),
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 10,
               ),

@@ -41,19 +41,24 @@ class TvFocusableItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => TvFocusScope(
-    pattern: FocusPattern.vertical,
+  Widget build(BuildContext context) => Focus(
     focusNode: focusNode,
     autofocus: autofocus,
-    enableKeyRepeat: true,
     onFocusChange: (f) => f ? onFocus() : null,
-    onExitUp: onMoveUp,
-    onExitDown: onMoveDown,
-    onExitLeft: onMoveLeft,
-    onExitRight: onMoveRight,
-    onSelect: onTap,
-    isFirst: isFirst,
-    isLast: isLast,
+    onKeyEvent: (node, event) => TvKeyHandler.handleNavigationWithRepeat(
+      event,
+      onUp: onMoveUp,
+      onDown: onMoveDown,
+      onLeft: onMoveLeft,
+      onRight: onMoveRight,
+      onSelect: onTap,
+      // 无目标时吞键，防止默认方向搜索串到内容区
+      blockUp: onMoveUp == null,
+      blockDown: onMoveDown == null,
+      blockLeft: onMoveLeft == null,
+      // 个人中心（登录/资料）依赖默认右向搜索进入内容区，保留该行为。
+      blockRight: false,
+    ),
     child: Builder(
       builder: (c) {
         final f = Focus.of(c).hasFocus;

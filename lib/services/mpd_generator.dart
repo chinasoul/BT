@@ -5,9 +5,12 @@ class MpdGenerator {
   /// [dashData] 是 Bilibili API 返回的 dash 对象
   /// [selectedQn] 若指定，则只保留该画质等级 (id) 的视频 Representation，
   ///   阻止 ExoPlayer ABR 自动降级到低分辨率
+  /// [selectedCodec] 若指定，则只保留 codecs 以此前缀开头的视频 Representation，
+  ///   确保 ExoPlayer 使用正确的解码器（如 dvhe → video/dolby-vision）
   static Future<String> generate(
     Map<String, dynamic> dashData, {
     int? selectedQn,
+    String? selectedCodec,
   }) async {
     final buffer = StringBuffer();
 
@@ -28,14 +31,41 @@ class MpdGenerator {
 
     buffer.writeln('  <Period>');
 
-    // 视频自适应集
-    if (dashData['video'] != null) {
+    // 杜比视界视频（dash.dolby.video）—— DV 流在此，优先于 dash.video
+    bool hasDolbyVideo = false;
+    if (selectedCodec != null &&
+        (selectedCodec!.startsWith('dvhe') ||
+            selectedCodec!.startsWith('dvh1') ||
+            selectedCodec!.startsWith('dvav')) &&
+        dashData['dolby'] != null &&
+        dashData['dolby']['video'] is List) {
+      final dolbyVideos = dashData['dolby']['video'] as List;
+      if (dolbyVideos.isNotEmpty) {
+        hasDolbyVideo = true;
+        buffer.writeln(
+          '    <AdaptationSet mimeType="video/mp4" contentType="video" subsegmentAlignment="true" subsegmentStartsWithSAP="1">',
+        );
+        for (var video in dolbyVideos) {
+          if (video is Map<String, dynamic>) {
+            _writeRepresentation(buffer, video, true);
+          }
+        }
+        buffer.writeln('    </AdaptationSet>');
+      }
+    }
+
+    // 普通视频自适应集（DV 流已单独处理时跳过）
+    if (!hasDolbyVideo && dashData['video'] != null) {
       buffer.writeln(
         '    <AdaptationSet mimeType="video/mp4" contentType="video" subsegmentAlignment="true" subsegmentStartsWithSAP="1">',
       );
       for (var video in dashData['video']) {
         if (selectedQn != null && (video['id'] as int?) != selectedQn) {
           continue;
+        }
+        if (selectedCodec != null) {
+          final codecs = (video['codecs'] as String?) ?? '';
+          if (!codecs.startsWith(selectedCodec!)) continue;
         }
         _writeRepresentation(buffer, video, true);
       }

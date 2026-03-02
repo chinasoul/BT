@@ -103,6 +103,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       final mpdContent = await MpdGenerator.generate(
         playInfo['dashData'],
         selectedQn: currentQuality,
+        selectedCodec: _codecPrefixForMpd(currentCodec),
       );
       LocalServer.instance.setMpdContent(mpdContent);
       playUrl = LocalServer.instance.mpdUrl;
@@ -519,6 +520,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
             final mpdContent = await MpdGenerator.generate(
               playInfo['dashData'],
               selectedQn: currentQuality,
+              selectedCodec: _codecPrefixForMpd(currentCodec),
             );
 
             // 使用全局 LocalServer 提供 MPD 内容 (纯内存)
@@ -2612,6 +2614,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
           final mpdContent = await MpdGenerator.generate(
             playInfo['dashData'],
             selectedQn: currentQuality,
+            selectedCodec: _codecPrefixForMpd(currentCodec),
           );
 
           LocalServer.instance.setMpdContent(mpdContent);
@@ -2751,10 +2754,15 @@ mixin PlayerActionMixin on PlayerStateMixin {
 
       final returnedQuality = playInfo['currentQuality'] as int? ?? qn;
 
-      // 升级请求但 API 返回的画质没有比当前更好 → 拒绝切换
-      if (qn > previousQuality && returnedQuality <= previousQuality) {
+      // 升级请求但不可用（含杜比视界无权限、API 降级等）→ 统一拒绝
+      final bool dvUnavailable = qn == 126 &&
+          playInfo['dvRequested'] == true &&
+          playInfo['dvAvailable'] != true;
+      if (dvUnavailable ||
+          (qn > previousQuality && returnedQuality <= previousQuality)) {
         final requested = VideoQuality.fromQn(qn).label;
         ToastUtils.show(context, '$requested 不可用，保持当前画质');
+        setState(() => isLoading = false);
         return;
       }
 
@@ -2771,7 +2779,12 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 清理旧播放器
       cancelPlayerListeners();
       await videoController?.dispose();
+      videoController = null;
       LocalServer.instance.clearMpdContent();
+
+      // 等待底层 MediaCodec 完全释放，避免硬件解码器资源竞争
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
 
       currentQuality = returnedQuality;
       currentCodec = playInfo['codec'] ?? currentCodec;
@@ -2793,6 +2806,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
         final mpdContent = await MpdGenerator.generate(
           playInfo['dashData'],
           selectedQn: currentQuality,
+          selectedCodec: _codecPrefixForMpd(currentCodec),
         );
 
         LocalServer.instance.setMpdContent(mpdContent);
@@ -2840,11 +2854,21 @@ mixin PlayerActionMixin on PlayerStateMixin {
         ToastUtils.show(context, '已切换到 $currentQualityDesc');
       }
     } catch (e) {
-      setState(() {
-        errorMessage = '切换失败: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        ToastUtils.show(context, '切换画质失败，请重试');
+        setState(() => isLoading = false);
+      }
     }
+  }
+
+  /// 从完整 codec 字符串提取用于 MPD 过滤的前缀。
+  /// DV 必须过滤以确保 ExoPlayer 使用 video/dolby-vision 解码器；
+  /// 非 DV 编码不需要过滤（同 qn 下不同编码不会导致解码器选错）。
+  static String? _codecPrefixForMpd(String codec) {
+    if (codec.startsWith('dvhe')) return 'dvhe';
+    if (codec.startsWith('dvh1')) return 'dvh1';
+    if (codec.startsWith('dvav')) return 'dvav';
+    return null;
   }
 
   void showQualityPicker() {

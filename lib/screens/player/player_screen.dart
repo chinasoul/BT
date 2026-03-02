@@ -569,7 +569,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final streamW = videoWidth > 0 ? videoWidth : decoderW;
     final streamH = videoHeight > 0 ? videoHeight : decoderH;
     final fps = videoFrameRate > 0 ? videoFrameRate : 0.0;
-    final codec = (currentCodec.startsWith('dvhe') || currentCodec.startsWith('dvav'))
+    final codec = (currentCodec.startsWith('dvhe') || currentCodec.startsWith('dvh1') || currentCodec.startsWith('dvav'))
         ? '杜比视界'
         : currentCodec.startsWith('av01')
         ? 'AV1'
@@ -635,7 +635,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           const SizedBox(height: 2),
           row('分辨率', resolutionText),
           row('渲染链路', renderPath),
-          row('流(编码)', '$codec（B站下发，本机不编码）'),
+          row('流(编码)', '$codec ($currentCodec)'),
           row('视频码率', dataRateText),
           _buildDecodeHintRow(codec, labelStyle, valueStyle),
           row('视频速度', speedText),

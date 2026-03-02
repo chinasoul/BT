@@ -180,6 +180,7 @@ mixin PlayerStateMixin on State<PlayerScreen> {
       return 'AV1';
     }
     if (currentCodec.startsWith('dvhe') ||
+        currentCodec.startsWith('dvh1') ||
         currentCodec.startsWith('dvav')) {
       return '杜比视界';
     }

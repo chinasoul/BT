@@ -335,21 +335,23 @@ class PlaybackApi {
 
               dynamic selectedVideo;
 
+              // 0. 杜比视界优先：DV 流在 dash.dolby.video 中，不在 dash.video 中。
+              // B站 API 对 qn=126 在 dash.video 里只放普通 HEVC 流（如 hvc1.2.4.H150.90），
+              // 真正的 DV 流（dvhe/dvh1 编码）在 dash.dolby.video 里。
+              if (targetQn == 126 &&
+                  dash['dolby'] != null &&
+                  dash['dolby']['video'] is List) {
+                final dolbyVideos = dash['dolby']['video'] as List;
+                if (dolbyVideos.isNotEmpty) {
+                  selectedVideo = dolbyVideos.first;
+                }
+              }
+
               // 获取硬件解码器支持列表
               final hwDecoders = await CodecService.getHardwareDecoders();
               final hasAv1Hw = hwDecoders.contains('av1');
               final hasHevcHw = hwDecoders.contains('hevc');
               final hasAvcHw = hwDecoders.contains('avc');
-              final hasDvHw = hwDecoders.contains('dolby-vision');
-
-              // 0. 杜比视界优先：qn=126 且设备支持 DV 时，优先选 dvhe/dvav 流
-              if (hasDvHw && targetQn == 126) {
-                selectedVideo = candidateVideos.firstWhere((v) {
-                  final codecs = v['codecs'] as String? ?? '';
-                  return codecs.startsWith('dvhe') ||
-                      codecs.startsWith('dvav');
-                }, orElse: () => null);
-              }
 
               // 1. 如果指定了 forceCodec（失败回退时），优先使用
               if (selectedVideo == null &&
@@ -440,6 +442,13 @@ class PlaybackApi {
                   selectedVideo['frameRate'] ?? selectedVideo['frame_rate'],
                 );
                 final actualStreamQn = selectedVideo['id'] as int? ?? data['quality'] ?? qn;
+
+                // 判断是否请求了杜比视界但因权限不足无法获取
+                final bool dvRequested = qn == 126;
+                final bool dvAvailable = dash['dolby'] != null &&
+                    dash['dolby']['video'] is List &&
+                    (dash['dolby']['video'] as List).isNotEmpty;
+
                 return {
                   'url': videoUrl,
                   'audioUrl': audioUrl,
@@ -452,6 +461,8 @@ class PlaybackApi {
                   'frameRate': frameRate,
                   'videoBandwidth': videoBandwidth,
                   'dashData': data['dash'],
+                  'dvRequested': dvRequested,
+                  'dvAvailable': dvAvailable,
                 };
               }
             }

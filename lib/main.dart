@@ -44,6 +44,7 @@ Future<void> main() async {
 
 class BtApp extends StatelessWidget {
   const BtApp({super.key});
+  static const double _baseFontScaleMultiplier = 1.1;
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +63,11 @@ class BtApp extends StatelessWidget {
         return ValueListenableBuilder<double>(
           valueListenable: SettingsService.fontScaleListenable,
           builder: (context, scale, _) {
+            final effectiveScale = scale * _baseFontScaleMultiplier;
             return MediaQuery(
               data: MediaQuery.of(
                 context,
-              ).copyWith(textScaler: TextScaler.linear(scale)),
+              ).copyWith(textScaler: TextScaler.linear(effectiveScale)),
               // 全局内存监控覆盖层，始终显示在最上层
               child: GlobalMemoryOverlay(child: child!),
             );

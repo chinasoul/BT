@@ -37,6 +37,39 @@ class TvLiveCard extends StatelessWidget {
     this.gridColumns = 4,
   });
 
+  Widget _buildFocusedTitle(String title) {
+    const focusedStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+    );
+    final mode = SettingsService.focusedTitleDisplayMode;
+    switch (mode) {
+      case FocusedTitleDisplayMode.normal:
+        return Text(
+          title,
+          style: focusedStyle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        );
+      case FocusedTitleDisplayMode.singleScroll:
+        return ConditionalMarquee(
+          text: title,
+          style: focusedStyle,
+          blankSpace: 30.0,
+          velocity: 30.0,
+          repeatBehavior: MarqueeRepeatBehavior.once,
+        );
+      case FocusedTitleDisplayMode.loopScroll:
+        return ConditionalMarquee(
+          text: title,
+          style: focusedStyle,
+          blankSpace: 30.0,
+          velocity: 30.0,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // API 字段可能不同，getListByAreaID 返回的数据结构:
@@ -139,18 +172,15 @@ class TvLiveCard extends StatelessWidget {
           children: [
             // 标题
             ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 20),
+              constraints: BoxConstraints(
+                minHeight:
+                    SettingsService.focusedTitleDisplayMode ==
+                        FocusedTitleDisplayMode.normal
+                    ? 40
+                    : 20,
+              ),
               child: isFocused
-                  ? ConditionalMarquee(
-                      text: title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      blankSpace: 30.0,
-                      velocity: 30.0,
-                    )
+                  ? _buildFocusedTitle(title)
                   : Text(
                       title,
                       style: const TextStyle(
@@ -158,7 +188,11 @@ class TvLiveCard extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
-                      maxLines: 1,
+                      maxLines:
+                          SettingsService.focusedTitleDisplayMode ==
+                              FocusedTitleDisplayMode.normal
+                          ? 2
+                          : 1,
                       overflow: TextOverflow.ellipsis,
                     ),
             ),

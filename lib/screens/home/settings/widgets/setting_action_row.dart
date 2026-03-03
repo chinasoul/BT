@@ -20,6 +20,7 @@ class SettingActionRow extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
   final List<String>? optionLabels;
+  final Map<String, String>? optionSubtitles;
   final String? selectedOption;
 
   /// 当选项被选中时的回调（用于弹窗选择模式）
@@ -39,6 +40,7 @@ class SettingActionRow extends StatelessWidget {
     this.isFirst = false,
     this.isLast = false,
     this.optionLabels,
+    this.optionSubtitles,
     this.selectedOption,
     this.onOptionSelected,
   });
@@ -55,6 +57,7 @@ class SettingActionRow extends StatelessWidget {
       items: optionLabels!,
       currentValue: selectedOption ?? optionLabels!.first,
       itemLabel: (s) => s,
+      itemSubtitle: (s) => optionSubtitles?[s] ?? '',
       onSelected: (selectedValue) {
         if (onOptionSelected != null) {
           onOptionSelected!(selectedValue);

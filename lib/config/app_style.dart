@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/settings_service.dart';
 
 // ════════════════════════════════════════════════════════════════════
 //  全局 UI 样式常量
@@ -184,7 +185,12 @@ abstract final class GridStyle {
     final imageHeight = cardWidth * 9.0 / 16.0;
     final textScaleProgress = ((textScale - 1.0) / 0.4).clamp(0.0, 1.0);
     // 底部信息区预算：标题 + 间距 + UP 主行 + 上下内边距 + 大字号冗余
-    final infoHeight = 58.0 + 20.0 * textScaleProgress;
+    // 普通模式下标题可显示 2 行，需要额外预算高度，防止网格内文字溢出。
+    final extraTitleHeight =
+        SettingsService.focusedTitleDisplayMode == FocusedTitleDisplayMode.normal
+        ? 18.0
+        : 0.0;
+    final infoHeight = 58.0 + 20.0 * textScaleProgress + extraTitleHeight;
     final cardHeight = imageHeight + infoHeight;
 
     return cardWidth / cardHeight;

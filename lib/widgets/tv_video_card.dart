@@ -49,6 +49,39 @@ class TvVideoCard extends StatelessWidget {
 
   String get _durationText => video.durationFormatted;
 
+  Widget _buildFocusedTitle() {
+    const focusedStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+    );
+    final mode = SettingsService.focusedTitleDisplayMode;
+    switch (mode) {
+      case FocusedTitleDisplayMode.normal:
+        return Text(
+          video.title,
+          style: focusedStyle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        );
+      case FocusedTitleDisplayMode.singleScroll:
+        return ConditionalMarquee(
+          text: video.title,
+          style: focusedStyle,
+          blankSpace: 30.0,
+          velocity: 30.0,
+          repeatBehavior: MarqueeRepeatBehavior.once,
+        );
+      case FocusedTitleDisplayMode.loopScroll:
+        return ConditionalMarquee(
+          text: video.title,
+          style: focusedStyle,
+          blankSpace: 30.0,
+          velocity: 30.0, // 稍微慢一点
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BaseTvCard(
@@ -144,18 +177,15 @@ class TvVideoCard extends StatelessWidget {
           children: [
             // 标题区域
             ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 20),
+              constraints: BoxConstraints(
+                minHeight:
+                    SettingsService.focusedTitleDisplayMode ==
+                        FocusedTitleDisplayMode.normal
+                    ? 40
+                    : 20,
+              ),
               child: isFocused
-                  ? ConditionalMarquee(
-                      text: video.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      blankSpace: 30.0,
-                      velocity: 30.0, // 稍微慢一点
-                    )
+                  ? _buildFocusedTitle()
                   : Text(
                       video.title,
                       style: const TextStyle(
@@ -163,7 +193,11 @@ class TvVideoCard extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
-                      maxLines: 1,
+                      maxLines:
+                          SettingsService.focusedTitleDisplayMode ==
+                              FocusedTitleDisplayMode.normal
+                          ? 2
+                          : 1,
                       overflow: TextOverflow.ellipsis,
                     ),
             ),

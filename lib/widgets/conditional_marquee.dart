@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import '../services/settings_service.dart';
 
+enum MarqueeRepeatBehavior { once, loop }
+
 /// 轻量级条件滚动文本组件
 ///
 /// 仅在文本宽度超出容器时才启动水平滚动动画。
@@ -20,6 +22,7 @@ class ConditionalMarquee extends StatefulWidget {
   final double velocity;
   final int? maxLines;
   final bool alwaysScroll;
+  final MarqueeRepeatBehavior repeatBehavior;
 
   /// 开始滚动前的延迟时间（用于聚焦后延迟启动）
   final Duration startDelay;
@@ -33,6 +36,7 @@ class ConditionalMarquee extends StatefulWidget {
     this.maxLines = 1,
     this.alwaysScroll = false,
     this.startDelay = const Duration(milliseconds: 500),
+    this.repeatBehavior = MarqueeRepeatBehavior.loop,
   });
 
   @override
@@ -40,6 +44,8 @@ class ConditionalMarquee extends StatefulWidget {
 }
 
 class _ConditionalMarqueeState extends State<ConditionalMarquee> {
+  static const double _singlePassTailCompensation = 8.0;
+
   /// 文本是否溢出容器
   bool _needsScroll = false;
 
@@ -51,6 +57,7 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
 
   /// 一轮循环的总距离 = textWidth + blankSpace
   double _loopDistance = 0;
+  double _singlePassDistance = 0;
 
   /// 当前滚动偏移
   double _offset = 0;
@@ -83,7 +90,12 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
   @override
   void didUpdateWidget(covariant ConditionalMarquee oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text || oldWidget.style != widget.style) {
+    if (oldWidget.text != widget.text ||
+        oldWidget.style != widget.style ||
+        oldWidget.blankSpace != widget.blankSpace ||
+        oldWidget.velocity != widget.velocity ||
+        oldWidget.alwaysScroll != widget.alwaysScroll ||
+        oldWidget.repeatBehavior != widget.repeatBehavior) {
       _stopAnimation();
       _containerWidth = 0;
       _textWidth = 0;
@@ -91,7 +103,8 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
   }
 
   double _measureTextWidth() {
-    final textScaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final textScaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final tp = TextPainter(
       text: TextSpan(text: widget.text, style: widget.style),
       maxLines: 1,
@@ -110,16 +123,26 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
 
     if (shouldScroll && !_needsScroll) {
       _needsScroll = true;
+      _singlePassDistance = (_textWidth - _containerWidth + _singlePassTailCompensation)
+          .clamp(0.0, double.infinity);
       _loopDistance = _textWidth + widget.blankSpace;
-      final ms = (_loopDistance / widget.velocity * 1000).round();
+      final travelDistance = widget.repeatBehavior == MarqueeRepeatBehavior.once
+          ? _singlePassDistance
+          : _loopDistance;
+      final ms = (travelDistance / widget.velocity * 1000).round();
       _scrollDuration = Duration(milliseconds: ms.clamp(500, 30000));
       _startAnimation();
     } else if (!shouldScroll && _needsScroll) {
       _needsScroll = false;
       _stopAnimation();
     } else if (shouldScroll && _needsScroll) {
+      _singlePassDistance = (_textWidth - _containerWidth + _singlePassTailCompensation)
+          .clamp(0.0, double.infinity);
       _loopDistance = _textWidth + widget.blankSpace;
-      final ms = (_loopDistance / widget.velocity * 1000).round();
+      final travelDistance = widget.repeatBehavior == MarqueeRepeatBehavior.once
+          ? _singlePassDistance
+          : _loopDistance;
+      final ms = (travelDistance / widget.velocity * 1000).round();
       _scrollDuration = Duration(milliseconds: ms.clamp(500, 30000));
     }
   }
@@ -161,15 +184,24 @@ class _ConditionalMarqueeState extends State<ConditionalMarquee> {
     final elapsed = DateTime.now().difference(_scrollStartTime);
 
     if (elapsed >= _scrollDuration) {
-      // 一轮循环结束
+      // 一轮滚动结束
       timer.cancel();
       _scrollTimer = null;
-      _offset = 0;
+      if (widget.repeatBehavior == MarqueeRepeatBehavior.once) {
+        _offset = _singlePassDistance.ceilToDouble();
+      } else {
+        _offset = 0;
+      }
       _markNeedsPaint();
-      _beginPausePhase();
+      if (widget.repeatBehavior == MarqueeRepeatBehavior.loop) {
+        _beginPausePhase();
+      }
     } else {
       final t = elapsed.inMicroseconds / _scrollDuration.inMicroseconds;
-      _offset = t * _loopDistance;
+      final travelDistance = widget.repeatBehavior == MarqueeRepeatBehavior.once
+          ? _singlePassDistance
+          : _loopDistance;
+      _offset = t * travelDistance;
       _markNeedsPaint();
     }
   }
@@ -267,7 +299,7 @@ class _RenderMarquee extends RenderProxyBox {
       // 第一份文字
       innerContext.paintChild(child!, innerOffset + Offset(-dx, 0));
       // 第二份文字：紧跟在第一份后面，间隔 blankSpace
-      if (dx > 0) {
+      if (dx > 0 && state.widget.repeatBehavior == MarqueeRepeatBehavior.loop) {
         innerContext.paintChild(
           child!,
           innerOffset + Offset(-dx + loopDist, 0),

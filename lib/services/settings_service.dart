@@ -38,6 +38,16 @@ enum PlaybackPerformanceMode {
   const PlaybackPerformanceMode(this.label);
 }
 
+/// 聚焦标题显示模式
+enum FocusedTitleDisplayMode {
+  normal('普通模式'),
+  singleScroll('单次滚动'),
+  loopScroll('循环滚动');
+
+  final String label;
+  const FocusedTitleDisplayMode(this.label);
+}
+
 /// 默认画质
 enum VideoQuality {
   q360(16, '360P'),
@@ -203,8 +213,10 @@ class SettingsService {
   /// 播放完成后行为
   static PlaybackCompletionAction get playbackCompletionAction {
     final index = _prefs?.getInt(_playbackCompletionActionKey) ?? 0; // 默认暂停
-    return PlaybackCompletionAction
-        .values[index.clamp(0, PlaybackCompletionAction.values.length - 1)];
+    return PlaybackCompletionAction.values[index.clamp(
+      0,
+      PlaybackCompletionAction.values.length - 1,
+    )];
   }
 
   /// 设置播放完成后行为
@@ -1087,6 +1099,8 @@ class SettingsService {
   static const String _showAppCpuKey = 'show_app_cpu';
   static const String _showCoreFreqKey = 'show_core_freq';
   static const String _marqueeFpsKey = 'marquee_fps';
+  static const String _focusedTitleDisplayModeKey =
+      'focused_title_display_mode';
   static const String _nativeDanmakuStrokeWidthKey =
       'native_danmaku_stroke_width';
   static const String _nativeDanmakuStrokeAlphaMinKey =
@@ -1128,6 +1142,24 @@ class SettingsService {
   static Future<void> setMarqueeFps(int value) async {
     await init();
     await _prefs!.setInt(_marqueeFpsKey, value);
+  }
+
+  /// 聚焦标题显示模式（默认：循环滚动）
+  static FocusedTitleDisplayMode get focusedTitleDisplayMode {
+    final index =
+        _prefs?.getInt(_focusedTitleDisplayModeKey) ??
+        FocusedTitleDisplayMode.loopScroll.index;
+    return FocusedTitleDisplayMode.values[index.clamp(
+      0,
+      FocusedTitleDisplayMode.values.length - 1,
+    )];
+  }
+
+  static Future<void> setFocusedTitleDisplayMode(
+    FocusedTitleDisplayMode mode,
+  ) async {
+    await init();
+    await _prefs!.setInt(_focusedTitleDisplayModeKey, mode.index);
   }
 
   /// 原生弹幕描边宽度（开发者选项）

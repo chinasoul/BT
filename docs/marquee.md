@@ -7,7 +7,7 @@
 - 旧方案：依赖传统 marquee 动画实现，通常绑定 vsync / rebuild 频繁。
 - 新方案：改为 `ConditionalMarquee`，只在需要滚动时绘制位移，减少无效渲染。
 - 目标：
-  - 聚焦时滚动，非聚焦时单行省略
+  - 支持多种聚焦标题显示模式，兼顾完整显示与性能
   - 文本不溢出时不启动动画
   - 在 TV 列表高密度场景下尽量降低 CPU 开销
 
@@ -22,34 +22,54 @@
 
 ## 3. 调用链（卡片聚焦）
 
-1. 卡片 `isFocused == true` 时，标题用 `ConditionalMarquee`。
-2. `isFocused == false` 时，直接 `Text(..., overflow: TextOverflow.ellipsis)`。
-3. `ConditionalMarquee` 内部通过 `LayoutBuilder` 获取容器宽度。
-4. 若 `textWidth <= containerWidth` 且 `alwaysScroll == false`，不滚动。
-5. 仅在“需要滚动”时进入定时器驱动的 paint 位移流程。
+1. 卡片 `isFocused == true` 时，根据用户设置选择显示模式（普通 / 单次滚动 / 循环滚动）。
+2. `isFocused == false` 时，默认保持单行省略显示。
+3. 滚动类模式使用 `ConditionalMarquee`。
+4. `ConditionalMarquee` 内部通过 `LayoutBuilder` 获取容器宽度。
+5. 若 `textWidth <= containerWidth` 且 `alwaysScroll == false`，不滚动。
+6. 仅在“需要滚动”时进入定时器驱动的 paint 位移流程。
 
-## 4. 新实现关键机制
+## 4. 聚焦标题显示模式（设置-其他设置）
 
-### 4.1 条件启动
+新增设置项用于控制“视频卡片标题在聚焦后的显示方式”。
+
+- `普通模式`
+  - 聚焦后直接显示两行标题
+  - 超出两行部分使用省略号
+  - 不启动滚动动画，CPU 占用最低
+- `单次滚动`
+  - 聚焦后执行一次横向滚动
+  - 滚动结束后停在末尾（或按实现回到起始后停住）
+  - 相比循环滚动更省资源
+- `循环滚动`
+  - 聚焦后持续循环滚动
+  - 行为与当前实现一致
+  - 信息完整度最高，但持续占用更多 CPU/GPU
+
+默认模式：`循环滚动`。
+
+## 5. 新实现关键机制
+
+### 5.1 条件启动
 
 - 通过 `_measureTextWidth()` 测量文本实际宽度。
 - `shouldScroll = alwaysScroll || textWidth > containerWidth`。
 - 只有 `shouldScroll == true` 才启动动画。
 
-### 4.2 三阶段时序
+### 5.2 三阶段时序
 
 - `delay`：先等待 `startDelay`（默认 500ms，避免焦点一到就抖动）。
 - `scrolling`：`Timer.periodic(_frameInterval)` 驱动偏移更新。
 - `pause`：每轮滚动结束后暂停 3s，再进入下一轮。
 
-### 4.3 帧率控制（开发者设置联动）
+### 5.3 帧率控制（开发者设置联动）
 
 - `_frameInterval` 读取 `SettingsService.marqueeFps`：
   - `30fps -> 33ms`
   - `60fps -> 16ms`
 - 设置入口：开发者选项「滚动文字60帧」。
 
-### 4.4 仅重绘，不重建
+### 5.4 仅重绘，不重建
 
 - 偏移量变化后调用 `markNeedsPaint()`，不触发 widget rebuild。
 - 自定义 `_RenderMarquee` 在 `paint` 阶段完成：
@@ -57,12 +77,12 @@
   - 绘制第一份文本（左移）
   - 需要时绘制第二份文本（循环衔接）
 
-### 4.5 重绘隔离
+### 5.5 重绘隔离
 
 - 外层 `RepaintBoundary` 包裹滚动文本。
 - 滚动时重绘限制在文字区域，不扩散到卡片图片等大区域。
 
-## 5. 性能取舍
+## 6. 性能取舍
 
 - 使用 `Timer.periodic` 而不是持续 vsync 动画：
   - 间隔期间引擎可休眠
@@ -73,7 +93,7 @@
   - `dispose` 时取消定时器
   - 异步阶段检查 `_disposed` / `_needsScroll`
 
-## 6. 常见修改点
+## 7. 常见修改点
 
 1. 调整滚动速度：改调用方 `velocity`（卡片常用 30，播放器标题常用 40）。
 2. 调整延迟：改 `startDelay`（默认 500ms）。
@@ -81,7 +101,7 @@
 4. 调整性能：改 `SettingsService.marqueeFps` 或默认值逻辑。
 5. 调整视觉：改调用方文字 `TextStyle`。
 
-## 7. 维护检查单
+## 8. 维护检查单
 
 修改此功能时建议按顺序检查：
 
@@ -91,7 +111,7 @@
 4. 开发者设置中的 `marquee_fps` 联动是否保持生效
 5. 更新本文档
 
-## 8. 文档化节省 token 评估
+## 9. 文档化节省 token 评估
 
 - 主要节省输入 token（避免反复读多个实现文件和调用点）：
   - 小改动：约 30% ~ 60%

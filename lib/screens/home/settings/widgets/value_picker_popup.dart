@@ -36,6 +36,7 @@ class ValuePickerOverlay {
     required List<T> items,
     required T currentValue,
     required String Function(T) itemLabel,
+    String Function(T)? itemSubtitle,
     required ValueChanged<T> onSelected,
   }) {
     _callerFocusNode = FocusManager.instance.primaryFocus;
@@ -48,6 +49,7 @@ class ValuePickerOverlay {
       builder: (context) => _ValuePickerContent(
         title: title,
         items: stringItems,
+        subtitles: itemSubtitle == null ? null : items.map(itemSubtitle).toList(),
         currentValue: currentString,
         onSelected: (selectedString) {
           _closeInternal();
@@ -82,6 +84,7 @@ class ValuePickerOverlay {
 class _ValuePickerContent extends StatefulWidget {
   final String title;
   final List<String> items;
+  final List<String>? subtitles;
   final String currentValue;
   final ValueChanged<String> onSelected;
   final VoidCallback onClose;
@@ -89,6 +92,7 @@ class _ValuePickerContent extends StatefulWidget {
   const _ValuePickerContent({
     required this.title,
     required this.items,
+    this.subtitles,
     required this.currentValue,
     required this.onSelected,
     required this.onClose,
@@ -195,7 +199,10 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
     final screenSize = MediaQuery.of(context).size;
     final themeColor = SettingsService.themeColor;
 
-    const itemHeight = 48.0;
+    final hasSubtitles =
+        widget.subtitles != null &&
+        widget.subtitles!.any((text) => text.trim().isNotEmpty);
+    final itemHeight = hasSubtitles ? 64.0 : 48.0;
     final itemCount = widget.items.length;
     const maxVisibleItems = 7;
     final visibleItems = itemCount > maxVisibleItems
@@ -203,7 +210,8 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
         : itemCount;
     final listHeight = visibleItems * itemHeight;
     final popupWidth = screenSize.width * 0.3;
-    final popupHeight = listHeight + 48; // 标题高度48
+    const titleHeight = 48.0;
+    final popupHeight = listHeight + titleHeight;
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -269,17 +277,23 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
                             children: [
                               // 标题
                               Container(
-                                height: 48,
+                                height: titleHeight,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
                                 ),
                                 alignment: Alignment.centerLeft,
-                                child: Text(
-                                  widget.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: AppFonts.sizeLG,
-                                    fontWeight: FontWeight.bold,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    widget.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: AppFonts.sizeLG,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    softWrap: false,
                                   ),
                                 ),
                               ),
@@ -291,6 +305,10 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
                                   itemCount: widget.items.length,
                                   itemBuilder: (context, index) {
                                     final item = widget.items[index];
+                                    final subtitle = (widget.subtitles != null &&
+                                            index < widget.subtitles!.length)
+                                        ? widget.subtitles![index]
+                                        : '';
                                     final isSelected =
                                         item == widget.currentValue;
                                     final isFocused = index == _focusedIndex;
@@ -355,19 +373,46 @@ class _ValuePickerContentState extends State<_ValuePickerContent>
                                               ),
                                               const SizedBox(width: 12),
                                               Expanded(
-                                                child: Text(
-                                                  item,
-                                                  style: TextStyle(
-                                                    color: isFocused
-                                                        ? Colors.white
-                                                        : isSelected
-                                                        ? themeColor
-                                                        : Colors.white70,
-                                                    fontSize: AppFonts.sizeMD,
-                                                    fontWeight: isSelected
-                                                        ? FontWeight.bold
-                                                        : FontWeight.normal,
-                                                  ),
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      item,
+                                                      style: TextStyle(
+                                                        color: isFocused
+                                                            ? Colors.white
+                                                            : isSelected
+                                                            ? themeColor
+                                                            : Colors.white70,
+                                                        fontSize: AppFonts.sizeMD,
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                      ),
+                                                    ),
+                                                    if (subtitle.trim().isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              top: 2,
+                                                            ),
+                                                        child: Text(
+                                                          subtitle,
+                                                          style: TextStyle(
+                                                            color: isFocused
+                                                                ? Colors.white70
+                                                                : Colors.white38,
+                                                            fontSize: 11,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
                                               ),
                                             ],

@@ -8,7 +8,7 @@
 AppFonts (设计基准)          用户偏好 (缩放倍率)
 lib/config/app_style.dart    lib/main.dart → textScaler
         ↓                            ↓
-  固定 6 档字号              0.8x ~ 1.4x 全局缩放
+  固定 6 档字号              0.7x ~ 1.3x 全局缩放
         ↓                            ↓
         └──── 最终渲染字号 = 设计字号 × 缩放倍率 ────┘
 ```
@@ -36,13 +36,13 @@ lib/config/app_style.dart    lib/main.dart → textScaler
 
 | 档位 | 缩放系数 | 效果 |
 |------|----------|------|
-| -20% | 0.8 | 字号整体缩小 |
+| -30% | 0.7 | 字号整体缩小 |
+| -20% | 0.8 | |
 | -10% | 0.9 | |
 | 默认 | 1.0 | 设计基准原始大小 |
 | +10% | 1.1 | |
 | +20% | 1.2 | |
-| +30% | 1.3 | |
-| +40% | 1.4 | 字号整体放大 |
+| +30% | 1.3 | 字号整体放大 |
 
 生效方式：`main.dart` 的 `BtApp` 通过 `ValueListenableBuilder` 监听 `fontScaleListenable`，实时更新 `MediaQuery.textScaler`。
 
@@ -66,7 +66,7 @@ lib/config/app_style.dart    lib/main.dart → textScaler
 
 ### 基准倍率
 
-`main.dart` 中的 `_baseFontScaleMultiplier`（当前为 `1.0`）可用于整体微调设计基准。例如设为 `1.1` 则所有字号在用户"默认"档下自动放大 10%。
+`main.dart` 中的 `_baseFontScaleMultiplier`（当前为 `1.2`）可用于整体微调设计基准。当前设为 `1.2`，即所有字号在用户"默认"档下自动放大 20%。
 
 ## 5. 相关文件
 

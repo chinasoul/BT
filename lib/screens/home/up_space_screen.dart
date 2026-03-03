@@ -10,6 +10,7 @@ import '../../utils/image_url_utils.dart';
 import '../../config/app_style.dart';
 import '../../widgets/time_display.dart';
 import '../player/player_screen.dart';
+import '../video_detail/video_detail_screen.dart';
 
 /// UP主空间页面（独立页面方式）
 /// 包含：UP主详细信息、投稿视频列表、关注/充电按钮
@@ -280,9 +281,20 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
   }
 
   void _openVideo(Video video) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => PlayerScreen(video: video)));
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final Widget target = SettingsService.showVideoDetailBeforePlay
+        ? VideoDetailScreen(video: video)
+        : PlayerScreen(video: video);
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => target))
+        .then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    });
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

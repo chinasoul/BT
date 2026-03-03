@@ -305,6 +305,32 @@ class SettingsService {
     await _prefs!.remove(_tunnelSpeedSupportedKey);
   }
 
+  // 播放前显示视频详情页
+  static const String _showVideoDetailKey = 'show_video_detail_before_play';
+
+  /// 是否在播放前显示视频详情页
+  static bool get showVideoDetailBeforePlay {
+    return _prefs?.getBool(_showVideoDetailKey) ?? true;
+  }
+
+  /// 设置是否在播放前显示视频详情页
+  static Future<void> setShowVideoDetailBeforePlay(bool value) async {
+    await init();
+    await _prefs!.setBool(_showVideoDetailKey, value);
+  }
+
+  static const String _videoDetailHintShownKey = 'video_detail_hint_shown';
+
+  /// 是否已展示过视频详情页提示
+  static bool get videoDetailHintShown {
+    return _prefs?.getBool(_videoDetailHintShownKey) ?? false;
+  }
+
+  static Future<void> setVideoDetailHintShown(bool value) async {
+    await init();
+    await _prefs!.setBool(_videoDetailHintShownKey, value);
+  }
+
   // 迷你进度条设置
   static const String _showMiniProgressKey = 'show_mini_progress';
 
@@ -897,9 +923,9 @@ class SettingsService {
   // App 全局字体大小缩放
   static const String _fontScaleKey = 'app_font_scale';
 
-  /// 字体缩放比例（0.8 ~ 1.4，默认 1.0）
+  /// 字体缩放比例（0.7 ~ 1.3，默认 1.0）
   static double get fontScale {
-    return (_prefs?.getDouble(_fontScaleKey) ?? 1.0).clamp(0.8, 1.4);
+    return (_prefs?.getDouble(_fontScaleKey) ?? 1.0).clamp(0.7, 1.3);
   }
 
   static ValueNotifier<double> get fontScaleListenable => _fontScaleNotifier;
@@ -907,20 +933,20 @@ class SettingsService {
   /// 设置字体缩放比例
   static Future<void> setFontScale(double value) async {
     await init();
-    final clamped = value.clamp(0.8, 1.4);
+    final clamped = value.clamp(0.7, 1.3);
     await _prefs!.setDouble(_fontScaleKey, clamped);
     _fontScaleNotifier.value = clamped;
   }
 
   /// 字体缩放选项列表
   static const List<double> fontScaleOptions = [
+    0.7,
     0.8,
     0.9,
     1.0,
     1.1,
     1.2,
     1.3,
-    1.4,
   ];
 
   /// 字体缩放选项标签

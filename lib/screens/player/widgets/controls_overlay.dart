@@ -110,6 +110,8 @@ class ControlsOverlay extends StatelessWidget {
       case 8:
         return isLoopMode ? '单集循环' : '循环播放';
       case 9:
+        return '视频详情';
+      case 10:
         return '关闭播放器';
       default:
         return '';
@@ -229,7 +231,7 @@ class ControlsOverlay extends StatelessWidget {
                     final screenWidth = MediaQuery.of(context).size.width;
                     final buttonAreaWidth =
                         screenWidth * PlayerControlsStyle.buttonAreaRatio;
-                    const buttonCount = 10;
+                    const buttonCount = 11;
                     // 按钮区域 = buttonCount * buttonSize + (buttonCount - 1) * spacing
                     // spacing = buttonSize * spacingRatio
                     // buttonAreaWidth = buttonCount * buttonSize + (buttonCount - 1) * buttonSize * spacingRatio
@@ -344,9 +346,19 @@ class ControlsOverlay extends StatelessWidget {
                           hintText: _controlHintTextFor(8),
                         ),
                         SizedBox(width: spacing),
-                        // 关闭视频 (index 9)
+                        // 视频详情 (index 9)
                         _buildControlButton(
                           index: 9,
+                          icon: Icons.info_outline,
+                          iconSize: iconSize,
+                          padding: padding,
+                          buttonExtent: buttonSize,
+                          hintText: _controlHintTextFor(9),
+                        ),
+                        SizedBox(width: spacing),
+                        // 关闭视频 (index 10)
+                        _buildControlButton(
+                          index: 10,
                           icon: Icons.close,
                           iconSize: iconSize,
                           padding: padding,

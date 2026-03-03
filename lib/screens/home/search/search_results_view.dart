@@ -8,6 +8,7 @@ import '../../../services/settings_service.dart';
 import '../../../config/app_style.dart';
 import '../../../widgets/tv_video_card.dart';
 import '../../player/player_screen.dart';
+import '../../video_detail/video_detail_screen.dart';
 
 /// 判断是否为按键按下或重复事件
 bool _isKeyDownOrRepeat(KeyEvent event) =>
@@ -165,9 +166,20 @@ class _SearchResultsViewState extends State<SearchResultsView> {
   }
 
   void _onVideoTap(Video video) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => PlayerScreen(video: video)));
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final Widget target = SettingsService.showVideoDetailBeforePlay
+        ? VideoDetailScreen(video: video)
+        : PlayerScreen(video: video);
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => target))
+        .then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    });
   }
 
   @override

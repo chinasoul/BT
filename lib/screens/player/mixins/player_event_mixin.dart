@@ -6,6 +6,9 @@ import '../../../services/settings_service.dart';
 import '../widgets/settings_panel.dart';
 import '../focus/player_focus_handler.dart';
 import 'player_action_mixin.dart';
+import '../../../models/video.dart';
+import '../player_screen.dart';
+import '../../video_detail/video_detail_screen.dart';
 
 /// 播放器按键事件 Mixin
 mixin PlayerEventMixin on PlayerActionMixin {
@@ -338,7 +341,7 @@ mixin PlayerEventMixin on PlayerActionMixin {
     final nav = PlayerFocusHandler.handleControlsNavigation(
       event,
       currentIndex: focusedButtonIndex,
-      maxIndex: 9,
+      maxIndex: 10,
       onSelect: activateControlButton,
       onProgressBar: enterProgressBarMode,
       onHide: () => setState(() => showControls = false),
@@ -449,10 +452,50 @@ mixin PlayerEventMixin on PlayerActionMixin {
         toggleLoopMode();
         startHideTimer(); // 重置隐藏定时器
         break;
-      case 9: // 关闭视频
+      case 9: // 视频详情
+        _openVideoDetailFromPlayer();
+        break;
+      case 10: // 关闭视频
         Navigator.of(context).pop();
         break;
     }
+  }
+
+  void _openVideoDetailFromPlayer() {
+    setState(() {
+      showControls = false;
+      showSettingsPanel = false;
+      showEpisodePanel = false;
+      showUpPanel = false;
+      showRelatedPanel = false;
+      showCommentPanel = false;
+      showActionButtons = false;
+      hideTimer?.cancel();
+    });
+    videoController?.pause();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => VideoDetailScreen(
+              video: getDisplayVideo(),
+              fromPlayer: true,
+            ),
+          ),
+        )
+        .then((result) {
+          if (!mounted) return;
+          if (result is Video) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => PlayerScreen(video: result),
+              ),
+            );
+          } else {
+            videoController?.play();
+            setState(() => showControls = true);
+            startHideTimer();
+          }
+        });
   }
 
   /// 控制栏隐藏时的按键处理

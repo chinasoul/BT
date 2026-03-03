@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'base_api.dart';
 import 'sign_utils.dart';
@@ -151,6 +152,50 @@ class InteractionApi {
         },
         body:
             'rid=$aid&type=2&add_media_ids=$addIds&del_media_ids=$delIds&csrf=$csrf',
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return json['code'] == 0;
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+    return false;
+  }
+
+  static String? _buvid3;
+  static String _getOrCreateBuvid3() {
+    if (_buvid3 != null) return _buvid3!;
+    final r = Random();
+    final hex = List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
+    _buvid3 =
+        '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}infoc';
+    return _buvid3!;
+  }
+
+  /// 分享视频（上报分享行为）
+  static Future<bool> shareVideo({required int aid, String? bvid}) async {
+    if (!AuthService.isLoggedIn) return false;
+    try {
+      final csrf = AuthService.biliJct ?? '';
+      if (csrf.isEmpty) return false;
+
+      final headers = BaseApi.getHeaders(withCookie: true);
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      final existingCookie = headers['Cookie'] ?? '';
+      headers['Cookie'] =
+          '$existingCookie; buvid3=${_getOrCreateBuvid3()}';
+
+      var body = 'aid=$aid&csrf=$csrf';
+      if (bvid != null && bvid.isNotEmpty) {
+        body += '&bvid=$bvid';
+      }
+
+      final response = await http.post(
+        Uri.parse('${BaseApi.apiBase}/x/web-interface/share/add'),
+        headers: headers,
+        body: body,
       );
 
       if (response.statusCode == 200) {

@@ -14,6 +14,7 @@ import '../../config/app_style.dart';
 import '../../utils/image_url_utils.dart';
 import '../../widgets/tv_video_card.dart';
 import '../player/player_screen.dart';
+import '../video_detail/video_detail_screen.dart';
 import 'up_space_popup.dart';
 
 /// 我的内容 Tab（关注列表 / 收藏夹 / 稍后再看）
@@ -656,9 +657,20 @@ class FollowingTabState extends State<FollowingTab> {
       ToastUtils.show(context, '该视频不可播放');
       return;
     }
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => PlayerScreen(video: video)));
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final Widget target = SettingsService.showVideoDetailBeforePlay
+        ? VideoDetailScreen(video: video)
+        : PlayerScreen(video: video);
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => target))
+        .then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    });
   }
 
   void _openUserSpace(FollowingUser user) {

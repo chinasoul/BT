@@ -704,4 +704,31 @@ class PlaybackApi {
     }
     return null;
   }
+
+  /// 获取视频TAG列表（过滤掉bgm类型）
+  static Future<List<String>> getVideoTags(String bvid) async {
+    try {
+      final url =
+          'https://api.bilibili.com/x/web-interface/view/detail/tag?bvid=$bvid';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: BaseApi.getHeaders(withCookie: true),
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        if (json['code'] == 0 && json['data'] != null) {
+          final tags = json['data'] as List;
+          return tags
+              .where((t) => t['tag_type'] != 'bgm')
+              .map((t) => t['tag_name'] as String? ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+        }
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+    return [];
+  }
 }

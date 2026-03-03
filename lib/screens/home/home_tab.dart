@@ -13,6 +13,7 @@ import '../../widgets/update_time_banner.dart';
 import '../../core/plugin/plugin_manager.dart';
 import '../../core/plugin/plugin_types.dart';
 import '../player/player_screen.dart';
+import '../video_detail/video_detail_screen.dart';
 
 class HomeTab extends StatefulWidget {
   final FocusNode? sidebarFocusNode;
@@ -525,9 +526,20 @@ class HomeTabState extends State<HomeTab> {
   }
 
   void _onVideoTap(Video video) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => PlayerScreen(video: video)));
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final Widget target = SettingsService.showVideoDetailBeforePlay
+        ? VideoDetailScreen(video: video)
+        : PlayerScreen(video: video);
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => target))
+        .then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    });
   }
 
   @override

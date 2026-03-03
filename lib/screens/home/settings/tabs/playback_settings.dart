@@ -130,6 +130,17 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
         SettingToggleRow(
+          label: '播放前显示视频详情',
+          subtitle: '点击视频后先展示详情页，再手动开始播放',
+          value: SettingsService.showVideoDetailBeforePlay,
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (value) async {
+            await SettingsService.setShowVideoDetailBeforePlay(value);
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+        SettingToggleRow(
           label: '迷你进度条',
           subtitle: '播放时在屏幕底部显示简约进度条',
           value: SettingsService.showMiniProgress,

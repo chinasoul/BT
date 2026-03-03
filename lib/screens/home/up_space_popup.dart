@@ -10,6 +10,7 @@ import '../../services/settings_service.dart';
 import '../../utils/image_url_utils.dart';
 import '../../config/app_style.dart';
 import '../player/player_screen.dart';
+import '../video_detail/video_detail_screen.dart';
 
 /// UP主空间弹窗（Popup方式，半透明遮罩+居中弹窗）
 /// 相比新窗口方式，内存开销更低，同时保持上下文感
@@ -318,9 +319,20 @@ class _UpSpacePopupState extends State<UpSpacePopup> {
   }
 
   void _openVideo(Video video) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => PlayerScreen(video: video)));
+    final previousFocus = FocusManager.instance.primaryFocus;
+    final Widget target = SettingsService.showVideoDetailBeforePlay
+        ? VideoDetailScreen(video: video)
+        : PlayerScreen(video: video);
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => target))
+        .then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          previousFocus.requestFocus();
+        }
+      });
+    });
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

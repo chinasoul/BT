@@ -185,6 +185,10 @@ class BilibiliApi {
     required int cid,
   }) => PlaybackApi.getOnlineCount(aid: aid, cid: cid);
 
+  /// 获取视频TAG列表（过滤掉bgm类型）
+  static Future<List<String>> getVideoTags(String bvid) =>
+      PlaybackApi.getVideoTags(bvid);
+
   /// 获取视频快照(雪碧图)数据
   static Future<VideoshotData?> getVideoshot({
     required String bvid,
@@ -219,6 +223,10 @@ class BilibiliApi {
     required int aid,
     required bool favorite,
   }) => InteractionApi.favoriteVideo(aid: aid, favorite: favorite);
+
+  /// 分享视频（上报分享行为）
+  static Future<bool> shareVideo({required int aid, String? bvid}) =>
+      InteractionApi.shareVideo(aid: aid, bvid: bvid);
 
   /// 检查是否已收藏
   static Future<bool> checkFavoriteStatus(int aid) =>

@@ -16,4 +16,13 @@ class Env {
   /// Gitee 私人令牌（可选）
   /// 公开仓库不需要；私有仓库需配置
   static const String giteeToken = '';
+
+  /// 哀悼模式远程配置 URL（按顺序回退）。
+  /// 当前建议顺序：GitHub Raw -> Gitee Raw -> 其他备用源（OSS/COS/CDN）。
+  static const List<String> mourningModeConfigUrls = [
+    // 示例：
+    // 'https://raw.githubusercontent.com/your-org/your-repo/main/configs/mourning-config.json',
+    // 'https://gitee.com/your-org/your-repo/raw/main/configs/mourning-config.json',
+    // 'https://your-cdn.example.com/configs/mourning-config.json',
+  ];
 }

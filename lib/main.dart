@@ -9,12 +9,14 @@ import 'config/build_flags.dart';
 import 'config/app_style.dart';
 import 'services/auth_service.dart';
 import 'services/local_server.dart';
+import 'services/mourning_mode_service.dart';
 import 'services/settings_service.dart';
 import 'widgets/global_memory_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SettingsService.init();
+  await MourningModeService.init();
 
   // TV 设备内存有限（通常 1~2 GB），严格控制图片解码缓存
   PaintingBinding.instance.imageCache.maximumSize =
@@ -92,12 +94,24 @@ class BtApp extends StatelessWidget {
               valueListenable: SettingsService.fontScaleListenable,
               builder: (context, scale, _) {
                 final effectiveScale = scale * _baseFontScaleMultiplier;
-                return MediaQuery(
+                final root = MediaQuery(
                   data: MediaQuery.of(
                     context,
                   ).copyWith(textScaler: TextScaler.linear(effectiveScale)),
                   // 全局内存监控覆盖层，始终显示在最上层
                   child: GlobalMemoryOverlay(child: child!),
+                );
+                return ValueListenableBuilder<bool>(
+                  valueListenable: MourningModeService.enabledListenable,
+                  builder: (context, enabled, _) {
+                    if (!enabled) return root;
+                    return ColorFiltered(
+                      colorFilter: ColorFilter.matrix(
+                        MourningModeService.grayscaleMatrix,
+                      ),
+                      child: root,
+                    );
+                  },
                 );
               },
             );

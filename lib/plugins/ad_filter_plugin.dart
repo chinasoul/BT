@@ -412,10 +412,10 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ========== 过滤开关 ==========
-            const Text(
+            Text(
               '过滤开关',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.primaryText,
                 fontSize: AppFonts.sizeXL,
                 fontWeight: FontWeight.bold,
               ),
@@ -423,13 +423,13 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
             const SizedBox(height: 8),
 
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 '过滤广告推广',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.primaryText),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 '隐藏商业合作、恰饭、推广等内容',
-                style: TextStyle(color: AppColors.textTertiary),
+                style: TextStyle(color: AppColors.inactiveText),
               ),
               value: config.filterSponsored,
               onChanged: (val) {
@@ -438,10 +438,10 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
             ),
 
             SwitchListTile(
-              title: const Text('过滤标题党', style: TextStyle(color: Colors.white)),
-              subtitle: const Text(
+              title: Text('过滤标题党', style: TextStyle(color: AppColors.primaryText)),
+              subtitle: Text(
                 '隐藏震惊体、夸张标题视频',
-                style: TextStyle(color: AppColors.textTertiary),
+                style: TextStyle(color: AppColors.inactiveText),
               ),
               value: config.filterClickbait,
               onChanged: (val) {
@@ -450,13 +450,13 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
             ),
 
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 '过滤低播放量',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.primaryText),
               ),
               subtitle: Text(
                 '隐藏播放量低于 ${config.minViewCount} 的视频',
-                style: const TextStyle(color: AppColors.textTertiary),
+                style: TextStyle(color: AppColors.inactiveText),
               ),
               value: config.filterLowQuality,
               onChanged: (val) {
@@ -464,14 +464,14 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
               },
             ),
 
-            const Divider(color: Colors.white24),
+            Divider(color: AppColors.navItemSelectedBackground),
 
             // ========== UP主拉黑 ==========
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'UP主拉黑',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.primaryText,
                 fontSize: AppFonts.sizeXL,
                 fontWeight: FontWeight.bold,
               ),
@@ -482,29 +482,29 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
                 Expanded(
                   child: TextField(
                     controller: _upNameController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: '输入UP主名称',
                       border: OutlineInputBorder(),
                       filled: true,
-                      fillColor: Colors.white12,
+                      fillColor: AppColors.navItemSelectedBackground,
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.primaryText),
                     onSubmitted: (_) => _addUpName(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _addUpName,
-                  icon: const Icon(Icons.add, color: Colors.blue),
+                  icon: Icon(Icons.add, color: Colors.blue),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             if (config.blockedUpNames.isEmpty)
-              const Text(
+              Text(
                 '暂无拉黑的UP主',
                 style: TextStyle(
-                  color: AppColors.textDisabled,
+                  color: AppColors.disabledText,
                   fontStyle: FontStyle.italic,
                 ),
               )
@@ -526,14 +526,14 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
                     .toList(),
               ),
 
-            const Divider(color: Colors.white24),
+            Divider(color: AppColors.navItemSelectedBackground),
 
             // ========== 自定义关键词 ==========
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '自定义屏蔽关键词',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.primaryText,
                 fontSize: AppFonts.sizeXL,
                 fontWeight: FontWeight.bold,
               ),
@@ -544,29 +544,29 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
                 Expanded(
                   child: TextField(
                     controller: _keywordController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: '输入关键词',
                       border: OutlineInputBorder(),
                       filled: true,
-                      fillColor: Colors.white12,
+                      fillColor: AppColors.navItemSelectedBackground,
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.primaryText),
                     onSubmitted: (_) => _addKeyword(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _addKeyword,
-                  icon: const Icon(Icons.add, color: Colors.blue),
+                  icon: Icon(Icons.add, color: Colors.blue),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             if (config.blockedKeywords.isEmpty)
-              const Text(
+              Text(
                 '暂无自定义屏蔽词',
                 style: TextStyle(
-                  color: AppColors.textDisabled,
+                  color: AppColors.disabledText,
                   fontStyle: FontStyle.italic,
                 ),
               )
@@ -588,20 +588,20 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
               ),
 
             const SizedBox(height: 24),
-            const Text(
+            Text(
               '已屏蔽UP主 (MID)',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.primaryText,
                 fontSize: AppFonts.sizeXL,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             if (config.blockedMids.isEmpty)
-              const Text(
+              Text(
                 '暂无通过MID屏蔽的UP主',
                 style: TextStyle(
-                  color: AppColors.textDisabled,
+                  color: AppColors.disabledText,
                   fontStyle: FontStyle.italic,
                 ),
               )

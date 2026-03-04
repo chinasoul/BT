@@ -24,8 +24,8 @@ class _PluginsSettingsTabState extends State<PluginsSettingsTab> {
   @override
   Widget build(BuildContext context) {
     if (_pluginManager.plugins.isEmpty) {
-      return const Center(
-        child: Text('暂无插件', style: TextStyle(color: AppColors.textTertiary)),
+      return Center(
+        child: Text('暂无插件', style: TextStyle(color: AppColors.inactiveText)),
       );
     }
 
@@ -47,12 +47,12 @@ class _PluginsSettingsTabState extends State<PluginsSettingsTab> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.devices, color: Colors.blue, size: 20),
+              Icon(Icons.devices, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '使用手机或电脑访问 $serverAddress 设置去广告增强和弹幕屏蔽功能',
-                  style: const TextStyle(color: AppColors.textTertiary, fontSize: AppFonts.sizeSM),
+                  style: TextStyle(color: AppColors.inactiveText, fontSize: AppFonts.sizeSM),
                 ),
               ),
             ],
@@ -129,7 +129,7 @@ class _PluginCardState extends State<_PluginCard> {
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: _focused
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? AppColors.navItemSelectedBackground
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: _focused
@@ -140,7 +140,7 @@ class _PluginCardState extends State<_PluginCard> {
                 children: [
                   Icon(
                     widget.plugin.icon ?? Icons.extension,
-                    color: isEnabled ? SettingsService.themeColor : AppColors.textHint,
+                    color: isEnabled ? SettingsService.themeColor : AppColors.inactiveText,
                     size: 28,
                   ),
                   const SizedBox(width: 16),
@@ -151,7 +151,7 @@ class _PluginCardState extends State<_PluginCard> {
                         Text(
                           widget.plugin.name,
                           style: TextStyle(
-                            color: _focused ? Colors.white : AppColors.textTertiary,
+                            color: _focused ? AppColors.primaryText : AppColors.inactiveText,
                             fontSize: AppFonts.sizeLG,
                             fontWeight: FontWeight.bold,
                           ),
@@ -161,8 +161,8 @@ class _PluginCardState extends State<_PluginCard> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               widget.plugin.description,
-                              style: const TextStyle(
-                                color: AppColors.textDisabled,
+                              style: TextStyle(
+                                color: AppColors.disabledText,
                                 fontSize: AppFonts.sizeSM,
                               ),
                             ),
@@ -171,8 +171,8 @@ class _PluginCardState extends State<_PluginCard> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             'v${widget.plugin.version} • ${widget.plugin.author}',
-                            style: const TextStyle(
-                              color: Colors.white24,
+                            style: TextStyle(
+                              color: AppColors.disabledText,
                               fontSize: AppFonts.sizeXS,
                             ),
                           ),

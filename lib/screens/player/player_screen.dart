@@ -232,7 +232,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                         // 时间指示器
                         Text(
                           '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: AppFonts.sizeXXL,
                             fontWeight: FontWeight.bold,
@@ -246,7 +246,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                           ),
                         ),
                         // 操作提示
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
                             '按确定跳转',
@@ -278,7 +278,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                     child: Text(
                       '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: AppFonts.sizeXXL,
                         fontWeight: FontWeight.bold,
@@ -604,12 +604,12 @@ class _PlayerScreenState extends State<PlayerScreen>
         '${networkActivityKb <= 0 ? '0.00' : networkActivityKb.toStringAsFixed(2)} KB';
     final renderPath = _buildRenderPathText();
 
-    TextStyle labelStyle = const TextStyle(
+    TextStyle labelStyle = TextStyle(
       color: AppColors.textTertiary,
       fontSize: AppFonts.sizeLG,
       fontWeight: AppFonts.medium,
     );
-    TextStyle valueStyle = const TextStyle(
+    TextStyle valueStyle = TextStyle(
       color: Colors.white,
       fontSize: AppFonts.sizeLG,
       fontWeight: AppFonts.semibold,
@@ -640,7 +640,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             '视频数据实时监测',
             style: TextStyle(
               color: Colors.white,
@@ -771,7 +771,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.fast_forward,
                         color: Colors.white,
                         size: 20,
@@ -779,7 +779,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                       const SizedBox(width: 8),
                       Text(
                         action.label.toString(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),

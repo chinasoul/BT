@@ -209,12 +209,12 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.phone_android, color: Colors.blue, size: 20),
+                Icon(Icons.phone_android, color: Colors.blue, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '推荐使用手机访问 $serverAddress 进行管理',
-                    style: const TextStyle(color: AppColors.textTertiary, fontSize: AppFonts.sizeSM),
+                    style: TextStyle(color: AppColors.inactiveText, fontSize: AppFonts.sizeSM),
                   ),
                 ),
               ],
@@ -224,10 +224,10 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
 
           // 开关
           SwitchListTile(
-            title: const Text('启用弹幕屏蔽', style: TextStyle(color: Colors.white)),
-            subtitle: const Text(
+            title: Text('启用弹幕屏蔽', style: TextStyle(color: AppColors.primaryText)),
+            subtitle: Text(
               '屏蔽包含指定关键词的弹幕',
-              style: TextStyle(color: AppColors.textTertiary),
+              style: TextStyle(color: AppColors.inactiveText),
             ),
             value: config.enableFilter,
             onChanged: (val) {
@@ -235,7 +235,7 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
             },
           ),
 
-          const Divider(color: Colors.white24),
+          Divider(color: AppColors.navItemSelectedBackground),
           const SizedBox(height: 16),
 
           // 部分匹配关键词
@@ -277,8 +277,8 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: AppColors.primaryText,
             fontSize: AppFonts.sizeXL,
             fontWeight: FontWeight.bold,
           ),
@@ -286,7 +286,7 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: const TextStyle(color: AppColors.textHint, fontSize: AppFonts.sizeSM),
+          style: TextStyle(color: AppColors.inactiveText, fontSize: AppFonts.sizeSM),
         ),
         const SizedBox(height: 12),
 
@@ -295,14 +295,14 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
             Expanded(
               child: TextField(
                 controller: controller,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: '输入关键词',
                   border: OutlineInputBorder(),
                   filled: true,
-                  fillColor: Colors.white12,
+                  fillColor: AppColors.navItemSelectedBackground,
                   isDense: true,
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.primaryText),
                 onSubmitted: (_) {
                   final val = controller.text.trim();
                   if (val.isNotEmpty) {
@@ -325,7 +325,7 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
                   });
                 }
               },
-              icon: const Icon(Icons.add, color: Colors.blue),
+              icon: Icon(Icons.add, color: Colors.blue),
             ),
           ],
         ),
@@ -333,10 +333,10 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
 
         // 关键词列表
         keywords.isEmpty
-            ? const Text(
+            ? Text(
                 '暂无屏蔽词',
                 style: TextStyle(
-                  color: AppColors.textDisabled,
+                  color: AppColors.disabledText,
                   fontStyle: FontStyle.italic,
                 ),
               )

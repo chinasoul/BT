@@ -220,10 +220,10 @@ class _SponsorBlockSettingsState extends State<_SponsorBlockSettings> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SwitchListTile(
-            title: const Text('自动跳过', style: TextStyle(color: Colors.white)),
-            subtitle: const Text(
+            title: Text('自动跳过', style: TextStyle(color: AppColors.primaryText)),
+            subtitle: Text(
               '关闭后将显示手动跳过按钮',
-              style: TextStyle(color: AppColors.textTertiary),
+              style: TextStyle(color: AppColors.inactiveText),
             ),
             value: _autoSkip,
             onChanged: (val) {

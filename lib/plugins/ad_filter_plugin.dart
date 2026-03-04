@@ -407,163 +407,172 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
     final config = widget.plugin._config;
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader('过滤开关'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('过滤开关'),
 
-          SettingToggleRow(
-            label: '过滤广告推广',
-            subtitle: '隐藏商业合作、恰饭、推广等内容',
-            value: config.filterSponsored,
-            onChanged: (val) {
-              setState(() => widget.plugin.setFilterSponsored(val));
-            },
-          ),
+        SettingToggleRow(
+          label: '过滤广告推广',
+          subtitle: '隐藏商业合作、恰饭、推广等内容',
+          value: config.filterSponsored,
+          onChanged: (val) {
+            setState(() => widget.plugin.setFilterSponsored(val));
+          },
+        ),
 
-          SettingToggleRow(
-            label: '过滤标题党',
-            subtitle: '隐藏震惊体、夸张标题视频',
-            value: config.filterClickbait,
-            onChanged: (val) {
-              setState(() => widget.plugin.setFilterClickbait(val));
-            },
-          ),
+        SettingToggleRow(
+          label: '过滤标题党',
+          subtitle: '隐藏震惊体、夸张标题视频',
+          value: config.filterClickbait,
+          onChanged: (val) {
+            setState(() => widget.plugin.setFilterClickbait(val));
+          },
+        ),
 
-          SettingToggleRow(
-            label: '过滤低播放量',
-            subtitle: '隐藏播放量低于 ${config.minViewCount} 的视频',
-            value: config.filterLowQuality,
-            onChanged: (val) {
-              setState(() => widget.plugin.setFilterLowQuality(val));
-            },
-          ),
+        SettingToggleRow(
+          label: '过滤低播放量',
+          subtitle: '隐藏播放量低于 ${config.minViewCount} 的视频',
+          value: config.filterLowQuality,
+          onChanged: (val) {
+            setState(() => widget.plugin.setFilterLowQuality(val));
+          },
+        ),
 
-          _sectionHeader('UP主拉黑'),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _upNameController,
-                    decoration: InputDecoration(
-                      hintText: '输入UP主名称',
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: AppColors.navItemSelectedBackground,
-                    ),
-                    style: TextStyle(color: AppColors.primaryText),
-                    onSubmitted: (_) => _addUpName(),
-                  ),
+        _sectionHeader('UP主拉黑'),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _upNameController,
+                decoration: InputDecoration(
+                  hintText: '输入UP主名称',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: AppColors.navItemSelectedBackground,
+                  hintStyle: TextStyle(color: AppColors.inactiveText),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _addUpName,
-                  icon: Icon(Icons.add, color: Colors.blue),
-                ),
-              ],
+                style: TextStyle(color: AppColors.primaryText),
+                onSubmitted: (_) => _addUpName(),
+              ),
             ),
-            const SizedBox(height: 8),
-            if (config.blockedUpNames.isEmpty)
-              Text(
-                '暂无拉黑的UP主',
-                style: TextStyle(
-                  color: AppColors.disabledText,
-                  fontStyle: FontStyle.italic,
-                ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                children: config.blockedUpNames
-                    .map(
-                      (name) => Chip(
-                        label: Text(name),
-                        backgroundColor: Colors.red.withValues(alpha: 0.2),
-                        onDeleted: () {
-                          setState(() {
-                            widget.plugin.unblockUploaderByName(name);
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-
-            _sectionHeader('自定义屏蔽关键词'),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _keywordController,
-                    decoration: InputDecoration(
-                      hintText: '输入关键词',
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: AppColors.navItemSelectedBackground,
-                    ),
-                    style: TextStyle(color: AppColors.primaryText),
-                    onSubmitted: (_) => _addKeyword(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _addKeyword,
-                  icon: Icon(Icons.add, color: Colors.blue),
-                ),
-              ],
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _addUpName,
+              icon: Icon(Icons.add, color: Colors.blue),
             ),
-            const SizedBox(height: 16),
-            if (config.blockedKeywords.isEmpty)
-              Text(
-                '暂无自定义屏蔽词',
-                style: TextStyle(
-                  color: AppColors.disabledText,
-                  fontStyle: FontStyle.italic,
-                ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                children: config.blockedKeywords
-                    .map(
-                      (k) => Chip(
-                        label: Text(k),
-                        onDeleted: () {
-                          setState(() {
-                            widget.plugin.removeKeyword(k);
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-
-            _sectionHeader('已屏蔽UP主 (MID)'),
-            if (config.blockedMids.isEmpty)
-              Text(
-                '暂无通过MID屏蔽的UP主',
-                style: TextStyle(
-                  color: AppColors.disabledText,
-                  fontStyle: FontStyle.italic,
-                ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                children: config.blockedMids
-                    .map(
-                      (mid) => Chip(
-                        label: Text(mid.toString()),
-                        backgroundColor: Colors.red.withValues(alpha: 0.2),
-                        onDeleted: () {
-                          setState(() {
-                            widget.plugin.unblockUploader(mid);
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
           ],
+        ),
+        const SizedBox(height: 8),
+        if (config.blockedUpNames.isEmpty)
+          Text(
+            '暂无拉黑的UP主',
+            style: TextStyle(
+              color: AppColors.disabledText,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            children: config.blockedUpNames
+                .map(
+                  (name) => Chip(
+                    label: Text(name),
+                    labelStyle: TextStyle(color: AppColors.primaryText),
+                    backgroundColor: Colors.red.withValues(alpha: 0.2),
+                    deleteIconColor: AppColors.primaryText,
+                    onDeleted: () {
+                      setState(() {
+                        widget.plugin.unblockUploaderByName(name);
+                      });
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+
+        _sectionHeader('自定义屏蔽关键词'),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _keywordController,
+                decoration: InputDecoration(
+                  hintText: '输入关键词',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: AppColors.navItemSelectedBackground,
+                  hintStyle: TextStyle(color: AppColors.inactiveText),
+                ),
+                style: TextStyle(color: AppColors.primaryText),
+                onSubmitted: (_) => _addKeyword(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _addKeyword,
+              icon: Icon(Icons.add, color: Colors.blue),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (config.blockedKeywords.isEmpty)
+          Text(
+            '暂无自定义屏蔽词',
+            style: TextStyle(
+              color: AppColors.disabledText,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            children: config.blockedKeywords
+                .map(
+                  (k) => Chip(
+                    label: Text(k),
+                    labelStyle: TextStyle(color: AppColors.primaryText),
+                    backgroundColor: AppColors.navItemSelectedBackground,
+                    deleteIconColor: AppColors.primaryText,
+                    onDeleted: () {
+                      setState(() {
+                        widget.plugin.removeKeyword(k);
+                      });
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+
+        _sectionHeader('已屏蔽UP主 (MID)'),
+        if (config.blockedMids.isEmpty)
+          Text(
+            '暂无通过MID屏蔽的UP主',
+            style: TextStyle(
+              color: AppColors.disabledText,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            children: config.blockedMids
+                .map(
+                  (mid) => Chip(
+                    label: Text(mid.toString()),
+                    labelStyle: TextStyle(color: AppColors.primaryText),
+                    backgroundColor: Colors.red.withValues(alpha: 0.2),
+                    deleteIconColor: AppColors.primaryText,
+                    onDeleted: () {
+                      setState(() {
+                        widget.plugin.unblockUploader(mid);
+                      });
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+      ],
     );
   }
 
@@ -572,8 +581,8 @@ class _AdFilterSettingsState extends State<_AdFilterSettings> {
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
       child: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.textTertiary,
+        style: TextStyle(
+          color: AppColors.secondaryText,
           fontSize: AppFonts.sizeSM,
           fontWeight: FontWeight.bold,
         ),

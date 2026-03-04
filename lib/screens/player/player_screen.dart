@@ -37,11 +37,8 @@ class PlayerScreen extends StatefulWidget {
   final Video video;
   final int exitPopDepth;
 
-  const PlayerScreen({
-    super.key,
-    required this.video,
-    this.exitPopDepth = 1,
-  }) : assert(exitPopDepth >= 1);
+  const PlayerScreen({super.key, required this.video, this.exitPopDepth = 1})
+    : assert(exitPopDepth >= 1);
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -115,190 +112,190 @@ class _PlayerScreenState extends State<PlayerScreen>
           autofocus: true,
           onKeyEvent: handleGlobalKeyEvent,
           child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                if (!mounted || isLoading || videoController == null) return;
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (!mounted || isLoading || videoController == null) return;
 
-                // 优先级 1：若有右侧子面板打开，单击空白区先关闭一层，不触发暂停。
-                if (showSettingsPanel ||
-                    showEpisodePanel ||
-                    showUpPanel ||
-                    showRelatedPanel ||
-                    showCommentPanel ||
-                    showActionButtons) {
-                  setState(() {
-                    showSettingsPanel = false;
-                    showEpisodePanel = false;
-                    showUpPanel = false;
-                    showRelatedPanel = false;
-                    showCommentPanel = false;
-                    showActionButtons = false;
-                    showControls = true;
-                  });
-                  startHideTimer();
-                  return;
-                }
-
-                // 优先级 2：无子面板时，维持现有行为：
-                // 控制栏隐藏 -> 呼出控制栏；控制栏显示 -> 播放/暂停。
-                if (!showControls) {
-                  setState(() => showControls = true);
-                } else {
-                  togglePlayPause();
-                }
+              // 优先级 1：若有右侧子面板打开，单击空白区先关闭一层，不触发暂停。
+              if (showSettingsPanel ||
+                  showEpisodePanel ||
+                  showUpPanel ||
+                  showRelatedPanel ||
+                  showCommentPanel ||
+                  showActionButtons) {
+                setState(() {
+                  showSettingsPanel = false;
+                  showEpisodePanel = false;
+                  showUpPanel = false;
+                  showRelatedPanel = false;
+                  showCommentPanel = false;
+                  showActionButtons = false;
+                  showControls = true;
+                });
                 startHideTimer();
-              },
-              child: Stack(
+                return;
+              }
+
+              // 优先级 2：无子面板时，维持现有行为：
+              // 控制栏隐藏 -> 呼出控制栏；控制栏显示 -> 播放/暂停。
+              if (!showControls) {
+                setState(() => showControls = true);
+              } else {
+                togglePlayPause();
+              }
+              startHideTimer();
+            },
+            child: Stack(
               children: [
-              // 视频层
-              VideoLayer(
-                controller: videoController,
-                isLoading: isLoading,
-                errorMessage: errorMessage,
-              ),
-
-              // 弹幕层 (当原生弹幕渲染未生效时使用 Flutter Canvas 弹幕)
-              if (!isLoading &&
-                  videoController != null &&
-                  danmakuEnabled &&
-                  !useNativeDanmakuRender)
-                DanmakuLayer(
-                  onCreated: (c) => danmakuController = c,
-                  option: DanmakuOption(
-                    opacity: danmakuOpacity,
-                    fontSize: danmakuFontSize,
-                    // 弹幕飞行速度随播放倍速同步调整
-                    duration: danmakuSpeed / playbackSpeed,
-                    area: danmakuArea,
-                    hideTop: hideTopDanmaku,
-                    hideBottom: hideBottomDanmaku,
-                  ),
-                ),
-
-              // 字幕层
-              if (!isLoading &&
-                  videoController != null &&
-                  subtitleEnabled &&
-                  currentSubtitleText.isNotEmpty)
-                SubtitleLayer(
-                  text: currentSubtitleText,
-                  showControls: showControls,
-                ),
-
-              // 暂停指示器
-              if (!isLoading && videoController != null)
-                PauseIndicator(
+                // 视频层
+                VideoLayer(
                   controller: videoController,
-                  isSeeking: pendingSeekTarget != null || isSeekPreviewMode,
+                  isLoading: isLoading,
+                  errorMessage: errorMessage,
                 ),
 
-              // 迷你进度条 (控制栏隐藏时显示)
-              if (!isLoading &&
-                  videoController != null &&
-                  !showControls &&
-                  SettingsService.showMiniProgress)
-                MiniProgressBar(
-                  // 批量快进时使用累积目标位置，刚提交后使用上次提交位置，否则使用实际播放位置
-                  position: getDisplayPosition(),
-                  duration: videoController!.value.duration,
-                  // 快进中或刚提交后短暂隐藏缓冲条，防止旧数据闪烁
-                  bufferedRanges:
-                      (pendingSeekTarget != null || hideBufferAfterSeek)
-                      ? const []
-                      : videoController!.value.buffered,
-                ),
-
-              // 快进快退指示器 (含预览缩略图) - 仅快进预览模式且有雪碧图时显示
-              if (showSeekIndicator &&
-                  videoController != null &&
-                  isSeekPreviewMode &&
-                  previewPosition != null &&
-                  videoshotData != null)
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(12),
+                // 弹幕层 (当原生弹幕渲染未生效时使用 Flutter Canvas 弹幕)
+                if (!isLoading &&
+                    videoController != null &&
+                    danmakuEnabled &&
+                    !useNativeDanmakuRender)
+                  DanmakuLayer(
+                    onCreated: (c) => danmakuController = c,
+                    option: DanmakuOption(
+                      opacity: danmakuOpacity,
+                      fontSize: danmakuFontSize,
+                      // 弹幕飞行速度随播放倍速同步调整
+                      duration: danmakuSpeed / playbackSpeed,
+                      area: danmakuArea,
+                      hideTop: hideTopDanmaku,
+                      hideBottom: hideBottomDanmaku,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // 显示缩略图
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: SeekPreviewThumbnail(
-                            videoshotData: videoshotData!,
-                            previewPosition: previewPosition!,
-                            scale: 0.6,
-                          ),
-                        ),
-                        // 时间指示器
-                        Text(
-                          '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: AppFonts.sizeXXL,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                blurRadius: 4,
-                                color: Colors.black,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 操作提示
-                        Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            '按确定跳转',
-                            style: TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: AppFonts.sizeSM,
+                  ),
+
+                // 字幕层
+                if (!isLoading &&
+                    videoController != null &&
+                    subtitleEnabled &&
+                    currentSubtitleText.isNotEmpty)
+                  SubtitleLayer(
+                    text: currentSubtitleText,
+                    showControls: showControls,
+                  ),
+
+                // 暂停指示器
+                if (!isLoading && videoController != null)
+                  PauseIndicator(
+                    controller: videoController,
+                    isSeeking: pendingSeekTarget != null || isSeekPreviewMode,
+                  ),
+
+                // 迷你进度条 (控制栏隐藏时显示)
+                if (!isLoading &&
+                    videoController != null &&
+                    !showControls &&
+                    SettingsService.showMiniProgress)
+                  MiniProgressBar(
+                    // 批量快进时使用累积目标位置，刚提交后使用上次提交位置，否则使用实际播放位置
+                    position: getDisplayPosition(),
+                    duration: videoController!.value.duration,
+                    // 快进中或刚提交后短暂隐藏缓冲条，防止旧数据闪烁
+                    bufferedRanges:
+                        (pendingSeekTarget != null || hideBufferAfterSeek)
+                        ? const []
+                        : videoController!.value.buffered,
+                  ),
+
+                // 快进快退指示器 (含预览缩略图) - 仅快进预览模式且有雪碧图时显示
+                if (showSeekIndicator &&
+                    videoController != null &&
+                    isSeekPreviewMode &&
+                    previewPosition != null &&
+                    videoshotData != null)
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 显示缩略图
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SeekPreviewThumbnail(
+                              videoshotData: videoshotData!,
+                              previewPosition: previewPosition!,
+                              scale: 0.6,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // 快进快退时间指示器 (无缩略图时) - 普通快进快退模式显示
-              if (showSeekIndicator &&
-                  videoController != null &&
-                  previewPosition != null &&
-                  !(isSeekPreviewMode && videoshotData != null))
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: AppFonts.sizeXXL,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 4,
-                            color: Colors.black,
-                            offset: Offset(0, 1),
+                          // 时间指示器
+                          Text(
+                            '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: AppFonts.sizeXXL,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 4,
+                                  color: Colors.black,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // 操作提示
+                          Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text(
+                              '按确定跳转',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: AppFonts.sizeSM,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
 
-              // 控制界面
+                // 快进快退时间指示器 (无缩略图时) - 普通快进快退模式显示
+                if (showSeekIndicator &&
+                    videoController != null &&
+                    previewPosition != null &&
+                    !(isSeekPreviewMode && videoshotData != null))
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_formatSeekTime(previewPosition!)} / ${_formatSeekTime(videoController!.value.duration)}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: AppFonts.sizeXXL,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 4,
+                              color: Colors.black,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // 控制界面
                 if (!isLoading && videoController != null)
                   AnimatedOpacity(
                     opacity: showControls ? 1.0 : 0.0,
@@ -307,13 +304,14 @@ class _PlayerScreenState extends State<PlayerScreen>
                       video: getDisplayVideo(),
                       controller: videoController!,
                       showControls: showControls,
-                      focusedIndex:
-                          focusedButtonIndex.clamp(
+                      focusedIndex: focusedButtonIndex
+                          .clamp(
                             0,
                             visibleControlButtonIndices.isNotEmpty
                                 ? visibleControlButtonIndices.length - 1
                                 : 0,
-                          ).toInt(),
+                          )
+                          .toInt(),
                       visibleControlIndices: visibleControlButtonIndices,
                       onPlayPause: togglePlayPause,
                       onSettings: () {
@@ -335,7 +333,8 @@ class _PlayerScreenState extends State<PlayerScreen>
                       onQualityClick: showQualityPicker,
                       isProgressBarFocused: isProgressBarFocused,
                       previewPosition: previewPosition,
-                      alwaysShowPlayerTime: SettingsService.alwaysShowPlayerTime,
+                      alwaysShowPlayerTime:
+                          SettingsService.alwaysShowPlayerTime,
                       onlineCount: onlineCount,
                       danmakuCount: danmakuList.length,
                       showStatsForNerds: showStatsForNerds,
@@ -345,12 +344,13 @@ class _PlayerScreenState extends State<PlayerScreen>
                       onClose: exitPlayer,
                       onControlTap: (index) {
                         if (!mounted) return;
-                        final visibleIndex = visibleControlButtonIndices.indexOf(
-                          index,
-                        );
+                        final visibleIndex = visibleControlButtonIndices
+                            .indexOf(index);
                         setState(() {
                           showControls = true;
-                          focusedButtonIndex = visibleIndex >= 0 ? visibleIndex : 0;
+                          focusedButtonIndex = visibleIndex >= 0
+                              ? visibleIndex
+                              : 0;
                         });
                         activateControlButton(index);
                         startHideTimer();
@@ -360,10 +360,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                         final duration = videoController!.value.duration;
                         if (duration <= Duration.zero) return;
 
-                        final targetMs =
-                            (duration.inMilliseconds * ratio)
-                                .round()
-                                .clamp(0, duration.inMilliseconds);
+                        final targetMs = (duration.inMilliseconds * ratio)
+                            .round()
+                            .clamp(0, duration.inMilliseconds);
                         final target = Duration(milliseconds: targetMs);
 
                         // 从末尾回拖时重置完成状态，避免 UI 卡在“已播完”。
@@ -385,241 +384,246 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
 
-              // 常驻时间显示
-              if (SettingsService.alwaysShowPlayerTime)
-                const Positioned(top: 10, right: 14, child: TimeDisplay()),
+                // 常驻时间显示
+                if (SettingsService.alwaysShowPlayerTime)
+                  const Positioned(top: 10, right: 14, child: TimeDisplay()),
 
-              // 左上角播放进度时间显示（当前时间:总时长）
-              if (!isLoading &&
-                  videoController != null &&
-                  SettingsService.showPlayerProgressTime)
-                Positioned(
-                  top: 14,
-                  left: 14,
-                  child: _PlayerProgressTimeText(
-                    controller: videoController!,
-                    getDisplayPosition: getDisplayPosition,
-                    formatTime: _formatSeekTime,
-                  ),
-                ),
-
-              // 播放完成行为提示（仅“播放下一集”且多集视频时显示）
-              if (completionAction == PlaybackCompletionAction.playNextEpisode &&
-                  hasMultipleEpisodes &&
-                  !isLoading &&
-                  videoController != null)
-                Positioned(
-                  top: SettingsService.alwaysShowPlayerTime ? 40 : 14,
-                  right: 14,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '播放完成后：下一集',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: AppFonts.sizeSM,
-                      ),
+                // 左上角播放进度时间显示（当前时间:总时长）
+                if (!isLoading &&
+                    videoController != null &&
+                    SettingsService.showPlayerProgressTime)
+                  Positioned(
+                    top: 14,
+                    left: 14,
+                    child: _PlayerProgressTimeText(
+                      controller: videoController!,
+                      getDisplayPosition: getDisplayPosition,
+                      formatTime: _formatSeekTime,
                     ),
                   ),
-                ),
 
-              // 视频数据实时监测（类似 YouTube Stats for Nerds）
-              if (!isLoading &&
-                  videoController != null &&
-                  showStatsForNerds &&
-                  !showSettingsPanel &&
-                  !showEpisodePanel &&
-                  !showUpPanel &&
-                  !showRelatedPanel &&
-                  !showCommentPanel &&
-                  !showActionButtons)
-                Positioned(top: 20, left: 30, child: _buildStatsForNerds()),
-
-              // SponsorBlock 开发者信息
-              if (!isLoading && videoController != null)
-                Builder(builder: (_) {
-                  final sb = PluginManager()
-                      .getPlugin<SponsorBlockPlugin>('sponsor_block');
-                  if (sb == null || !sb.showDevOverlay) {
-                    return const SizedBox.shrink();
-                  }
-                  return Positioned(
-                    bottom: 16,
-                    right: 30,
+                // 播放完成行为提示（仅“播放下一集”且多集视频时显示）
+                if (completionAction ==
+                        PlaybackCompletionAction.playNextEpisode &&
+                    hasMultipleEpisodes &&
+                    !isLoading &&
+                    videoController != null)
+                  Positioned(
+                    top: SettingsService.alwaysShowPlayerTime ? 40 : 14,
+                    right: 14,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.black54,
+                        color: Colors.black.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        sb.devInfoText,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
+                        '播放完成后：下一集',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: AppFonts.sizeSM,
                         ),
                       ),
                     ),
-                  );
-                }),
+                  ),
 
-              // 点赞/投币/收藏按钮
-              if (showActionButtons && !isLoading && videoController != null)
-                Positioned(
-                  bottom: 100,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ActionButtons(
-                      video: widget.video,
-                      aid: aid ?? 0,
-                      isFocused: showActionButtons,
-                      onFocusExit: () {
-                        setState(() => showActionButtons = false);
-                        startHideTimer();
-                      },
-                      onUserInteraction: () {
-                        startHideTimer();
-                      },
+                // 视频数据实时监测（类似 YouTube Stats for Nerds）
+                if (!isLoading &&
+                    videoController != null &&
+                    showStatsForNerds &&
+                    !showSettingsPanel &&
+                    !showEpisodePanel &&
+                    !showUpPanel &&
+                    !showRelatedPanel &&
+                    !showCommentPanel &&
+                    !showActionButtons)
+                  Positioned(top: 20, left: 30, child: _buildStatsForNerds()),
+
+                // SponsorBlock 开发者信息
+                if (!isLoading && videoController != null)
+                  Builder(
+                    builder: (_) {
+                      final sb = PluginManager().getPlugin<SponsorBlockPlugin>(
+                        'sponsor_block',
+                      );
+                      if (sb == null || !sb.showDevOverlay) {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        bottom: 16,
+                        right: 30,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            sb.devInfoText,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                // 点赞/投币/收藏按钮
+                if (showActionButtons && !isLoading && videoController != null)
+                  Positioned(
+                    bottom: 100,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ActionButtons(
+                        video: widget.video,
+                        aid: aid ?? 0,
+                        isFocused: showActionButtons,
+                        onFocusExit: () {
+                          setState(() => showActionButtons = false);
+                          startHideTimer();
+                        },
+                        onUserInteraction: () {
+                          startHideTimer();
+                        },
+                      ),
                     ),
                   ),
-                ),
 
-              // 下一集预览（即将播放完毕时从右下角滑入）
-              // 仅在需要时加入 widget 树，避免 AnimatedPositioned 持续占用渲染层
-              if (showNextEpisodePreview &&
-                  !isLoading &&
-                  videoController != null &&
-                  nextEpisodeInfo != null)
-                NextEpisodePreview(
-                  visible: true,
-                  title: nextEpisodeInfo?['title'] ?? '',
-                  pic: nextEpisodeInfo?['pic'],
-                  countdown: nextEpisodeCountdown,
-                ),
+                // 下一集预览（即将播放完毕时从右下角滑入）
+                // 仅在需要时加入 widget 树，避免 AnimatedPositioned 持续占用渲染层
+                if (showNextEpisodePreview &&
+                    !isLoading &&
+                    videoController != null &&
+                    nextEpisodeInfo != null)
+                  NextEpisodePreview(
+                    visible: true,
+                    title: nextEpisodeInfo?['title'] ?? '',
+                    pic: nextEpisodeInfo?['pic'],
+                    countdown: nextEpisodeCountdown,
+                  ),
 
-              // 选集面板
-              if (showEpisodePanel)
-                EpisodePanel(
-                  episodes: episodes,
-                  currentCid: cid ?? 0,
-                  focusedIndex: focusedEpisodeIndex,
-                  onEpisodeSave: switchEpisode,
-                  onClose: () {
-                    setState(() {
-                      showEpisodePanel = false;
-                      showControls = true;
-                    });
-                    startHideTimer();
-                  },
-                  isUgcSeason: !isPanelShowingPages,
-                  currentBvid: widget.video.bvid,
-                  onUgcEpisodeSelect: (bvid) {
-                    switchEpisode(0, targetBvid: bvid);
-                  },
-                  hasBothTabs: hasBothEpisodeTypes,
-                  showingPagesTab: episodePanelShowingPages,
-                ),
+                // 选集面板
+                if (showEpisodePanel)
+                  EpisodePanel(
+                    episodes: episodes,
+                    currentCid: cid ?? 0,
+                    focusedIndex: focusedEpisodeIndex,
+                    onEpisodeSave: switchEpisode,
+                    onClose: () {
+                      setState(() {
+                        showEpisodePanel = false;
+                        showControls = true;
+                      });
+                      startHideTimer();
+                    },
+                    isUgcSeason: !isPanelShowingPages,
+                    currentBvid: widget.video.bvid,
+                    onUgcEpisodeSelect: (bvid) {
+                      switchEpisode(0, targetBvid: bvid);
+                    },
+                    hasBothTabs: hasBothEpisodeTypes,
+                    showingPagesTab: episodePanelShowingPages,
+                  ),
 
-              // 设置面板
-              if (showSettingsPanel)
-                SettingsPanel(
-                  menuType: settingsMenuType,
-                  focusedIndex: focusedSettingIndex,
-                  qualityDesc: currentQualityDesc,
-                  playbackSpeed: playbackSpeed,
-                  availableSpeeds: availableSpeeds,
-                  danmakuEnabled: danmakuEnabled,
-                  subtitleEnabled: subtitleEnabled,
-                  subtitleTrackDesc: currentSubtitleTrackDesc,
-                  subtitleTrackLabels: subtitleTrackLabels,
-                  danmakuOpacity: danmakuOpacity,
-                  danmakuFontSize: danmakuFontSize,
-                  danmakuArea: danmakuArea,
-                  danmakuSpeed: danmakuSpeed,
-                  hideTopDanmaku: hideTopDanmaku,
-                  hideBottomDanmaku: hideBottomDanmaku,
-                  onNavigate: (type, index) {
-                    setState(() {
-                      settingsMenuType = type;
-                      focusedSettingIndex = index;
-                    });
-                  },
-                  onQualityPicker: showQualityPicker,
-                  onSpeedSelect: selectPlaybackSpeedByIndex,
-                ),
+                // 设置面板
+                if (showSettingsPanel)
+                  SettingsPanel(
+                    menuType: settingsMenuType,
+                    focusedIndex: focusedSettingIndex,
+                    qualityDesc: currentQualityDesc,
+                    playbackSpeed: playbackSpeed,
+                    availableSpeeds: availableSpeeds,
+                    danmakuEnabled: danmakuEnabled,
+                    subtitleEnabled: subtitleEnabled,
+                    subtitleTrackDesc: currentSubtitleTrackDesc,
+                    subtitleTrackLabels: subtitleTrackLabels,
+                    danmakuOpacity: danmakuOpacity,
+                    danmakuFontSize: danmakuFontSize,
+                    danmakuArea: danmakuArea,
+                    danmakuSpeed: danmakuSpeed,
+                    hideTopDanmaku: hideTopDanmaku,
+                    hideBottomDanmaku: hideBottomDanmaku,
+                    onNavigate: (type, index) {
+                      setState(() {
+                        settingsMenuType = type;
+                        focusedSettingIndex = index;
+                      });
+                    },
+                    onQualityPicker: showQualityPicker,
+                    onSpeedSelect: selectPlaybackSpeedByIndex,
+                  ),
 
-              // UP主面板
-              if (showUpPanel)
-                UpPanel(
-                  upName: widget.video.ownerName,
-                  upFace: widget.video.ownerFace,
-                  upMid: widget.video.ownerMid,
-                  onVideoSelect: (video) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PlayerScreen(video: video),
-                      ),
-                    );
-                  },
-                  onClose: () {
-                    setState(() {
-                      showUpPanel = false;
-                      showControls = true;
-                    });
-                    startHideTimer();
-                  },
-                ),
+                // UP主面板
+                if (showUpPanel)
+                  UpPanel(
+                    upName: widget.video.ownerName,
+                    upFace: widget.video.ownerFace,
+                    upMid: widget.video.ownerMid,
+                    onVideoSelect: (video) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(video: video),
+                        ),
+                      );
+                    },
+                    onClose: () {
+                      setState(() {
+                        showUpPanel = false;
+                        showControls = true;
+                      });
+                      startHideTimer();
+                    },
+                  ),
 
-              // 评论面板
-              if (showCommentPanel && aid != null)
-                CommentPanel(
-                  aid: aid!,
-                  onClose: () {
-                    setState(() {
-                      showCommentPanel = false;
-                      showControls = true;
-                    });
-                    startHideTimer();
-                  },
-                ),
+                // 评论面板
+                if (showCommentPanel && aid != null)
+                  CommentPanel(
+                    aid: aid!,
+                    onClose: () {
+                      setState(() {
+                        showCommentPanel = false;
+                        showControls = true;
+                      });
+                      startHideTimer();
+                    },
+                  ),
 
-              // 更多视频面板
-              if (showRelatedPanel)
-                RelatedPanel(
-                  bvid: widget.video.bvid,
-                  onVideoSelect: (video) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PlayerScreen(video: video),
-                      ),
-                    );
-                  },
-                  onClose: () {
-                    setState(() {
-                      showRelatedPanel = false;
-                      showControls = true;
-                    });
-                    startHideTimer();
-                  },
-                ),
+                // 更多视频面板
+                if (showRelatedPanel)
+                  RelatedPanel(
+                    bvid: widget.video.bvid,
+                    onVideoSelect: (video) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(video: video),
+                        ),
+                      );
+                    },
+                    onClose: () {
+                      setState(() {
+                        showRelatedPanel = false;
+                        showControls = true;
+                      });
+                      startHideTimer();
+                    },
+                  ),
 
-              // 插件跳过按钮
-              _buildSkipButton(),
-
+                // 插件跳过按钮
+                _buildSkipButton(),
               ],
-              ),
             ),
+          ),
         ),
       ),
     );
@@ -632,7 +636,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     final streamW = videoWidth > 0 ? videoWidth : decoderW;
     final streamH = videoHeight > 0 ? videoHeight : decoderH;
     final fps = videoFrameRate > 0 ? videoFrameRate : 0.0;
-    final codec = (currentCodec.startsWith('dvhe') || currentCodec.startsWith('dvh1') || currentCodec.startsWith('dvav'))
+    final codec =
+        (currentCodec.startsWith('dvhe') ||
+            currentCodec.startsWith('dvh1') ||
+            currentCodec.startsWith('dvav'))
         ? '杜比视界'
         : currentCodec.startsWith('av01')
         ? 'AV1'
@@ -640,7 +647,10 @@ class _PlayerScreenState extends State<PlayerScreen>
         ? 'H.265'
         : (currentCodec.startsWith('avc') ? 'H.264' : '未知');
 
-    final resolutionText = (decoderW > 0 && decoderH > 0 && (decoderW != streamW || decoderH != streamH))
+    final resolutionText =
+        (decoderW > 0 &&
+            decoderH > 0 &&
+            (decoderW != streamW || decoderH != streamH))
         ? '$decoderW x $decoderH@${fps.toStringAsFixed(3)}（流: $streamW x $streamH）'
         : '$streamW x $streamH@${fps.toStringAsFixed(3)}';
     final dataRateText =
@@ -714,7 +724,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     final view = controller.viewType == VideoViewType.platformView
         ? 'platformView'
         : 'textureView';
-    final tunnel = defaultTargetPlatform == TargetPlatform.android &&
+    final tunnel =
+        defaultTargetPlatform == TargetPlatform.android &&
             controller.viewType == VideoViewType.platformView
         ? 'requested'
         : 'n/a';
@@ -786,10 +797,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       left: MediaQuery.of(context).size.width * 0.05,
       right: 0,
       child: Center(
-        child: _SkipButton(
-          action: action,
-          onSkip: () => _executeSkip(action),
-        ),
+        child: _SkipButton(action: action, onSkip: () => _executeSkip(action)),
       ),
     );
   }
@@ -842,51 +850,49 @@ class _SkipButtonState extends State<_SkipButton> {
   @override
   Widget build(BuildContext context) {
     return Focus(
-        focusNode: _focusNode,
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              (event.logicalKey == LogicalKeyboardKey.select ||
-                  event.logicalKey == LogicalKeyboardKey.enter)) {
-            widget.onSkip();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: Builder(
-          builder: (ctx) {
-            final hasFocus = Focus.of(ctx).hasFocus;
-            return GestureDetector(
-              onTap: widget.onSkip,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: SettingsService.themeColor.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(20),
-                  border: hasFocus
-                      ? Border.all(color: Colors.white, width: 1.5)
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                        Icons.fast_forward, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      widget.action.label.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: AppFonts.sizeMD,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+      focusNode: _focusNode,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          widget.onSkip();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Builder(
+        builder: (ctx) {
+          final hasFocus = Focus.of(ctx).hasFocus;
+          return GestureDetector(
+            onTap: widget.onSkip,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: SettingsService.themeColor.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(20),
+                border: hasFocus
+                    ? Border.all(color: Colors.white, width: 1.5)
+                    : null,
               ),
-            );
-          },
-        ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.fast_forward, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.action.label.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: AppFonts.sizeMD,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -903,7 +909,8 @@ class _PlayerProgressTimeText extends StatefulWidget {
   });
 
   @override
-  State<_PlayerProgressTimeText> createState() => _PlayerProgressTimeTextState();
+  State<_PlayerProgressTimeText> createState() =>
+      _PlayerProgressTimeTextState();
 }
 
 class _PlayerProgressTimeTextState extends State<_PlayerProgressTimeText> {
@@ -955,7 +962,8 @@ class _PlayerProgressTimeTextState extends State<_PlayerProgressTimeText> {
     _lastPositionSecond = posSecond;
     _lastDurationSecond = durSecond;
 
-    final nextText = '${widget.formatTime(position)}/${widget.formatTime(duration)}';
+    final nextText =
+        '${widget.formatTime(position)}/${widget.formatTime(duration)}';
     if (!force && nextText == _text) return;
 
     if (mounted) {
@@ -976,11 +984,7 @@ class _PlayerProgressTimeTextState extends State<_PlayerProgressTimeText> {
         fontSize: AppFonts.sizeLG,
         fontWeight: FontWeight.bold,
         shadows: [
-          Shadow(
-            blurRadius: 4,
-            color: Colors.black,
-            offset: Offset(0, 1),
-          ),
+          Shadow(blurRadius: 4, color: Colors.black, offset: Offset(0, 1)),
         ],
       ),
     );

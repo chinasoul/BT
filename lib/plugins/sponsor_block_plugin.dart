@@ -101,9 +101,10 @@ class SponsorSegment {
   int get endTimeMs => (endTime * 1000).toInt();
 
   factory SponsorSegment.fromJson(Map<String, dynamic> json) {
-    final cat = SBCategoryExt.fromApi(json['category'] ?? '') ??
-        SBCategory.sponsor;
-    final action = SBActionTypeExt.fromApi(json['actionType'] ?? 'skip') ??
+    final cat =
+        SBCategoryExt.fromApi(json['category'] ?? '') ?? SBCategory.sponsor;
+    final action =
+        SBActionTypeExt.fromApi(json['actionType'] ?? 'skip') ??
         SBActionType.skip;
     final seg = json['segment'] as List<dynamic>;
     return SponsorSegment(
@@ -151,10 +152,8 @@ class SponsorBlockConfig {
   bool isCategoryEnabled(SBCategory cat) =>
       categoryEnabled[cat.apiValue] ?? false;
 
-  List<String> get enabledApiCategories => categoryEnabled.entries
-      .where((e) => e.value)
-      .map((e) => e.key)
-      .toList();
+  List<String> get enabledApiCategories =>
+      categoryEnabled.entries.where((e) => e.value).map((e) => e.key).toList();
 
   factory SponsorBlockConfig.fromJson(Map<String, dynamic> json) {
     return SponsorBlockConfig(
@@ -193,8 +192,7 @@ class SponsorBlockPlugin extends PlayerPlugin {
   String get name => '空降助手';
 
   @override
-  String get description =>
-      '基于 BilibiliSponsorBlock 数据库自动跳过视频中的广告、赞助、片头片尾等片段。';
+  String get description => '基于 BilibiliSponsorBlock 数据库自动跳过视频中的广告、赞助、片头片尾等片段。';
 
   @override
   String get version => '2.0.0';
@@ -228,11 +226,17 @@ class SponsorBlockPlugin extends PlayerPlugin {
   /// Compact debug info for the player overlay.
   String get devInfoText {
     if (_segments.isEmpty) return 'SB: $_status';
-    final skippable = _segments.where((s) =>
-        s.actionType != SBActionType.full &&
-        s.actionType != SBActionType.chapter &&
-        s.actionType != SBActionType.poi).length;
-    final buf = StringBuffer('SB: ${_segments.length}段(可跳$skippable)  已跳${_skippedIds.length}');
+    final skippable = _segments
+        .where(
+          (s) =>
+              s.actionType != SBActionType.full &&
+              s.actionType != SBActionType.chapter &&
+              s.actionType != SBActionType.poi,
+        )
+        .length;
+    final buf = StringBuffer(
+      'SB: ${_segments.length}段(可跳$skippable)  已跳${_skippedIds.length}',
+    );
     for (final s in _segments) {
       final skipped = _skippedIds.contains(s.uuid);
       final tag = switch (s.actionType) {
@@ -242,9 +246,11 @@ class SponsorBlockPlugin extends PlayerPlugin {
         SBActionType.mute => ' [静音]',
         _ => '',
       };
-      buf.write('\n  ${s.category.label} '
-          '${_fmtSec(s.startTime)}→${_fmtSec(s.endTime)}'
-          '$tag${skipped ? ' ✓' : ''}');
+      buf.write(
+        '\n  ${s.category.label} '
+        '${_fmtSec(s.startTime)}→${_fmtSec(s.endTime)}'
+        '$tag${skipped ? ' ✓' : ''}',
+      );
     }
     return buf.toString();
   }
@@ -260,7 +266,9 @@ class SponsorBlockPlugin extends PlayerPlugin {
   @override
   Future<void> onEnable() async {
     await _loadConfig();
-    debugPrint('SponsorBlock: enabled (${_config.enabledApiCategories.length} categories)');
+    debugPrint(
+      'SponsorBlock: enabled (${_config.enabledApiCategories.length} categories)',
+    );
   }
 
   @override
@@ -323,9 +331,9 @@ class SponsorBlockPlugin extends PlayerPlugin {
 
       debugPrint('SponsorBlock URL: $url');
 
-      final response = await http.get(url).timeout(
-        Duration(seconds: _config.apiTimeoutSec),
-      );
+      final response = await http
+          .get(url)
+          .timeout(Duration(seconds: _config.apiTimeoutSec));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -336,7 +344,9 @@ class SponsorBlockPlugin extends PlayerPlugin {
         if (_segments.isEmpty) {
           _status = '无匹配类别片段';
         }
-        debugPrint('SponsorBlock: loaded ${_segments.length} segments for $bvid (cid=$cid)');
+        debugPrint(
+          'SponsorBlock: loaded ${_segments.length} segments for $bvid (cid=$cid)',
+        );
       } else if (response.statusCode == 404) {
         _status = '该视频无标注';
         debugPrint('SponsorBlock: no segments for $bvid');
@@ -350,7 +360,8 @@ class SponsorBlockPlugin extends PlayerPlugin {
         _status = '请求超时(${_config.apiTimeoutSec}s)';
       } else if (err.contains('SocketException')) {
         _status = '网络不可达';
-      } else if (err.contains('HandshakeException') || err.contains('Certificate')) {
+      } else if (err.contains('HandshakeException') ||
+          err.contains('Certificate')) {
         _status = 'SSL证书错误';
       } else {
         _status = '请求失败: ${e.runtimeType}';
@@ -385,15 +396,13 @@ class SponsorBlockPlugin extends PlayerPlugin {
       // poi_highlight 和 full 不是可跳过片段
       if (seg.actionType == SBActionType.poi ||
           seg.actionType == SBActionType.full ||
-          seg.actionType == SBActionType.chapter) continue;
+          seg.actionType == SBActionType.chapter)
+        continue;
 
       if (_config.autoSkip) {
         _skippedIds.add(seg.uuid);
         _reportViewed(seg.uuid);
-        return SkipActionSkipTo(
-          seg.endTimeMs,
-          '已跳过: ${seg.category.label}',
-        );
+        return SkipActionSkipTo(seg.endTimeMs, '已跳过: ${seg.category.label}');
       } else {
         return SkipActionShowButton(
           seg.endTimeMs,
@@ -418,9 +427,11 @@ class SponsorBlockPlugin extends PlayerPlugin {
   void _reportViewed(String uuid) {
     if (!_config.reportViewed) return;
     http
-        .post(Uri.parse('$_baseUrl/viewedVideoSponsorTime'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'UUID': uuid}))
+        .post(
+          Uri.parse('$_baseUrl/viewedVideoSponsorTime'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'UUID': uuid}),
+        )
         .timeout(const Duration(seconds: 3))
         .catchError((_) => http.Response('', 0));
   }
@@ -464,65 +475,72 @@ class _SponsorBlockSettingsState extends State<_SponsorBlockSettings> {
   @override
   Widget build(BuildContext context) {
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader('行为设置'),
-          SettingToggleRow(
-            label: '自动跳过',
-            subtitle: '关闭后将显示手动跳过按钮',
-            value: _cfg.autoSkip,
-            onChanged: (val) {
-              setState(() => _cfg.autoSkip = val);
-              _save();
-            },
-          ),
-          SettingToggleRow(
-            label: '跳过提示',
-            subtitle: '自动跳过时显示 Toast 提示',
-            value: _cfg.showNotice,
-            onChanged: (val) {
-              setState(() => _cfg.showNotice = val);
-              _save();
-            },
-          ),
-          SettingToggleRow(
-            label: '上报跳过',
-            subtitle: 'TV 端暂不支持',
-            value: _cfg.reportViewed,
-            enabled: false,
-            onChanged: (_) {},
-          ),
-          SettingToggleRow(
-            label: '恰饭统计（调试用）',
-            subtitle: '右下角显示时间段',
-            value: _cfg.devOverlay,
-            onChanged: (val) {
-              setState(() => _cfg.devOverlay = val);
-              _save();
-            },
-          ),
-          _sectionHeader('跳过类别'),
-          _CategoryGrid(
-            config: _cfg,
-            onSave: _save,
-            onChanged: () => setState(() {}),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: AppColors.textHint, size: 14),
-                const SizedBox(width: 6),
-                const Expanded(
-                  child: Text(
-                    '片段数据由 bsbsb.top 社区标注提供',
-                    style: TextStyle(color: AppColors.textHint, fontSize: AppFonts.sizeXS),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('行为设置'),
+        SettingToggleRow(
+          label: '自动跳过',
+          subtitle: '关闭后将显示手动跳过按钮',
+          value: _cfg.autoSkip,
+          onChanged: (val) {
+            setState(() => _cfg.autoSkip = val);
+            _save();
+          },
+        ),
+        SettingToggleRow(
+          label: '跳过提示',
+          subtitle: '自动跳过时显示 Toast 提示',
+          value: _cfg.showNotice,
+          onChanged: (val) {
+            setState(() => _cfg.showNotice = val);
+            _save();
+          },
+        ),
+        SettingToggleRow(
+          label: '上报跳过',
+          subtitle: 'TV 端暂不支持',
+          value: _cfg.reportViewed,
+          enabled: false,
+          onChanged: (_) {},
+        ),
+        SettingToggleRow(
+          label: '恰饭统计（调试用）',
+          subtitle: '右下角显示时间段',
+          value: _cfg.devOverlay,
+          onChanged: (val) {
+            setState(() => _cfg.devOverlay = val);
+            _save();
+          },
+        ),
+        _sectionHeader('跳过类别'),
+        _CategoryGrid(
+          config: _cfg,
+          onSave: _save,
+          onChanged: () => setState(() {}),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: AppColors.inactiveText,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '片段数据由 bsbsb.top 社区标注提供',
+                  style: TextStyle(
+                    color: AppColors.inactiveText,
+                    fontSize: AppFonts.sizeXS,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ],
     );
   }
 
@@ -531,8 +549,8 @@ class _SponsorBlockSettingsState extends State<_SponsorBlockSettings> {
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
       child: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.textTertiary,
+        style: TextStyle(
+          color: AppColors.secondaryText,
           fontSize: AppFonts.sizeSM,
           fontWeight: FontWeight.bold,
         ),
@@ -603,7 +621,10 @@ class _CategoryGridState extends State<_CategoryGrid> {
   int _idx(int r, int c) => r * _cols + c;
 
   bool _valid(int r, int c) =>
-      r >= 0 && r < _rows && c >= 0 && c < _cols &&
+      r >= 0 &&
+      r < _rows &&
+      c >= 0 &&
+      c < _cols &&
       _idx(r, c) < SBCategory.values.length;
 
   void _navigate(int r, int c, LogicalKeyboardKey key) {
@@ -612,16 +633,18 @@ class _CategoryGridState extends State<_CategoryGrid> {
         _nodes[r - 1][c].requestFocus();
       } else {
         // 顶行向上：交给 Flutter 方向性遍历，回到上方 SettingToggleRow
-        FocusTraversalGroup.of(_nodes[r][c].context!)
-            .inDirection(_nodes[r][c], TraversalDirection.up);
+        FocusTraversalGroup.of(
+          _nodes[r][c].context!,
+        ).inDirection(_nodes[r][c], TraversalDirection.up);
       }
     } else if (key == LogicalKeyboardKey.arrowDown) {
       if (r < _rows - 1 && _valid(r + 1, c)) {
         _nodes[r + 1][c].requestFocus();
       } else {
         // 底行向下：交给 Flutter，进入下方插件卡片
-        FocusTraversalGroup.of(_nodes[r][c].context!)
-            .inDirection(_nodes[r][c], TraversalDirection.down);
+        FocusTraversalGroup.of(
+          _nodes[r][c].context!,
+        ).inDirection(_nodes[r][c], TraversalDirection.down);
       }
     } else if (key == LogicalKeyboardKey.arrowLeft) {
       if (c > 0) {
@@ -638,7 +661,9 @@ class _CategoryGridState extends State<_CategoryGrid> {
 
   void _toggle(SBCategory cat) {
     final key = cat.apiValue;
-    widget.config.categoryEnabled[key] = !(widget.config.isCategoryEnabled(cat));
+    widget.config.categoryEnabled[key] = !(widget.config.isCategoryEnabled(
+      cat,
+    ));
     widget.onSave();
     widget.onChanged();
     setState(() {});
@@ -693,8 +718,7 @@ class _CategoryGridState extends State<_CategoryGrid> {
           return KeyEventResult.handled;
         }
         if (event is KeyDownEvent &&
-            (k == LogicalKeyboardKey.enter ||
-                k == LogicalKeyboardKey.select)) {
+            (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.select)) {
           _toggle(cat);
           return KeyEventResult.handled;
         }
@@ -711,17 +735,17 @@ class _CategoryGridState extends State<_CategoryGrid> {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: focused
-                    ? Colors.white.withValues(alpha: 0.12)
+                    ? AppColors.navItemSelectedBackground
                     : enabled
-                        ? themeColor.withValues(alpha: 0.08)
-                        : Colors.transparent,
+                    ? themeColor.withValues(alpha: 0.08)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: focused
-                      ? Colors.white.withValues(alpha: 0.6)
+                      ? AppColors.primaryText
                       : enabled
-                          ? themeColor.withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.06),
+                      ? themeColor.withValues(alpha: 0.25)
+                      : AppColors.navItemSelectedBackground,
                 ),
               ),
               child: Row(
@@ -730,7 +754,7 @@ class _CategoryGridState extends State<_CategoryGrid> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: enabled ? themeColor : AppColors.textHint,
+                      color: enabled ? themeColor : AppColors.inactiveText,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -740,10 +764,10 @@ class _CategoryGridState extends State<_CategoryGrid> {
                       cat.label,
                       style: TextStyle(
                         color: focused
-                            ? Colors.white
+                            ? AppColors.primaryText
                             : enabled
-                                ? AppColors.textSecondary
-                                : AppColors.textHint,
+                            ? AppColors.secondaryText
+                            : AppColors.inactiveText,
                         fontSize: AppFonts.sizeSM,
                       ),
                       maxLines: 1,
@@ -752,7 +776,7 @@ class _CategoryGridState extends State<_CategoryGrid> {
                   ),
                   Icon(
                     enabled ? Icons.check_circle : Icons.circle_outlined,
-                    color: enabled ? themeColor : AppColors.textHint,
+                    color: enabled ? themeColor : AppColors.inactiveText,
                     size: 16,
                   ),
                 ],

@@ -51,7 +51,10 @@ class _PluginsSettingsTabState extends State<PluginsSettingsTab> {
               Expanded(
                 child: Text(
                   '按 → 展开设置，或访问 $serverAddress 配置',
-                  style: const TextStyle(color: AppColors.textTertiary, fontSize: AppFonts.sizeXS),
+                  style: TextStyle(
+                    color: AppColors.inactiveText,
+                    fontSize: AppFonts.sizeXS,
+                  ),
                 ),
               ),
             ],
@@ -164,7 +167,9 @@ class _PluginCardState extends State<_PluginCard> {
                 children: [
                   Icon(
                     widget.plugin.icon ?? Icons.extension,
-                    color: _isEnabled ? SettingsService.themeColor : AppColors.textHint,
+                    color: _isEnabled
+                        ? SettingsService.themeColor
+                        : AppColors.textHint,
                     size: 28,
                   ),
                   const SizedBox(width: 16),
@@ -175,7 +180,9 @@ class _PluginCardState extends State<_PluginCard> {
                         Text(
                           widget.plugin.name,
                           style: TextStyle(
-                            color: _focused ? AppColors.primaryText : AppColors.inactiveText,
+                            color: _focused
+                                ? AppColors.primaryText
+                                : AppColors.inactiveText,
                             fontSize: AppFonts.sizeLG,
                             fontWeight: FontWeight.bold,
                           ),
@@ -197,22 +204,28 @@ class _PluginCardState extends State<_PluginCard> {
                             children: [
                               Text(
                                 'v${widget.plugin.version} • ${widget.plugin.author}',
-                                style: const TextStyle(
-                                  color: Colors.white24,
+                                style: TextStyle(
+                                  color: AppColors.disabledText,
                                   fontSize: AppFonts.sizeXS,
                                 ),
                               ),
                               if (hasExpandableSettings) ...[
                                 const SizedBox(width: 12),
                                 Icon(
-                                  _expanded ? Icons.expand_less : Icons.chevron_right,
-                                  color: _focused ? SettingsService.themeColor : Colors.white24,
+                                  _expanded
+                                      ? Icons.expand_less
+                                      : Icons.chevron_right,
+                                  color: _focused
+                                      ? SettingsService.themeColor
+                                      : AppColors.disabledText,
                                   size: 16,
                                 ),
                                 Text(
                                   _expanded ? '按 → 收起设置' : '按 → 展开设置',
                                   style: TextStyle(
-                                    color: _focused ? SettingsService.themeColor : Colors.white24,
+                                    color: _focused
+                                        ? SettingsService.themeColor
+                                        : AppColors.disabledText,
                                     fontSize: AppFonts.sizeXS,
                                   ),
                                 ),
@@ -233,7 +246,9 @@ class _PluginCardState extends State<_PluginCard> {
                         });
                         widget.onToggle(widget.plugin, value);
                       },
-                      activeTrackColor: const Color(0xFF81C784).withValues(alpha: 0.5),
+                      activeTrackColor: const Color(
+                        0xFF81C784,
+                      ).withValues(alpha: 0.5),
                       thumbColor: WidgetStateProperty.resolveWith((states) {
                         if (states.contains(WidgetState.selected)) {
                           return SettingsService.themeColor;

@@ -768,7 +768,9 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                                   ? SettingsService.themeColor
                                   : focused
                                   ? AppColors.navItemSelectedBackground
-                                  : Colors.white.withValues(alpha: 0.1),
+                                  : (AppColors.isLight
+                                        ? Colors.black.withValues(alpha: 0.06)
+                                        : Colors.white.withValues(alpha: 0.1)),
                               borderRadius: BorderRadius.circular(20),
                               border: null,
                             ),
@@ -1082,7 +1084,13 @@ class _InterfaceSettingsState extends State<InterfaceSettings> {
                                       ? SettingsService.themeColor
                                       : focused
                                       ? AppColors.navItemSelectedBackground
-                                      : Colors.white.withValues(alpha: 0.1),
+                                      : (AppColors.isLight
+                                            ? Colors.black.withValues(
+                                                alpha: 0.06,
+                                              )
+                                            : Colors.white.withValues(
+                                                alpha: 0.1,
+                                              )),
                                   borderRadius: BorderRadius.circular(20),
                                   border: focused
                                       ? Border.all(

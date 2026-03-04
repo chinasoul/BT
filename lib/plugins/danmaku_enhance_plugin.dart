@@ -196,54 +196,61 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
     final serverAddress = LocalServer.instance.address ?? 'http://TV_IP:3322';
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.phone_android, color: AppColors.textHint, size: 14),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '推荐使用手机访问 $serverAddress 进行管理',
-                    style: const TextStyle(color: AppColors.textHint, fontSize: AppFonts.sizeXS),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+          child: Row(
+            children: [
+              Icon(
+                Icons.phone_android,
+                color: AppColors.inactiveText,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '推荐使用手机访问 $serverAddress 进行管理',
+                  style: TextStyle(
+                    color: AppColors.inactiveText,
+                    fontSize: AppFonts.sizeXS,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
-          SettingToggleRow(
-            label: '启用弹幕屏蔽',
-            subtitle: '屏蔽包含指定关键词的弹幕',
-            value: config.enableFilter,
-            onChanged: (val) {
-              setState(() => widget.plugin.setEnableFilter(val));
-            },
-          ),
+        SettingToggleRow(
+          label: '启用弹幕屏蔽',
+          subtitle: '屏蔽包含指定关键词的弹幕',
+          value: config.enableFilter,
+          onChanged: (val) {
+            setState(() => widget.plugin.setEnableFilter(val));
+          },
+        ),
 
-          _buildKeywordSection(
-            title: '部分匹配关键词',
-            subtitle: '包含即屏蔽（如 "第一" 会屏蔽 "我是第一名"）',
-            controller: _partialInputController,
-            keywords: config.blockKeywords,
-            onAdd: (k) => widget.plugin.addBlockKeyword(k),
-            onRemove: (k) => widget.plugin.removeBlockKeyword(k),
-          ),
+        _buildKeywordSection(
+          title: '部分匹配关键词',
+          subtitle: '包含即屏蔽（如 "第一" 会屏蔽 "我是第一名"）',
+          controller: _partialInputController,
+          keywords: config.blockKeywords,
+          onAdd: (k) => widget.plugin.addBlockKeyword(k),
+          onRemove: (k) => widget.plugin.removeBlockKeyword(k),
+        ),
 
-          const SizedBox(height: 24),
+        const SizedBox(height: 24),
 
-          // 全词匹配关键词
-          _buildKeywordSection(
-            title: '全词匹配关键词',
-            subtitle: '完全一致才屏蔽（如 "第一" 只屏蔽 "第一"）',
-            controller: _fullInputController,
-            keywords: config.fullKeywords,
-            onAdd: (k) => widget.plugin.addFullKeyword(k),
-            onRemove: (k) => widget.plugin.removeFullKeyword(k),
-          ),
-        ],
+        // 全词匹配关键词
+        _buildKeywordSection(
+          title: '全词匹配关键词',
+          subtitle: '完全一致才屏蔽（如 "第一" 只屏蔽 "第一"）',
+          controller: _fullInputController,
+          keywords: config.fullKeywords,
+          onAdd: (k) => widget.plugin.addFullKeyword(k),
+          onRemove: (k) => widget.plugin.removeFullKeyword(k),
+        ),
+      ],
     );
   }
 
@@ -258,38 +265,55 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textTertiary,
-            fontSize: AppFonts.sizeSM,
-            fontWeight: FontWeight.bold,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: AppFonts.sizeSM,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          style: const TextStyle(color: AppColors.textHint, fontSize: AppFonts.sizeXS),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: AppColors.inactiveText,
+              fontSize: AppFonts.sizeXS,
+            ),
+          ),
+          const SizedBox(height: 8),
 
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText: '输入关键词',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: AppColors.navItemSelectedBackground,
-                  isDense: true,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: '输入关键词',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: AppColors.navItemSelectedBackground,
+                    isDense: true,
+                    hintStyle: TextStyle(color: AppColors.inactiveText),
+                  ),
+                  style: TextStyle(color: AppColors.primaryText),
+                  onSubmitted: (_) {
+                    final val = controller.text.trim();
+                    if (val.isNotEmpty) {
+                      setState(() {
+                        onAdd(val);
+                        controller.clear();
+                      });
+                    }
+                  },
                 ),
-                style: TextStyle(color: AppColors.primaryText),
-                onSubmitted: (_) {
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
                   final val = controller.text.trim();
                   if (val.isNotEmpty) {
                     setState(() {
@@ -298,52 +322,41 @@ class _DanmakuBlockSettingsState extends State<_DanmakuBlockSettings> {
                     });
                   }
                 },
+                icon: Icon(Icons.add, color: Colors.blue),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: () {
-                final val = controller.text.trim();
-                if (val.isNotEmpty) {
-                  setState(() {
-                    onAdd(val);
-                    controller.clear();
-                  });
-                }
-              },
-              icon: Icon(Icons.add, color: Colors.blue),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-        // 关键词列表
-        keywords.isEmpty
-            ? Text(
-                '暂无屏蔽词',
-                style: TextStyle(
-                  color: AppColors.disabledText,
-                  fontStyle: FontStyle.italic,
+          // 关键词列表
+          keywords.isEmpty
+              ? Text(
+                  '暂无屏蔽词',
+                  style: TextStyle(
+                    color: AppColors.disabledText,
+                    fontStyle: FontStyle.italic,
+                  ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: keywords
+                      .map(
+                        (k) => Chip(
+                          label: Text(k),
+                          labelStyle: TextStyle(color: AppColors.primaryText),
+                          backgroundColor: Colors.red.withValues(alpha: 0.2),
+                          deleteIconColor: AppColors.primaryText,
+                          onDeleted: () {
+                            setState(() {
+                              onRemove(k);
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
                 ),
-              )
-            : Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: keywords
-                    .map(
-                      (k) => Chip(
-                        label: Text(k),
-                        backgroundColor: Colors.red.withValues(alpha: 0.2),
-                        onDeleted: () {
-                          setState(() {
-                            onRemove(k);
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-      ],
+        ],
       ),
     );
   }

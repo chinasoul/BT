@@ -432,7 +432,9 @@ class _PlaybackSettingsState extends State<PlaybackSettings> {
                                   ? SettingsService.themeColor
                                   : focused
                                   ? AppColors.navItemSelectedBackground
-                                  : Colors.transparent,
+                                  : (AppColors.isLight
+                                        ? Colors.black.withValues(alpha: 0.06)
+                                        : Colors.white.withValues(alpha: 0.1)),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(

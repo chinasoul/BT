@@ -263,39 +263,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// 获取向右导航回调
+  ///
+  /// 确认键切页模式：右键始终进入当前选中（可见）tab 的内容区，
+  /// 与 YouTube 等主流 TV App 行为一致。
+  /// 聚焦即切页模式：焦点移动即切换 tab，右键进入当前聚焦 tab 的内容。
   VoidCallback? _getMoveRightHandler(int index) {
-    // 首页：聚焦记忆的分类标签
-    if (index == 0) {
-      return () => _homeTabKey.currentState?.focusSelectedCategoryTab();
+    final targetTab =
+        SettingsService.focusSwitchTab ? index : _selectedTabIndex;
+    return _getTabContentEntryHandler(targetTab);
+  }
+
+  /// 根据 tab 索引返回进入该 tab 内容区的回调
+  VoidCallback? _getTabContentEntryHandler(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return () => _homeTabKey.currentState?.focusSelectedCategoryTab();
+      case 1:
+        return () => _dynamicTabKey.currentState?.focusFirstItem();
+      case 2:
+        return () => _followingTabKey.currentState?.focusSelectedTopTab();
+      case 3:
+        return () => _historyTabKey.currentState?.focusFirstItem();
+      case 4:
+        return () => _liveTabKey.currentState?.focusFirstItem();
+      case 5:
+        return () => _loginTabKey.currentState?.focusFirstItem();
+      case 6:
+        return () => _searchTabKey.currentState?.focusDefaultEntry();
+      case 7:
+        return () => _settingsKey.currentState?.focusFirstCategory();
+      default:
+        return null;
     }
-    // 动态页：聚焦第一个视频卡片
-    if (index == 1) {
-      return () => _dynamicTabKey.currentState?.focusFirstItem();
-    }
-    // 关注页：聚焦记忆的顶部标签
-    if (index == 2) {
-      return () => _followingTabKey.currentState?.focusSelectedTopTab();
-    }
-    // 直播页：聚焦记忆的分类标签
-    if (index == 4) {
-      return () => _liveTabKey.currentState?.focusFirstItem();
-    }
-    // 历史页：聚焦第一个视频卡片
-    if (index == 3) {
-      return () => _historyTabKey.currentState?.focusFirstItem();
-    }
-    if (index == 5 && AuthService.isLoggedIn) {
-      return null; // 个人资料页不需要特殊右键导航
-    }
-    // 搜索页：右键进入键盘区默认入口（保持原导航习惯）
-    if (index == 6) {
-      return () => _searchTabKey.currentState?.focusDefaultEntry();
-    }
-    // 设置页 (index 7)
-    if (index == 7) {
-      return () => _settingsKey.currentState?.focusFirstCategory();
-    }
-    return null;
   }
 
   @override

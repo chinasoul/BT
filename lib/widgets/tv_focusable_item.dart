@@ -62,12 +62,10 @@ class TvFocusableItem extends StatelessWidget {
         onLeft: onMoveLeft,
         onRight: onMoveRight,
         onSelect: onTap,
-        // 无目标时吞键，防止默认方向搜索串到内容区
         blockUp: onMoveUp == null,
         blockDown: onMoveDown == null,
         blockLeft: onMoveLeft == null,
-        // 个人中心（登录/资料）依赖默认右向搜索进入内容区，保留该行为。
-        blockRight: false,
+        blockRight: onMoveRight == null,
       );
     },
     child: Builder(

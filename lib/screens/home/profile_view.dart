@@ -32,6 +32,10 @@ class ProfileViewState extends State<ProfileView> {
     super.dispose();
   }
 
+  void focusFirstItem() {
+    _logoutFocusNode.requestFocus();
+  }
+
   Future<void> _handleLogout() async {
     final confirmed = await _showConfirmDialog('确认退出', '确定要退出登录吗？');
     if (confirmed) {

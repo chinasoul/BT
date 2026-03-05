@@ -16,6 +16,15 @@ class LoginTab extends StatefulWidget {
 }
 
 class LoginTabState extends State<LoginTab> {
+  final GlobalKey<ProfileViewState> _profileKey =
+      GlobalKey<ProfileViewState>();
+
+  void focusFirstItem() {
+    if (AuthService.isLoggedIn) {
+      _profileKey.currentState?.focusFirstItem();
+    }
+  }
+
   void _handleLoginSuccess() {
     setState(() {}); // Refresh to show ProfileView
     widget.onLoginSuccess?.call();
@@ -34,6 +43,7 @@ class LoginTabState extends State<LoginTab> {
   Widget build(BuildContext context) {
     if (AuthService.isLoggedIn) {
       return ProfileView(
+        key: _profileKey,
         sidebarFocusNode: widget.sidebarFocusNode,
         onLogout: _handleLogout,
       );

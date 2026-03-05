@@ -271,7 +271,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
     setState(() {
       isLoading = true;
       errorMessage = null;
-      hasHandledVideoComplete = false; // 重置播放完成标志
+      hasHandledVideoComplete = false;
+      isReplaySeekPending = false;
       isUserInitiatedPause = false;
       subtitleNeedLogin = false;
       subtitleRequestSeq++;
@@ -969,10 +970,21 @@ mixin PlayerActionMixin on PlayerStateMixin {
     final bool isSeeking =
         pendingSeekTarget != null || isSeekPreviewMode || isProgressBarFocused;
 
+    // 重播 seek 到位后清除标记
+    if (isReplaySeekPending && posMs < durMs - 1000) {
+      isReplaySeekPending = false;
+    }
+
     // 策略1 - 软着陆: 正常播放接近末尾时主动暂停(500ms)
     //   解决: TV 解码器 EOS 帧闪烁
+    //   排除: 用户正在 seek 或从完成状态重播 seek 尚未到位
     final bool isSoftEnd =
-        !isLoopMode && durMs >= 1000 && value.isPlaying && posMs >= durMs - 500;
+        !isLoopMode &&
+        durMs >= 1000 &&
+        value.isPlaying &&
+        !isSeeking &&
+        !isReplaySeekPending &&
+        posMs >= durMs - 500;
 
     // 策略2 - 末尾停转: 最后 5 秒内 isPlaying 意外变 false
     //   解决: DASH 分段边界导致的末尾卡顿(position停滞→跳到末尾)
@@ -1881,6 +1893,7 @@ mixin PlayerActionMixin on PlayerStateMixin {
       // 播放完成后按播放键：从头开始重播
       if (hasHandledVideoComplete) {
         hasHandledVideoComplete = false;
+        isReplaySeekPending = true;
         videoController!.seekTo(Duration.zero);
         resetDanmakuIndex(Duration.zero);
         resetSubtitleIndex(Duration.zero);
@@ -2596,7 +2609,8 @@ mixin PlayerActionMixin on PlayerStateMixin {
       showEpisodePanel = false;
       lastDanmakuIndex = 0;
       danmakuList = [];
-      hasHandledVideoComplete = false; // 重置播放完成标志，确保下一集播完后能继续触发自动播放
+      hasHandledVideoComplete = false;
+      isReplaySeekPending = false;
       subtitleTracks = [];
       subtitleItems = [];
       selectedSubtitleTrackIndex = -1;

@@ -16,6 +16,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackParameters;
+import androidx.media3.common.Player;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
@@ -41,10 +42,14 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
 
   // Mute during initialization to prevent audio noise/static on some TV devices
   // (e.g., TCL Android 9) where tunnel mode AudioTrack HAL outputs garbage data
-  // during codec init. Unmuted on first play() after a brief stabilization delay.
+  // during codec init. Volume is restored when the first video frame is rendered
+  // (onRenderedFirstFrame), ensuring audio never leads video. A fallback timer
+  // covers edge cases where the callback doesn't fire (e.g., audio-only streams).
   private final Handler mainHandler = new Handler(Looper.getMainLooper());
   private float targetVolume = 1.0f;
   private boolean initialMuted = true;
+  private boolean firstFrameRendered = false;
+  private Runnable volumeFallbackRunnable;
   private boolean disposed = false;
 
   /** A closure-compatible signature since {@link java.util.function.Supplier} is API level 24. */
@@ -89,6 +94,24 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
     exoPlayer.setMediaItem(mediaItem);
     exoPlayer.prepare();
     exoPlayer.addListener(createExoPlayerEventListener(exoPlayer, surfaceProducer));
+
+    // One-shot listener: record when the first video frame is actually on screen,
+    // and restore volume if play() has already been called.
+    exoPlayer.addListener(new Player.Listener() {
+      @Override
+      public void onRenderedFirstFrame() {
+        firstFrameRendered = true;
+        if (!initialMuted && !disposed) {
+          if (volumeFallbackRunnable != null) {
+            mainHandler.removeCallbacks(volumeFallbackRunnable);
+            volumeFallbackRunnable = null;
+          }
+          exoPlayer.setVolume(targetVolume);
+        }
+        exoPlayer.removeListener(this);
+      }
+    });
+
     setAudioAttributes(exoPlayer, options.mixWithOthers);
   }
 
@@ -111,11 +134,20 @@ public abstract class VideoPlayer implements VideoPlayerInstanceApi {
     exoPlayer.play();
     if (initialMuted) {
       initialMuted = false;
-      mainHandler.postDelayed(() -> {
-        if (!disposed) {
-          exoPlayer.setVolume(targetVolume);
-        }
-      }, 150);
+      if (firstFrameRendered) {
+        // Non-tunnel mode: first frame rendered during prepare(), restore immediately
+        exoPlayer.setVolume(targetVolume);
+      } else {
+        // Tunnel mode (typical): wait for onRenderedFirstFrame to sync audio with video.
+        // Fallback for audio-only streams or broken renderers where the callback never fires.
+        volumeFallbackRunnable = () -> {
+          if (!disposed) {
+            exoPlayer.setVolume(targetVolume);
+          }
+          volumeFallbackRunnable = null;
+        };
+        mainHandler.postDelayed(volumeFallbackRunnable, 2000);
+      }
     }
   }
 

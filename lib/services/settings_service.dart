@@ -706,6 +706,7 @@ class SettingsService {
     _panelBackgroundAlphaKey,
     _popupBackgroundColorKey,
     _popupBackgroundAlphaKey,
+    _showCompletionActionHintKey,
   ];
 
   static Future<void> _removePreferenceKeys(List<String> keys) async {
@@ -1506,6 +1507,8 @@ class SettingsService {
       'popup_background_color';
   static const String _popupBackgroundAlphaKey =
       'popup_background_alpha';
+  static const String _showCompletionActionHintKey =
+      'show_completion_action_hint';
 
   /// 开发者选项变更回调（用于刷新设置标签页列表）
   static VoidCallback? onDeveloperModeChanged;
@@ -1526,6 +1529,15 @@ class SettingsService {
     await init();
     await _prefs!.setBool(_mouringEnabledKey, value);
     _mouringEnabledNotifier.value = value;
+  }
+
+  /// 是否在播放器右上角显示连播模式提示（默认关闭）
+  static bool get showCompletionActionHint =>
+      _prefs?.getBool(_showCompletionActionHintKey) ?? false;
+
+  static Future<void> setShowCompletionActionHint(bool value) async {
+    await init();
+    await _prefs!.setBool(_showCompletionActionHintKey, value);
   }
 
   /// 是否在 overlay 上显示 APP 进程占用率

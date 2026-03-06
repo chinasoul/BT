@@ -403,7 +403,8 @@ class _PlayerScreenState extends State<PlayerScreen>
                   ),
 
                 // 播放完成行为提示（仅“播放下一集”且多集视频时显示）
-                if (completionAction ==
+                if (SettingsService.showCompletionActionHint &&
+                    completionAction ==
                         PlaybackCompletionAction.playNextEpisode &&
                     hasMultipleEpisodes &&
                     !isLoading &&

@@ -36,6 +36,7 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
   double _panelBackgroundAlpha = 0.95;
   int _popupBackgroundColorValue = 0xFF2A2A2A;
   double _popupBackgroundAlpha = 0.95;
+  bool _showCompletionActionHint = false;
   bool _mouringEnabled = true;
 
   static const List<double> _nativeDanmakuStrokeWidthOptions = [
@@ -144,6 +145,7 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
   final FocusNode _panelBackgroundAlphaFocusNode = FocusNode();
   final FocusNode _popupBackgroundColorFocusNode = FocusNode();
   final FocusNode _popupBackgroundAlphaFocusNode = FocusNode();
+  final FocusNode _completionHintToggleFocusNode = FocusNode();
   final FocusNode _mouringToggleFocusNode = FocusNode();
   final FocusNode _resetFocusNode = FocusNode();
 
@@ -244,6 +246,7 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
       _commentBackgroundAlphaOptions,
       SettingsService.popupBackgroundAlpha,
     );
+    _showCompletionActionHint = SettingsService.showCompletionActionHint;
     _mouringEnabled = SettingsService.mouringEnabled;
   }
 
@@ -264,6 +267,7 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
     _panelBackgroundAlphaFocusNode.dispose();
     _popupBackgroundColorFocusNode.dispose();
     _popupBackgroundAlphaFocusNode.dispose();
+    _completionHintToggleFocusNode.dispose();
     _mouringToggleFocusNode.dispose();
     _resetFocusNode.dispose();
     super.dispose();
@@ -593,7 +597,7 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
           focusNode: _popupBackgroundAlphaFocusNode,
           isLast: false,
           onMoveUp: () => _popupBackgroundColorFocusNode.requestFocus(),
-          onMoveDown: () => _mouringToggleFocusNode.requestFocus(),
+          onMoveDown: () => _completionHintToggleFocusNode.requestFocus(),
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (value) async {
             if (value == null) return;
@@ -603,10 +607,24 @@ class _DeveloperSettingsState extends State<DeveloperSettings> {
         ),
         const SizedBox(height: AppSpacing.settingItemGap),
         SettingToggleRow(
+          label: '连播模式提示',
+          subtitle: '开启后在播放器右上角显示"播放完成后：下一集"提示',
+          value: _showCompletionActionHint,
+          focusNode: _completionHintToggleFocusNode,
+          onMoveUp: () => _popupBackgroundAlphaFocusNode.requestFocus(),
+          onMoveDown: () => _mouringToggleFocusNode.requestFocus(),
+          sidebarFocusNode: widget.sidebarFocusNode,
+          onChanged: (v) {
+            setState(() => _showCompletionActionHint = v);
+            SettingsService.setShowCompletionActionHint(v);
+          },
+        ),
+        const SizedBox(height: AppSpacing.settingItemGap),
+        SettingToggleRow(
           label: 'Mouring',
           value: _mouringEnabled,
           focusNode: _mouringToggleFocusNode,
-          onMoveUp: () => _popupBackgroundAlphaFocusNode.requestFocus(),
+          onMoveUp: () => _completionHintToggleFocusNode.requestFocus(),
           onMoveDown: () => _resetFocusNode.requestFocus(),
           sidebarFocusNode: widget.sidebarFocusNode,
           onChanged: (v) {

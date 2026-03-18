@@ -1,5 +1,7 @@
 # BT-哔哩哔哩Tv客户端
 
+> v0.9.0 起请前往 [BT-native](https://github.com/chinasoul/BT-native) 下载
+<br />
 
 **参考项目**：  
 [Hyper-Beast/BiliTV](https://github.com/Hyper-Beast/BiliTV)（MIT）  

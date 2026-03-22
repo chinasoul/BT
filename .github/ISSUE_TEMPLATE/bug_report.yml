@@ -1,51 +1,31 @@
 name: Bug Report
-description: 报告一个问题，帮助我们定位并修复
+description: 报告一个问题
 title: "[Bug] "
 labels:
   - bug
 body:
-  - type: markdown
-    attributes:
-      value: |
-        感谢你的反馈！请尽可能完整填写以下信息，便于我们快速定位问题。
-
   - type: input
-    id: tv_brand_model
+    id: app_version
     attributes:
-      label: 电视品牌和型号
-      description: 请输入电视品牌和型号
-      placeholder: 例如：小米 TV A55、Sony KD-55X85K
+      label: App 版本
+      placeholder: 例如：v1.2.3
     validations:
-      required: false
+      required: true
 
   - type: input
     id: android_version
     attributes:
       label: 安卓版本
-      description: 例如：Android 9 / Android 11 / 安卓 TV 12
-      placeholder: 请输入安卓版本
-    validations:
-      required: false
+      placeholder: 例如：Android 9 / Android 11
 
   - type: input
-    id: app_version
+    id: tv_brand_model
     attributes:
-      label: App 版本
-      description: 请填写完整版本号
-      placeholder: 例如：v1.2.3
-    validations:
-      required: false
+      label: 电视型号
+      placeholder: 例如：小米 TV A55、Sony KD-55X85K
 
   - type: textarea
     id: issue_details
     attributes:
       label: 问题详情
-      description: 请在一个输入框里描述问题现象、复现步骤、预期行为及其他补充信息
-      placeholder: |
-        例如：
-        - 问题现象：...
-        - 复现步骤：1)... 2)... 3)...
-        - 预期行为：...
-        - 其他信息（日志/截图）：...
-    validations:
-      required: false
+      placeholder: 请描述问题现象、复现步骤等

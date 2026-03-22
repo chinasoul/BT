@@ -1,60 +1,11 @@
 name: Enhancement Request
-description: 提交功能优化或体验改进建议
+description: 提交功能建议
 title: "[Enhancement] "
 labels:
   - enhancement
 body:
-  - type: markdown
-    attributes:
-      value: |
-        感谢你的建议！请尽可能完整填写以下信息，帮助我们更好地评估需求。
-
-  - type: input
-    id: feature_summary
-    attributes:
-      label: 需求标题
-      description: 用一句话概括你的建议
-      placeholder: 例如：增加开机自动进入直播页
-    validations:
-      required: false
-
-  - type: input
-    id: tv_brand_model
-    attributes:
-      label: 电视品牌和型号
-      description: 请输入电视品牌和型号
-      placeholder: 例如：小米 TV A55、Sony KD-55X85K
-    validations:
-      required: false
-
-  - type: input
-    id: android_version
-    attributes:
-      label: 安卓版本
-      description: 例如：Android 9 / Android 11 / 安卓 TV 12
-      placeholder: 请输入安卓版本
-    validations:
-      required: false
-
-  - type: input
-    id: app_version
-    attributes:
-      label: App 版本
-      description: 请填写当前使用的版本号
-      placeholder: 例如：v1.2.3
-    validations:
-      required: false
-
   - type: textarea
     id: enhancement_details
     attributes:
       label: 需求详情
-      description: 请在一个输入框里描述当前痛点、建议方案、预期收益及参考信息
-      placeholder: |
-        例如：
-        - 当前痛点：...
-        - 建议方案：...
-        - 预期收益：...
-        - 参考信息：...
-    validations:
-      required: false
+      placeholder: 请描述你的需求或建议

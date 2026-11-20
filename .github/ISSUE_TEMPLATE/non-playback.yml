@@ -1,0 +1,62 @@
+name: 非播放问题
+description: 崩溃闪退、界面异常、接口报错等
+title: "[非播放] "
+labels:
+  - bug
+body:
+  - type: input
+    id: bt_version
+    attributes:
+      label: BT 版本
+      description: 如 0.9.42、0.9.42-legacy
+      placeholder: 0.9.42
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: 系统版本
+      description: 如 安卓15、tvOS 17.0
+      placeholder: 安卓15
+    validations:
+      required: true
+
+  - type: input
+    id: tv_model
+    attributes:
+      label: 电视型号
+      description: 选填
+      placeholder: 如 小米 TV A55
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 为了更快定位问题，需提供日志（见下方「如何导出日志」）。
+      placeholder: |
+        - 问题现象：
+        - 复现步骤：
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### 如何开启开发者选项
+
+        - **安卓**：设置 → 本机信息 → 连点「安卓版本」7 次
+        - **tvOS**：设置 → 本机信息 → 连点「tvOS 版本」7 次
+
+        开启后设置里会多出「开发者选项」。
+
+        ### 如何导出日志
+
+        开发者选项 → 日志 → 查看日志
+
+        - **崩溃 / 闪退**：导出刚才发生 crash 那个时间点的日志，上传带 `crash` 的那份。
+        - **常规日志**：开发者选项 → 日志 → 手动保存日志 → 查看日志，上传带 `manual` 的那份。

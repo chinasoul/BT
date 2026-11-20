@@ -1,0 +1,70 @@
+name: 播放问题
+description: 画面不正常、黑屏、播放失败等
+title: "[播放] "
+labels:
+  - bug
+body:
+  - type: input
+    id: bt_version
+    attributes:
+      label: BT 版本
+      description: 如 0.9.42、0.9.42-legacy
+      placeholder: 0.9.42
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: 系统版本
+      description: 如 安卓15、tvOS 17.0
+      placeholder: 安卓15
+    validations:
+      required: true
+
+  - type: input
+    id: tv_model
+    attributes:
+      label: 电视型号
+      description: 选填
+      placeholder: 如 小米 TV A55
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 为了更快定位问题，需提供播放流程日志（见下方「如何导出播放流程日志」）。
+      placeholder: |
+        - 问题现象（黑屏、花屏、卡顿、播放失败等）：
+        - 播放流程日志（屏幕上 http://IP:9530 或 LAN log 地址的内容）：
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### 如何开启开发者选项
+
+        - **安卓**：设置 → 本机信息 → 连点「安卓版本」7 次
+        - **tvOS**：设置 → 本机信息 → 连点「tvOS 版本」7 次
+
+        开启后设置里会多出「开发者选项」。
+
+        ### 如何开启播放流程日志
+
+        开发者选项里打开「播放流程日志」。
+
+        ### 如何导出播放流程日志
+
+        开启后播放时屏幕上会打印日志，注意第一行的地址：
+
+        - **安卓**：`http://IP:9530`
+        - **tvOS**：`LAN log → http://IP:端口/flow`（端口可能是 9527–9530，以屏幕上显示的为准）
+
+        用电脑或者手机访问这个地址，把内容贴到上面的「问题描述」里。
+
+        > IP 看不到的话，可以通过 设置 - 本机信息 - 内网 IP 查看。

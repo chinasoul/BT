@@ -1,6 +1,5 @@
 name: 非播放问题
 description: 崩溃闪退、界面异常、接口报错等
-title: "[非播放] "
 labels:
   - bug
 body:
@@ -8,8 +7,7 @@ body:
     id: bt_version
     attributes:
       label: BT 版本
-      description: 如 0.9.42、0.9.42-legacy
-      placeholder: 0.9.42
+      description: 如 0.9.42、0.9.42-legacy、1.0.0
     validations:
       required: true
 
@@ -18,16 +16,14 @@ body:
     attributes:
       label: 系统版本
       description: 如 安卓15、tvOS 17.0
-      placeholder: 安卓15
     validations:
-      required: true
+      required: false
 
   - type: input
     id: tv_model
     attributes:
       label: 电视型号
       description: 选填
-      placeholder: 如 小米 TV A55
     validations:
       required: false
 

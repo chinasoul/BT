@@ -8,6 +8,6 @@ BT 是一个面向 TV 场景的个人学习与自用工具项目，主要用于�
 
 - **Android TV**：安卓 6.0 及以上 —— `universal.apk`
 - **Android TV**：安卓 4.2 ~ 5.1 —— `universal-api19-22.apk`
-- **Apple TV**：tvOS 14.0 及以上
+- **Apple TV**：tvOS 15.0 及以上, bt://
 
 > 注：优先安装 `universal.apk`，装不上再试 api19 版本。
